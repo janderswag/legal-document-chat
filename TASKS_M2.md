@@ -81,7 +81,11 @@
       Reviewer's **F-042 alternate-page** scoring clarification into TEST_PLAN §6. Then a **targeted
       re-run** of the affected facts (F-014, F-016, F-042 + any other entity/backslash false-rejects
       across the 72) to flip CONDITIONAL → **FINAL PASS ≥95%**. The verifier must still **fail
-      conservatively** (never false-accept a fabrication). **[NEXT]**
+      conservatively** (never false-accept a fabrication). **⛔ F-026 is a GENUINE miss — EXCLUDE it
+      from the fix:** retrieval surfaced only the page-3 counsel occurrence (not the page-1 caption) →
+      the model **falsely refused a present fact** (a recall gap, not a verifier issue). Do **NOT**
+      weaken the verifier or force-pass it. Expected FINAL ≈ **62/63 (≥95%)** with F-026 the lone real
+      miss; revisit F-026 later (top_k / reranker / chunking — see Risks). **[NEXT]**
 - [ ] **M2-9 — Docker Compose deployment** (D-20) — later.
 
 ## Constraints (carry-forward from M1)
@@ -101,3 +105,7 @@
   on heading-less, real-style PDFs** or section metadata may degrade. Not an M2-synthetic blocker.
 - **🟡 Span normalization (folded into M2-6).** `verbatim_span` ≠ raw PDF text byte-for-byte (reflow);
   the D-19 overlap check must normalize. See M2-6.
+- **🟡 F-026 retrieval-recall gap (M2-8 finding).** A present fact (counsel named in the page-1
+  caption) was **falsely refused** because retrieval surfaced only its page-3 occurrence. **Not** a
+  safety issue (no hallucination) and **not** a verifier bug — a **recall** gap. Revisit via `top_k` /
+  reranker / chunking tuning; tracked, not an M2-8a blocker. Do not force-pass it.

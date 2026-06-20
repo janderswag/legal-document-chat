@@ -1,135 +1,135 @@
 # BUILDER_STATE.md — Builder handoff (pre-context-clear)
 
-_Generated 2026-06-20. Snapshot of the Builder tab's state in the Planner→Builder→Reviewer→Tester
-relay. Read alongside `RUN_STATE.md` (source of truth), `TASKS.md`, `DECISIONS.md`, `eval/TEST_PLAN.md`._
+_Regenerated 2026-06-20 at the **M2-8a boundary**. Snapshot of the Builder tab's state in the
+Planner→Builder→Reviewer→Tester relay. Read alongside **`RELAY.md`** (loop operating manual) and the
+canonical files it lists: `CLAUDE.md`, `RUN_STATE.md` (source of truth + "Next task"), `TASKS_M2.md`,
+`DECISIONS.md` (D-1…D-39), `eval/TEST_PLAN.md` (§3/§4 = M1 filename bar D-29; §6 = M2 page+span bar D-39)._
 
 ## 1. Current task
 
-**M1-10 is COMPLETE.** No task is mid-edit. The Builder just finished running all 72 golden questions
-through the `m1-golden` AnythingLLM workspace, captured raw output, manually graded per D-29/D-30, and
-recorded a **recommended M1-13 PASS** (all four §4 gates met). The Builder is now **idle, awaiting the
-relay**: Reviewer audit → Tester repro → Planner records M1-13 with owner.
+**M2-8 is COMPLETE — recorded as a CONDITIONAL PASS.** The Builder ran all 72 golden questions
+through the M2 pipeline (`retrieve → answer → verify_answer`, `rerank=False`) under a continuous
+egress monitor and graded manually at the page+span bar (TEST_PLAN §6 / D-39). No task is mid-edit;
+the Builder is **idle at a clean between-task boundary**, awaiting the relay.
 
-No code is being written (M1 is turnkey AnythingLLM + Ollama; no application/pipeline code exists yet —
-that's M2-3, gated on M1 passing).
+**Next task = M2-8a (queued, NOT started):** a small verifier-normalization fix to convert the
+conditional pass into a FINAL page+span PASS (≥95%):
+- `html.unescape` the model's cited span before the overlap check (recovers **F-016**, whose span
+  carried `&quot;` HTML entities),
+- strip stray backslash-escapes from the span (recovers **F-014**, `\"Landlord\"`),
+- credit **F-042** as a valid alternate-page citation (the judge is named verbatim on the cited page 2
+  as well as the manifest's page 1 — a multi-page fact, not a fabrication).
+Then **M2-7** (FastAPI loopback HTTP surface, D-13), after which the M2 milestone wraps.
 
 ## 2. Decisions made (and why)
 
-These are recorded in `DECISIONS.md`; summarized here with rationale:
+Recorded in `DECISIONS.md`; the M2 build/scoring calls, summarized:
 
-- **D-29 — M1 citation scored at FILENAME level, not page level.** Empirically (M1-7c) AnythingLLM
-  1.14.1's desktop PDF parser flattens all pages into one `pageContent` blob and emits **empty chunk
-  metadata (no page field)**, so verifiable page-level citation is mechanically impossible on the
-  turnkey stack. M1 scores answer-correctness + filename grounding + DRM right-matter + refusal.
-  Verifiable **page+span** citation is reassigned to **M2-3** (Docling + mechanical span check, D-19).
-- **D-30 — Not-found refusal scored on substance, not exact wording.** Passes when the system declines
-  + asserts no citation; the exact "I could not find this in the documents." sentence is pinned as the
-  product string and tracked separately as `refusal_wording_exact` (informational UX flag).
-- **D-31 — Air-gap is egress-MONITORED, not physical disconnect.** The AI-driven run needs the network;
-  corpus is synthetic. Prove SC-6 by monitoring (lsof/nettop) for zero non-loopback, not by unplugging.
-- **Run via the v1 API, never `stream-chat`.** This AnythingLLM 1.14.1 build routes HTTP `stream-chat`
-  into **agent mode** (tools/web) — which would violate the no-action/no-egress boundary (CE_PLAN §3
-  #12). The stable, grounded path is `POST /api/v1/workspace/{slug}/chat` with `mode:"query"`.
-- **`update-env` requires STRING values.** The endpoint's validator calls `.includes` on values and
-  500s on numbers. Always send config values as strings (e.g. `"OllamaLLMTokenLimit":"32768"`).
-- **Corpus rendered to page-faithful PDFs** (M1-7c) via no-install headless Google Chrome
-  `--print-to-pdf`, one physical page per `===== PAGE N =====` marker. (Kept even though the parser
-  drops page metadata — preserves the page-faithful artifact for the M2-3 build.)
-- **D-28 — synthetic document bodies live ONLY under git-ignored `documents/`; only metadata under
-  tracked `eval/`.** Never commit a document body.
+- **D-34 — Vector store = LanceDB (embedded, pip-only).** No Docker/server; chosen over Qdrant for the
+  single-tenant M2 build. Store is git-ignored (contains document text).
+- **D-35 — Matter-scoping = explicit `matter` param + hard pre-filter BEFORE similarity.** Never infer
+  the matter from the question (inference is the exact DRM failure). Absent matter = explicit search-all.
+- **D-36 — Reranker (`bge-reranker-v2-m3`) runs LOCAL in-process (transformers+Torch), NOT Ollama**
+  (Ollama can't serve cross-encoders). Measured **neutral lift** on this 6-doc corpus → **OFF by
+  default** (`rerank=False`); kept behind a flag for production scale.
+- **D-37 — Answering is hand-rolled; LlamaIndex dropped.** A thin retrieve→assemble→qwen3→parse
+  function, for full transparency of the claim→chunk→offset citation path M2-6 needs.
+- **D-38 — Displayed citations are CHUNK-DERIVED, never model-asserted.** Filename+page come from the
+  matched chunk's metadata; the model's prose is only a pointer. (Fixed the M2-5 `_parse_citations`
+  bug; precondition of M2-6.)
+- **D-39 — M2-8 scores at the stricter page+span bar** (re-instating CE_PLAN §2/§11 that D-29 relaxed
+  for the turnkey stack): present-fact citation = conveys fact AND chunk-derived `filename_match` AND
+  `page_match` AND the span **mechanically verifies** (survives `verify_answer`). **Displayed
+  fabrications = hard-zero.**
+- **Normalization contract (M2-1/M2-2/M2-6):** collapse whitespace, `-\n`→`-` (keep the hyphen), drop
+  quote chars, lowercase — applied to BOTH span and chunk text so PDF reflow never false-rejects.
+  (M2-8a extends this with `html.unescape` + backslash-strip.)
+- **D-31 — Air-gap = egress-MONITORED, not disconnected** (networking on; `lsof`/`nettop` prove zero
+  non-loopback). **D-28 — document bodies + derived stores (`pipeline/.lancedb/`, chunks,
+  `eval/results/`) are git-ignored**, never committed.
 
 ## 3. In-flight work
 
-**None half-finished.** M1-10 ran to completion (72/72, 0 errors). All result artifacts written. Doc
-updates (RUN_STATE/TASKS) applied. The only "open" items are relay hand-offs (audit/repro/decision),
-not Builder work.
+**None half-finished.** Confirmed at this regen: `pipeline/verifier.py` has **no** `html.unescape`
+(M2-8a not started); the deterministic verifier + chunk-derived tests pass (6/6, no LLM); the full
+suite was 37/37 at M2-6. The M2-8 run + grading artifacts are written. The only open items are relay
+hand-offs (Reviewer audit of the M2-8 grading → Tester repro → Planner records final), not Builder code.
 
 ## 4. Next 3 steps (immediately after resume)
 
-The Builder's own queue is empty pending the relay; if resumed as Builder these are the next actions:
-1. **Wait for Reviewer's audit** of `eval/results/grades-2026-06-20-qwen3-14b.md`. The one definitional
-   call to confirm: filename_match via the **returned `sources[]`** citation (Builder's reading) vs
-   requiring the filename **asserted in the answer text**. If the Reviewer rules "asserted-in-answer
-   only," re-grade the ~15 present facts that cited "the document"/"Context 0" without naming the `.pdf`.
-2. **Support the Tester's ~10-question repro** (fresh sessionId, v1 query chat, query mode) and the
-   egress re-snapshot; reconcile any nondeterminism (qwen3 thinking can vary phrasing, not the cited file).
-3. **Hand the confirmed numbers to the Planner** to record the **M1-13 go/no-go** with the owner, plus
-   the **M2-3 build decision** (page+span citation) and the **latency-tuning** note before any M4 demo.
+1. **Await the Reviewer's audit** of the M2-8 grading (sample of present-fact `citation_accurate_M2`,
+   all 9 NF, the 0-displayed-fabrications claim, F-042/F-016 rulings) and the Tester's independent
+   ~10-question repro.
+2. **Execute M2-8a** when the Planner gates it: add `html.unescape` + backslash-strip to the verifier's
+   span normalization (test-first: F-016/F-014-style synthetic spans must verify; the fabricated/
+   mis-paged true-negatives must STILL be rejected — the verifier must never false-accept), credit
+   F-042, re-run the 72-question set, confirm ≥95% page+span + still 0 displayed fabrications.
+3. **Then M2-7** (FastAPI loopback-only HTTP surface, D-13) — owner-gated install (FastAPI/uvicorn).
 
-(If the owner says PASS: M2 begins — custom FastAPI + LlamaIndex + Docling pipeline. Do NOT start it
-until M1-13 is recorded and the owner approves.)
+## 5. Key constraints (must be respected — see `RELAY.md` "Standing constraints")
 
-## 5. Key constraints (must be respected)
-
-- **Milestone 1 ONLY.** Do not scaffold the M2-3 custom pipeline (FastAPI/LlamaIndex/Qdrant/Docling/
-  reranker/mechanical span check) until M1 passes and the owner approves.
-- **Installs/model-pulls/config changes are owner-gated, one step at a time.** Each prior step (M1-1..
-  M1-5, M1-7c, M1-7b) was approved via its relay prompt. Do not install/pull/reconfigure without the
-  task calling for it.
-- **No auto-scorer.** A script that computes pass/fail is approval-gated tooling (TEST_PLAN §3). Posing
-  questions via repeated API calls is fine; **grading is manual** (read each answer vs the manifest).
-- **Local-only, loopback-only.** AnythingLLM `:3001`/`:8888` + system Ollama `:11434`, all `127.0.0.1`.
-  Never bind `0.0.0.0`; never set `OLLAMA_HOST`. Keep `DISABLE_TELEMETRY='true'`.
-- **Target the SYSTEM Ollama (`127.0.0.1:11434`), NOT AnythingLLM's bundled `llm`** (ephemeral loopback
-  port, was `:64562`).
-- **D-11 digests pinned:** `qwen3:14b=bdbd181c33f2`, `bge-m3=790764642607`. A digest/embedding change
-  forces a full `m1-golden` re-index — re-pin before any re-embed.
-- **Synthetic/public docs only. No real attorney/client data** anywhere on this machine (real data is
-  Milestone 6, onsite, after written approval).
-- The loopback **API key** minted for v1 calls lives in the AnythingLLM DB and `/tmp/m1key.txt`;
-  **never commit the secret.**
+- **Local-only, loopback-only.** System Ollama `127.0.0.1:11434` (NOT AnythingLLM's bundled engine);
+  never bind `0.0.0.0`; never set `OLLAMA_HOST`.
+- **Synthetic/public docs only. No real attorney/client data** (real data = M6, onsite, written approval).
+- **Installs are owner-gated, one step at a time** via the relay prompt. Current venv deps (pinned):
+  `pymupdf==1.27.2.3`, `docling==2.104.0`, `lancedb==0.33.0` (+ transformers/Torch from docling). HF
+  models (Docling layout, `bge-reranker-v2-m3`) live in `~/.cache/huggingface`, fetched once then OFFLINE.
+- **D-11 pins:** `qwen3:14b=bdbd181c33f2`, `bge-m3=790764642607`, reranker
+  `RERANKER_REVISION=953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`. A change forces re-index/re-eval.
+  **Reranker OFF by default** (D-36).
+- **Verifier fails CONSERVATIVELY** — a false-reject of a truthful span is a precision bug; it must
+  **never false-accept a fabrication**. Any M2-8a normalization loosening must preserve this.
+- **Manual eval grading only** — no auto-scorer (TEST_PLAN §3/§5). Objective citation lookups are
+  reading aids, not a pass/fail emitter.
+- **Air-gap = egress-monitored** (D-31). **Git-ignored (D-28):** `documents/`, `pipeline/.lancedb/`,
+  chunk data, `eval/results/`; never commit a body or secret.
 
 ## 6. File map
 
-**Tracked governance/eval (committed-eligible):**
-- `CLAUDE.md`, `CE_PLAN.md`, `README.md` — project governance + plan (unchanged by Builder).
-- `RUN_STATE.md` — source-of-truth status; updated through M1-10 (recommended PASS recorded).
-- `TASKS.md` — M1 checklist; M1-1..M1-9, M1-EH, M1-7/7c/7b, **M1-10/11/12 checked**; M1-13 = recommended
-  PASS pending owner (not checked).
-- `DECISIONS.md` — locked decisions incl. D-28..D-31.
-- `eval/README.md` — manifest schema.
-- `eval/golden_manifest.jsonl` — 72 ground-truth records (63 present + 9 NF). **Filenames are `.pdf`**
-  (updated extension-only in M1-7c). DRM pair F-009/F-025.
-- `eval/golden_questions.jsonl` — 72 questions keyed 1:1 by `fact_id`.
-- `eval/TEST_PLAN.md` — run procedure + rubric + §4 thresholds (D-29/D-30 encoded).
-- `eval/manifest.template.jsonl` — schema template.
-- `BUILDER_STATE.md` — this file.
+**Tracked governance/eval (committable):**
+- `RELAY.md` — 4-tab loop operating manual (read first after any clear).
+- `CLAUDE.md`, `CE_PLAN.md`, `README.md` — governance + plan (milestone now 2-3).
+- `RUN_STATE.md` — source of truth: status + **"Next task" = M2-8a** + completed log + carry-forward.
+- `TASKS_M2.md` — M2 checklist (M2-1…M2-6, M2-8 done; M2-8a/M2-7 next). `TASKS.md` = M1 (historical, PASSED).
+- `DECISIONS.md` — locked decisions **D-1…D-39**.
+- `eval/TEST_PLAN.md` — rubric (§3/§4 M1 filename bar; **§6 M2 page+span bar**).
+- `eval/golden_manifest.jsonl` (72: 63 present + 9 NF; DRM pair F-009/F-025), `eval/golden_questions.jsonl`.
+- `PLANNER_STATE.md`, `BUILDER_STATE.md` (this file).
 
-**Git-ignored run artifacts (`eval/results/`, never committed):**
-- `run-2026-06-20-qwen3-14b.jsonl` — 72 raw answers + asserted citations + sources[] + latency.
-- `egress-2026-06-20.log` — 74 egress snapshots (0 non-loopback).
-- `grades-2026-06-20-qwen3-14b.md` — Builder's manual verdicts + the four metrics.
+**Pipeline code (`pipeline/`, committable — code/tests only, no bodies):**
+- `ingestion.py` (M2-1 PyMuPDF per-page text + 1-based pages) · `chunking.py` (M2-2 Docling structure +
+  page/section-aware chunks + deterministic SAC) · `embed_store.py` (M2-3 bge-m3 1024-d → LanceDB) ·
+  `retrieval.py` (M2-4 matter pre-filter-before-similarity; `rerank` flag) · `reranker.py` (M2-4b local
+  cross-encoder, OFF by default) · `answering.py` (M2-5 §10 grounded answer + D-38 chunk-derived
+  resolution) · `verifier.py` (M2-6 mechanical span overlap + reject; **M2-8a edits land here**) ·
+  `run_m28.py` (M2-8 run harness — loop, not a scorer) · `tests/test_*.py` (per stage; TDD) ·
+  `requirements.txt`, `README.md`, `.gitignore`.
 
-**Git-ignored corpus (`documents/synthetic_corpus/`, bodies never committable, D-28):**
-- 6 source `.md` docs (MSA, lease, complaint, order, public-domain statutes, demand letter).
-- `pdf/` — the 6 page-faithful PDFs (the live ingested corpus) + `pdf/_html/` intermediates.
-
-**External (not in repo) — AnythingLLM state at `~/Library/Application Support/anythingllm-desktop/`:**
-- `storage/.env` — `LLM_PROVIDER=ollama`, base paths `http://127.0.0.1:11434`, `OLLAMA_MODEL_PREF=
-  qwen3:14b`, `EMBEDDING_*=bge-m3:latest`, `OLLAMA_MODEL_TOKEN_LIMIT=32768`,
-  `EMBEDDING_MODEL_MAX_CHUNK_LENGTH=1000`, `DISABLE_TELEMETRY=true`. (Backup `.env.m1eh.bak`.)
-- `storage/anythingllm.db` — workspace `m1-golden` (slug `m1-golden`, `chatMode=query`,
-  `chatModel=qwen3:14b`, §10 system prompt, 1373 chars); `api_keys` has the loopback key; 6 PDFs
-  embedded (16 chunks total). LanceDB at `storage/lancedb/m1-golden.lance`.
+**Git-ignored artifacts (NEVER committed, D-28):**
+- `pipeline/.venv/`, `pipeline/.lancedb/` (vectors+text), `documents/synthetic_corpus/{pdf,chunks}/`
+  (bodies + chunk data + Docling header cache).
+- `eval/results/run-2026-06-20-m2.jsonl` (72 raw M2 results), `egress-2026-06-20-m2.log` (16,148
+  samples, 0 non-loopback), `grades-2026-06-20-m2.md` (manual grading record).
 
 ## 7. Blockers / flags (to escalate to Reviewer / Tester / owner)
 
-- **🟡 Definitional call for the Reviewer:** filename_match scored via the returned `sources[]` citation
-  (not strictly the filename asserted in the answer prose). ~15 present facts depend on this reading.
-  If the Reviewer requires asserted-in-answer, re-grade those (the correct file is still the top source,
-  so likely still PASS, but it's the Reviewer's ruling).
-- **🟡 `sources[]` always populated, even on refusals** — NF "cites nothing" was judged on the answer's
-  asserted citation (all empty), NOT the `sources` array. Reviewer must confirm this interpretation
-  (else all 9 NF would false-fail).
-- **🔴 Structural finding (go/no-go input, for the owner):** verifiable **page-level + mechanical span**
-  citation is **impossible on the turnkey AnythingLLM stack** (parser flattens pages, empty chunk
-  metadata). This is the primary justification to proceed to the **M2-3 custom build** (Docling page
-  metadata + mechanical span overlap, per D-19). Not a reason to keep re-running M1.
-- **🟡 Model emits confident WRONG page numbers in prose** (e.g. "page 14.1", "page 16.1") that are
-  unverifiable. The UI must never present these as verified citations. Reinforces the M2-3 span-check need.
-- **🟡 Latency** (informational, not an M1 §4 gate): mean ~19s, max ~78s per question (qwen3 "thinking");
-  first-token (<3s CE_PLAN target) not separately instrumented (v1 is non-streaming). Recommend a
-  thinking-mode / latency tuning pass before the M4 attorney demo.
-- **🟡 M1-EH residual** (deferred, owner-decided): Chromium DoH/encrypted-DNS to the ISP persists at app
-  launch (not telemetry, not app-controllable). Mooted for M1-10 by egress monitoring; host-level control
-  (`pf`/Little Snitch) deferred to M5/M6 persistent-online hardening.
+- **🟢 M2-8 keystone PROVEN:** M1 produced ZERO verifiable page+span citations; M2 produced **59/63
+  fully chunk-derived, span-verified page+span citations**, **0 displayed fabrications**, **NF 9/9 =
+  100%**, **DRM 2/2 = 100%**, latency mean 6.9s/median 7.0s/max 17.5s, 2 rejected_claims (safety
+  working). Egress: zero non-loopback over 16,148 samples (SC-6).
+- **🟡 Page+span accuracy = 93.7% strict (< 95% gate) → CONDITIONAL pass.** Four non-fabrication misses:
+  - **F-016** — model emitted `&quot;` HTML entities in its span → no overlap → rejected. **Fixable**
+    via `html.unescape` (M2-8a).
+  - **F-014** — model span had backslash-escaped/non-contiguous quotes (`\"Landlord\"`) → rejected.
+    Targeted by M2-8a backslash-strip.
+  - **F-042** — judge named on BOTH manifest page 1 AND the cited page 2; chunk-derived page 2 ≠ 1 →
+    strict `page_match` miss, but a **truthful verified** citation (multi-page fact). M2-8a credits it.
+  - **F-026** — GENUINE miss: retrieval surfaced only the page-3 occurrence of counsel (not the page-1
+    caption) and the model falsely refused. **Not** fixed by M2-8a; revisit via reranker/top_k or a
+    chunking tweak later, not a blocker for the page+span PASS.
+  After M2-8a: expected **≥96.8%** (≥95% gate) with 0 displayed fabrications retained.
+- **🟡 Conservative-verifier invariant (for the Reviewer of M2-8a):** the html.unescape/backslash-strip
+  loosening must recover F-014/F-016 WITHOUT enabling any false-accept — the fabricated + mis-paged
+  true-negative tests must stay red→rejected.
+- **🟡 Reranker neutral lift** on the 6-doc corpus (D-36) — stays OFF; re-evaluate at production scale.
+- **🟡 Latency** (informational): mean ~6.9s/question (no §6 gate); instrument first-token before the M4 demo.

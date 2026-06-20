@@ -178,8 +178,13 @@ install):** extend the M2-6 verifier normalization to **`html.unescape` + strip 
 quotes** (confirmed to fix F-014/F-016 → ≥96.8%); apply the Reviewer's **F-042 alternate-page** note
 into TEST_PLAN §6 (added §6.5); **targeted re-run** of F-014/F-016/F-042 + any other entity/backslash
 false-rejects across the 72 → flip to **FINAL PASS ≥95%**; verifier must still fail conservatively
-(never false-accept a fabrication). Then **M2-7** (FastAPI loopback surface, D-13). **Carry-forward
-risk:** real-PDF section detection before M6.
+(never false-accept a fabrication). **⛔ F-026 is a GENUINE miss — do NOT force-pass it:** retrieval
+surfaced only the page-3 counsel occurrence → the model falsely refused a present fact (a **recall**
+gap, not a verifier bug). Expected FINAL ≈ **62/63 (≥95%)** with F-026 the lone real miss; revisit
+later via top_k/reranker/chunking (see `TASKS_M2.md` Risks). Then **M2-7** (FastAPI loopback surface,
+D-13). **Carry-forward risk:** real-PDF section detection before M6.
+_(M2 pipeline latency is much better than M1's AnythingLLM path — mean ~6.9s/median 7.0s/max 17.5s in
+the M2-8 run; the ~19s figure below is the M1-10/turnkey number.)_
 
 **Perf carry-forward (M2-3 / pre-M4 demo):** per-question latency was high (mean ~19s, max ~78s,
 qwen3 "thinking"); first-token (<3s CE_PLAN §2 target) not separately instrumented. Size a
