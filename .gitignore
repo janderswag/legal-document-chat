@@ -1,0 +1,25 @@
+# OS
+.DS_Store
+
+# Secrets and local config (never commit real secrets; only .env.example is tracked)
+.env
+.env.*
+!.env.example
+
+# Local data — fake/sanitized corpora, indexes, logs, backups (never committed)
+documents/
+indexes/
+backups/
+logs/
+config/
+
+# Model caches / large artifacts
+*.gguf
+*.bin
+models/
+
+# Python (for later milestones)
+__pycache__/
+*.pyc
+.venv/
+venv/
