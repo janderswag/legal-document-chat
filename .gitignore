@@ -13,6 +13,10 @@ backups/
 logs/
 config/
 
+# Eval run outputs — raw model answers/citations from a measurement run (D-28: only
+# eval/ schema/metadata/questions are tracked, never run outputs or document bodies)
+eval/results/
+
 # Model caches / large artifacts
 *.gguf
 *.bin
