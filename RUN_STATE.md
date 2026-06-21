@@ -188,12 +188,26 @@ clause checklist complete end-to-end (5 layers, no stubs): 20-clause taxonomy + 
 baseline byte-identical; 0 non-loopback (PID-scoped). **2 yellows → folded into T-TBL step-0:** add doc_id
 post-filter regression test; commit untracked files. KB matter slug = `pemberton-demo`.
 
-**▶ ACTIVE: T-TBL — Docling TableFormer tables (M-ENRICH, D-50/D-51), comprehensive Builder prompt
-emitted.** Step-0 closes the 2 T-CLAUSE gaps + commits; then tables end-to-end (TableFormer extraction →
-markdown-per-table → chunk/embed/index → span-verified table answers → UI), offset-routing per D-51 (heavy
-Docling path for tabular/scanned only; never mix offsets). Model fetch already owner-approved. Test-first;
-baseline byte-identical; loopback-only + PID-scoped egress. _History below is the M-ENRICH kickoff +
-M1 record._
+**✅ T-TBL DONE (D-53, Tester GREEN ×7 + Planner-verified + committed, 2026-06-21).** Docling TableFormer
+tables end-to-end: extraction (offline, no runtime fetch) → markdown-per-table chunks (self-relative
+offsets, `[TABLE]` tag) → KB-scratch embed/index → **span-verified** table answers ($132,300 cite on
+`exhibit.pdf` p2) → source viewer. **Never-false-accept holds for table chunks** (fabricated/altered values
+reject); **offset-routing per D-51** (table self-relative, prose PyMuPDF byte-identical, never mixed);
+`has_tables` gating; 175/175; baselines byte-identical; PID-scoped 0 non-loopback. Committed (governance +
+feature). **Carry-forwards:** TABLEFORMER_REVISION code-enforce (a); prune synthetic KB matters before demo (c).
+
+**▶ NEXT: T-GRID — tabular review grid (M-ENRICH).** Columns = the T-CLAUSE clause questions; server-side
+`POST /grid` fanning `answer()`+verifier across a doc×question matrix (bounded concurrency, SSE), static
+grid page reusing our span-verified highlight. Comprehensive Builder prompt to be emitted on owner go.
+
+### Audit canon (pin — stops audits diverging on representation; D-47/D-52/D-53)
+- **Baseline store hashes (must stay constant; mtimes 2026-06-20):** `.lancedb=13b242de…`,
+  `.lancedb_full=0df0525c…`, `.lancedb_hyb=51e13b31…`.
+- **Canonical fold method:** `find <store> -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256`.
+- **Egress-log line format:** `[timestamp] pid=<PID> sample=<n> established_nonloopback=<n> ollama_loopback=<n>`;
+  monitors **PID-scoped** (`lsof -a -p PID -iTCP`) — a system-wide sample is not pipeline proof.
+
+_History below is the M-ENRICH kickoff + M1 record._
 
 ---
 

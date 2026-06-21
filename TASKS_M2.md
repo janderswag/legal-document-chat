@@ -165,8 +165,12 @@ git-ignored):_
 > Sequence **1→3→2**, transcripts a separate track. Same discipline: small, test-first, owner-gated,
 > baseline `.lancedb`/M2-8 byte-identical. Latency yellow (G-LAT) unaffected.
 
-- [ ] **T-TBL — Docling TableFormer tables, feature END-TO-END (D-50).** _▶ NEXT — comprehensive Builder
-      prompt emitted._ **Step-0 (close T-CLAUSE gaps, D-52):** add the doc_id post-filter regression test;
+- [x] **T-TBL — Docling TableFormer tables, feature END-TO-END (D-50, D-53).** _🟢 DONE 2026-06-21,
+      Tester GREEN ×7 + Planner-verified + committed. Tables span-verifiably citable; never-false-accept
+      holds on table chunks; offsets never mixed (self-relative); prose path byte-identical; `has_tables`
+      gating; 175/175; baselines untouched; PID-scoped 0 non-loopback. Carry-forwards: TABLEFORMER_REVISION
+      code-enforce (a); KB prune (c). Step-0 landed (T-CLAUSE regression test + 2 commits)._ Original scope:
+      **Step-0 (close T-CLAUSE gaps, D-52):** add the doc_id post-filter regression test;
       commit the T-CLAUSE feature + the pending governance/docs edits (coherent history). **Then** the
       tables feature: TableFormer extraction (model fetch owner-approved, offline after, pin revision) →
       markdown-per-table chunks w/ page(+bbox) → chunk/embed/index into a KB/scratch store → table-chunk

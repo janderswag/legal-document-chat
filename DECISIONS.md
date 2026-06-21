@@ -411,6 +411,30 @@
   (`lsof -a -p PID -iTCP`)** — a system-wide sample is not pipeline proof (reinforces D-47; the Tester
   caught + corrected two invalid passes). (CE_PLAN §6/§10/§14; D-19, D-30, D-35, D-38, D-47, D-49, D-51)
 
+- **D-53 — T-TBL (Docling TableFormer tables) COMPLETE end-to-end, Tester-confirmed + Planner-verified
+  (2026-06-21).** Second M-ENRICH feature; tables/exhibits are now searchable + **span-verifiably citable**
+  — the capability prose-only ingestion couldn't deliver. **All layers complete, no stubs** (Tester GREEN
+  ×7): Docling **TableFormer** extraction (offline from local cache, **no fetch at runtime**) → per-table
+  `{source_filename, page_number, bbox, markdown}`; **one Markdown table per chunk** (D-50) with
+  **self-relative offsets** (`char_start=0..len(text)`, `[TABLE]` section tag) — the **offset-routing**
+  resolution (D-51): table chunks use Docling-derived self-relative spans, prose keeps the **PyMuPDF** path
+  **byte-identical**, **offsets never mixed**; `has_tables` gating runs the heavy Docling pass **only on
+  table-bearing docs** (prose-only PDF → 0 tables / 0 `[TABLE]` chunks, verified); embed/index to a
+  KB/scratch store (**eval baseline untouched**). **Live proof:** "2026 annual license fee" → **$132,300**
+  with a span-verified chunk-derived citation on `exhibit.pdf` p2 (offsets 323–331) that opens the page in
+  the source viewer; **fabricated `$999,999` and altered-digit `$132,400` both reject** (0 citations, "does
+  not overlap chunk C1") — **never-false-accept holds for table chunks**. **PID-scoped egress 0
+  non-loopback** (21 samples); **baselines byte-identical** (`13b242de…`/`0df0525c…`/`51e13b31…`, mtimes
+  2026-06-20); **175/175 suite OK** (offline Docling + live Ollama). Step-0 also landed: the T-CLAUSE
+  `doc_id` regression test + two commits (`371c46e` governance, `37fa31d` feature). **Carry-forwards (none
+  blocking):** (a) **`TABLEFORMER_REVISION` is documentary-only** (`table_extract.py:28` pins `fc0f2d45…`
+  but nothing asserts the loaded snapshot matches) → add a startup/ingest assertion vs the cached model
+  commit so a silent model swap forces a re-index; (b) **audit canon standardized** (now recorded in
+  RUN_STATE): egress-log line format + the canonical store-hash fold method; (c) **KB housekeeping** —
+  synthetic demo matters accumulating in the writable git-ignored `.lancedb_kb` (`tables-demo`,
+  `pemberton-demo`, + the two from D-48) → prune before any attorney demo. (CE_PLAN §6.3/§8/§14; D-11,
+  D-15, D-19, D-38, D-47, D-50, D-51, D-52)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

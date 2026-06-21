@@ -21,11 +21,16 @@ now **complete features end-to-end**, anti-laziness, "going slow OK" — Reviewe
   layers, no stubs; never-false-accept held on every path incl. wrong-file doc_id post-filter; 159/159;
   baseline byte-identical; 0 non-loopback. 2 yellows (doc_id regression test + commit untracked) folded
   into T-TBL step-0. KB matter slug = `pemberton-demo`; egress monitors must be PID-scoped (`lsof -a`).
-- **▶ T-TBL ACTIVE — comprehensive Builder prompt emitted.** Docling TableFormer tables end-to-end
-  (model fetch owner-approved; offset-routing D-51 — heavy Docling path for tabular/scanned only, never mix
-  PyMuPDF/Docling offsets). Step-0 closes the T-CLAUSE gaps + commits.
-- **Then:** T-GRID (review grid; columns = clause questions), T-TRANS (transcripts, brainstorm-first,
-  separate track), plus small wins (eyecite, logprob confidence, non-gating fuzzy fallback, OcrMac/MPS).
+- **✅ T-TBL DONE (D-53, Tester GREEN ×7 + Planner-verified + committed).** Docling TableFormer tables
+  end-to-end; tables span-verifiably citable; never-false-accept holds on table chunks; offset-routing D-51
+  (table self-relative, prose PyMuPDF byte-identical, never mixed); `has_tables` gating; 175/175; baselines
+  untouched. Carry-forwards: TABLEFORMER_REVISION code-enforce (a); prune synthetic KB matters before demo (c).
+- **▶ T-GRID NEXT — comprehensive Builder prompt on owner go.** Tabular review grid; columns = the
+  T-CLAUSE clause questions; server-side `POST /grid` over `answer()`+verifier (bounded concurrency, SSE),
+  static grid page reusing our span-verified highlight (never fuzzy).
+- **Then:** T-TRANS (transcripts, brainstorm-first, separate track), plus small wins (eyecite, logprob
+  confidence, non-gating fuzzy fallback, OcrMac/MPS). Audit canon (baseline hashes/fold/egress format) now
+  pinned in RUN_STATE.
 - **Owner-gated, untouched:** M4-5 hardware (no purchase on spec), M6 real data (written approval); open
   G-LAT `<3s` latency yellow (unaffected by M-ENRICH).
 
