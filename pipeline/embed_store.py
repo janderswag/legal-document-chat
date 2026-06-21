@@ -13,6 +13,7 @@ metadata-filter, reranker, answering LLM, or HTTP surface (those are M2-4..M2-7)
 """
 
 import json
+import os
 import urllib.request
 from pathlib import Path
 
@@ -20,6 +21,17 @@ import lancedb
 import pyarrow as pa
 
 EMBED_DIM = 1024
+
+
+def ollama_url():
+    """Base URL for the Ollama server, resolved at CALL time.
+
+    Default = the host loopback ``http://127.0.0.1:11434`` (D-11) — the
+    non-containerized path is unchanged. The container overrides it via the
+    ``LDI_OLLAMA_URL`` env (compose sets ``http://host.docker.internal:11434``) to
+    reach the SAME host Ollama; this never changes Ollama's bind and is deliberately
+    NOT named ``OLLAMA_HOST`` (Ollama's own server-bind var, which must stay unset)."""
+    return os.environ.get("LDI_OLLAMA_URL", "http://127.0.0.1:11434")
 
 _SCHEMA = pa.schema([
     pa.field("vector", pa.list_(pa.float32(), EMBED_DIM)),
@@ -33,8 +45,10 @@ _SCHEMA = pa.schema([
 ])
 
 
-def embed_texts(texts, model="bge-m3", host="http://127.0.0.1:11434"):
-    """Embed a list of strings via the loopback Ollama embed API -> list of vectors."""
+def embed_texts(texts, model="bge-m3", host=None):
+    """Embed a list of strings via the Ollama embed API -> list of vectors. ``host``
+    defaults to ``ollama_url()`` (host loopback, or the container override)."""
+    host = host or ollama_url()
     payload = json.dumps({"model": model, "input": list(texts)}).encode("utf-8")
     req = urllib.request.Request(
         f"{host}/api/embed", data=payload, headers={"Content-Type": "application/json"}
@@ -68,3 +82,38 @@ def build_store(chunks_path, db_path, table_name="chunks"):
 def open_table(db_path, table_name="chunks"):
     """Open an existing LanceDB table."""
     return lancedb.connect(str(db_path)).open_table(table_name)
+
+
+def _rows_from_chunks(chunks):
+    vectors = embed_texts([c["embedding_text"] for c in chunks])
+    if any(len(v) != EMBED_DIM for v in vectors):
+        raise ValueError("embedding dimension mismatch (expected 1024 from bge-m3)")
+    return [{
+        "vector": vec, "source_filename": c["source_filename"], "matter": c["matter"],
+        "page_number": c["page_number"], "section": c["section"],
+        "char_start": c["char_start"], "char_end": c["char_end"], "text": c["text"],
+    } for c, vec in zip(chunks, vectors)]
+
+
+def add_chunks(chunks, db_path, table_name="chunks"):
+    """Embed and APPEND chunks to a LanceDB table (created if absent). Used by the KB
+    so one document's chunks are added without overwriting others (unlike build_store)."""
+    if not chunks:
+        return
+    rows = _rows_from_chunks(chunks)
+    db = lancedb.connect(str(db_path))
+    if table_name in db.table_names():
+        db.open_table(table_name).add(rows)
+    else:
+        db.create_table(table_name, data=rows, schema=_SCHEMA)
+
+
+def delete_doc(db_path, source_filename, matter, table_name="chunks"):
+    """Delete one document's chunks from a table, scoped to (source_filename, matter).
+    Values are single-quote-escaped (they come from the catalog, not raw user text)."""
+    db = lancedb.connect(str(db_path))
+    if table_name not in db.table_names():
+        return
+    fn = source_filename.replace("'", "''")
+    mt = matter.replace("'", "''")
+    db.open_table(table_name).delete(f"source_filename = '{fn}' AND matter = '{mt}'")

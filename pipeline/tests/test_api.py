@@ -105,13 +105,18 @@ class TestSafetyStructural(unittest.TestCase):
         app_paths = {p for p in paths if p and not p.startswith(("/openapi", "/docs", "/redoc"))}
         self.assertEqual(app_paths,
                          {"/", "/app", "/static/{asset:path}", "/health", "/answer",
-                          "/matters", "/eval/matters", "/source/{filename:path}"})
+                          "/matters", "/eval/matters", "/source/{filename:path}",
+                          "/kb/upload", "/kb/documents", "/kb/source/{doc_id}",
+                          "/kb/documents/{doc_id}"})
 
-    def test_no_mutating_http_methods_exposed(self):
-        methods = set()
+    def test_only_the_locked_kb_delete_mutates(self):
+        # No PUT/PATCH anywhere; DELETE is exposed ONLY on the structurally-locked KB
+        # remove route (hard rule #5 — remove-from-KB only, never an outside path).
         for r in api.app.routes:
-            methods |= (getattr(r, "methods", None) or set())
-        self.assertEqual(methods & {"PUT", "DELETE", "PATCH"}, set())
+            methods = getattr(r, "methods", None) or set()
+            self.assertEqual(methods & {"PUT", "PATCH"}, set())
+            if "DELETE" in methods:
+                self.assertEqual(getattr(r, "path", ""), "/kb/documents/{doc_id}")
 
     def test_app_binds_loopback_only(self):
         self.assertEqual(api.HOST, "127.0.0.1")

@@ -1,0 +1,74 @@
+"""Task 3 — async ingest worker: turn an uploaded document into indexed, matter-scoped
+chunks in the dedicated .lancedb_kb store, and drive the catalog status lifecycle.
+
+extract (OCR-aware) -> chunk (offset-faithful, so span verification works) -> embed via
+loopback bge-m3 -> append into .lancedb_kb (table 'chunks') scoped to the matter slug ->
+set status ready / needs_review (any ocr_failed page) / failed (extraction error).
+Idempotent: a doc's existing chunks are removed before re-adding, so re-ingest never
+duplicates. Writes ONLY to .lancedb_kb — never an eval store.
+"""
+
+from pathlib import Path
+
+import catalog
+from embed_store import add_chunks, delete_doc
+from extractors import extract
+
+_CHUNK_CHARS = 900  # target window size; cuts on a nearby newline to avoid mid-line splits
+
+
+def _chunk_pages(pages, matter_slug, filename):
+    """Window each extracted page's text into chunks with PAGE-relative offsets, so
+    ``page_text[char_start:char_end] == chunk.text`` (the substrate span verification
+    needs). Pages with no authoritative text (e.g. ocr_failed -> blanked) yield nothing."""
+    chunks = []
+    for p in pages:
+        pt = p["page_text"]
+        pno = p["page_number"]
+        if not pt.strip():
+            continue
+        i, n = 0, len(pt)
+        while i < n:
+            end = min(i + _CHUNK_CHARS, n)
+            if end < n:
+                nl = pt.find("\n", end)
+                if nl != -1 and nl - end < 200:
+                    end = nl
+            text = pt[i:end]
+            if text.strip():
+                chunks.append({
+                    "source_filename": filename, "matter": matter_slug,
+                    "document_type": p.get("source", "doc"), "page_number": pno,
+                    "section": "", "char_start": i, "char_end": end, "text": text,
+                    "embedding_text": f"[Matter: {matter_slug} | Section: ]\n{text}",
+                })
+            i = end
+    return chunks
+
+
+def ingest_document(doc_id, file_path, matter_slug, db_path, catalog_db=None):
+    """Extract -> chunk -> embed -> upsert into .lancedb_kb; update + return the status."""
+    file_path = Path(file_path)
+    filename = file_path.name
+    try:
+        pages = extract(file_path)
+    except Exception as e:  # unreadable / unsupported -> failed (fail loud)
+        catalog.update_document(doc_id, "failed", f"{type(e).__name__}: {e}", db_path=catalog_db)
+        return "failed"
+
+    needs_review = any(p.get("ocr_failed") for p in pages)
+    chunks = _chunk_pages(pages, matter_slug, filename)
+
+    # Idempotent: drop any prior chunks for this (filename, matter) before re-adding.
+    delete_doc(db_path, filename, matter_slug)
+    add_chunks(chunks, db_path)
+
+    if not chunks and not needs_review:
+        status, reason = "failed", "no extractable text"
+    elif needs_review:
+        status = "needs_review"
+        reason = "low-confidence OCR on one or more pages"
+    else:
+        status, reason = "ready", None
+    catalog.update_document(doc_id, status, reason, db_path=catalog_db)
+    return status

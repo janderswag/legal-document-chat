@@ -39,9 +39,11 @@ _STATIC_MEDIA = {".js": "application/javascript", ".css": "text/css", ".html": "
 app = FastAPI(title="Legal Document Intelligence (M2-7)", docs_url=None, redoc_url=None)
 
 # App routers (the SAM-style UI surfaces). Loopback-only, cited-retrieval only.
+import routes_kb  # noqa: E402
 import routes_matters  # noqa: E402
 
 app.include_router(routes_matters.router)
+app.include_router(routes_kb.router)
 
 
 @app.get("/", response_class=HTMLResponse)

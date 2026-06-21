@@ -89,6 +89,95 @@
   }
   window.viewHooks.matters = renderMatters;
 
+  // --- Document Hub view -----------------------------------------------------
+  var hubTimer = null;
+
+  async function refreshHubTable() {
+    var tbody = document.getElementById("hub-rows");
+    if (!tbody) return;
+    if (!state.matter) {
+      tbody.innerHTML = "<tr><td colspan='6' class='muted'>Choose a matter to see its documents.</td></tr>";
+      return;
+    }
+    var docs = [];
+    try { docs = (await api("/kb/documents?matter=" + encodeURIComponent(state.matter))).documents || []; }
+    catch (e) { docs = []; }
+    tbody.innerHTML = docs.length ? docs.map(function (d) {
+      var size = d.size_bytes != null ? Math.max(1, Math.round(d.size_bytes / 1024)) + " KB" : "—";
+      return "<tr><td>" + esc(d.filename) + "</td><td class='muted'>" + esc(d.matter_slug) +
+        "</td><td>" + size + "</td><td><span class='status " + esc(d.status) + "'>" +
+        esc(d.status) + "</span></td><td class='muted'>" + esc((d.updated || "").replace("T", " ")) +
+        "</td><td><button class='btn secondary' data-view-doc='" + d.id + "'>view</button> " +
+        "<button class='btn secondary' data-del-doc='" + d.id + "'>delete</button></td></tr>";
+    }).join("") : "<tr><td colspan='6' class='muted'>No documents yet — drop files above.</td></tr>";
+
+    tbody.querySelectorAll("[data-view-doc]").forEach(function (b) {
+      b.onclick = function () { window.open("/kb/source/" + b.dataset.viewDoc, "_blank"); };
+    });
+    tbody.querySelectorAll("[data-del-doc]").forEach(function (b) {
+      b.onclick = async function () {
+        if (!confirm("Remove this document from the knowledge base?")) return;
+        await api("/kb/documents/" + b.dataset.delDoc, { method: "DELETE" });
+        refreshHubTable();
+      };
+    });
+  }
+  window.onMatterChange = function () { refreshHubTable(); };
+
+  async function uploadFiles(files) {
+    var err = document.getElementById("hub-err");
+    if (err) err.textContent = "";
+    if (!state.matter) { if (err) err.textContent = "Choose a matter first."; return; }
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      try {
+        await fetch("/kb/upload?matter=" + encodeURIComponent(state.matter) +
+                    "&filename=" + encodeURIComponent(f.name), { method: "POST", body: f })
+          .then(function (r) { if (!r.ok) return r.json().then(function (d) { throw new Error(d.detail); }); });
+      } catch (e) { if (err) err.textContent = e.message; }
+    }
+    refreshHubTable();
+  }
+
+  function renderHub() {
+    var inner = document.querySelector("#view-hub .view-inner");
+    inner.innerHTML =
+      "<h1>Document Hub</h1><p class='muted'>Upload synthetic documents for the active matter. Parsing → Ready.</p>" +
+      "<div class='panel'><label class='muted'>Matter:</label> " +
+      "<select class='matter-picker' id='hub-matter' style='max-width:340px;display:inline-block'></select></div>" +
+      "<div id='dropzone' class='panel' style='border:2px dashed var(--border);text-align:center;padding:28px;cursor:pointer'>" +
+      "Drag &amp; drop files here, or click to choose. <span class='muted'>(.pdf .docx .txt .md)</span>" +
+      "<input type='file' id='file-input' multiple style='display:none'></div>" +
+      "<div id='hub-err' style='color:var(--err);font-size:13px'></div>" +
+      "<div class='panel'><table><thead><tr><th>Name</th><th>Matter</th><th>Size</th>" +
+      "<th>Status</th><th>Updated</th><th></th></tr></thead><tbody id='hub-rows'></tbody></table></div>";
+
+    fillMatterPickers().catch(function () {});
+    document.getElementById("hub-matter").addEventListener("change", function (e) {
+      var opt = e.target.selectedOptions[0];
+      setActiveMatter(e.target.value, opt ? opt.textContent : null);
+    });
+
+    var dz = document.getElementById("dropzone");
+    var fi = document.getElementById("file-input");
+    dz.addEventListener("click", function () { fi.click(); });
+    fi.addEventListener("change", function () { uploadFiles(fi.files); });
+    dz.addEventListener("dragover", function (e) { e.preventDefault(); dz.style.background = "#eef3ff"; });
+    dz.addEventListener("dragleave", function () { dz.style.background = ""; });
+    dz.addEventListener("drop", function (e) {
+      e.preventDefault(); dz.style.background = "";
+      uploadFiles(e.dataTransfer.files);
+    });
+
+    refreshHubTable();
+    if (hubTimer) clearInterval(hubTimer);
+    hubTimer = setInterval(function () {
+      if (document.getElementById("view-hub").classList.contains("active")) refreshHubTable();
+      else { clearInterval(hubTimer); hubTimer = null; }
+    }, 2000);
+  }
+  window.viewHooks.hub = renderHub;
+
   // --- router ----------------------------------------------------------------
   function showView(name) {
     if (VIEWS.indexOf(name) === -1) return;

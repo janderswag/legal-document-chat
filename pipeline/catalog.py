@@ -6,6 +6,7 @@ overridable via ``db_path`` for tests. Matter slugs are path-safe (validated her
 no caller can inject a path).
 """
 
+import hashlib
 import re
 import sqlite3
 from datetime import datetime, timezone
@@ -111,5 +112,75 @@ def get_matter(slug, db_path=None):
     try:
         row = conn.execute("SELECT * FROM matters WHERE slug = ?", (slug,)).fetchone()
         return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+# --- documents ---------------------------------------------------------------
+
+def _sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def add_document(matter_slug, file_path, db_path=None, filename=None, status="parsing"):
+    """Insert a documents row (default status 'parsing'); returns the row dict."""
+    file_path = Path(file_path)
+    name = filename or file_path.name
+    conn = _connect(db_path)
+    try:
+        cur = conn.execute(
+            "INSERT INTO documents (matter_slug, filename, stored_path, checksum, size_bytes, "
+            "status, reason, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (matter_slug, name, str(file_path), _sha256(file_path),
+             file_path.stat().st_size, status, None, _now()),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM documents WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def get_document(doc_id, db_path=None):
+    conn = _connect(db_path)
+    try:
+        row = conn.execute("SELECT * FROM documents WHERE id = ?", (doc_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_documents(matter_slug=None, db_path=None):
+    conn = _connect(db_path)
+    try:
+        if matter_slug:
+            rows = conn.execute("SELECT * FROM documents WHERE matter_slug = ? ORDER BY updated DESC",
+                                (matter_slug,)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM documents ORDER BY updated DESC").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def update_document(doc_id, status, reason=None, db_path=None):
+    conn = _connect(db_path)
+    try:
+        conn.execute("UPDATE documents SET status = ?, reason = ?, updated = ? WHERE id = ?",
+                     (status, reason, _now(), doc_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_document(doc_id, db_path=None):
+    conn = _connect(db_path)
+    try:
+        conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+        conn.commit()
     finally:
         conn.close()
