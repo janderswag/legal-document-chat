@@ -199,10 +199,13 @@ git-ignored):_
       boundary: locate/summarize only, no advice/drafting/actions); (e) tests at every layer (unit + API +
       UI). **No new install; pure data + orchestration + UI.** Test-first; baseline `.lancedb`/M2-8
       byte-identical (read-only); loopback-only + **real** egress samples (D-47).
-- [ ] **T-GRID-1 — Tabular-review grid (#2, D-49).** Server-side `POST /grid {matter, doc_ids[],
-      questions[]}` fanning `answer()` across the matrix with **bounded** concurrency (not unbounded),
-      SSE-streamed; new static grid page reusing OUR span-verified highlight (never fuzzy). Columns =
-      T-CLAUSE-1 questions. Biggest build; after tables + clauses.
+- [x] **T-GRID + B1–B6 + C1/C2 + D1 — M-ENRICH backlog (#2 + small wins, D-54/D-55).** _🟢 DONE 2026-06-21,
+      Tester GREEN 240/240 + Planner closeouts + committed (`38d12ae` feat, `484e08a` gov)._ Grid =
+      `POST /grid` SSE doc×question matrix, bounded concurrency, reuses `clauses._classify`; B-series small
+      wins; **C1 proved the F-026 fix** (top-k×N+rerank None→rank3, **owner decision to adopt** — baseline-
+      affecting); C2 sentence-window deferred; D1 form-robustness on PyMuPDF (no new dep). Closeouts:
+      canonical `scripts/baseline_hash.sh` + re-pinned audit canon; A0 import-time air-gap fix; leftover dir
+      removed. `eyecite` held `[GATE]`. Never-false-accept across grid/stream/fuzzy; baselines byte-identical.
 - [ ] **T-TRANS (separate track) — Transcripts page:line + Q/A chunking.** Net-new, **brainstorm-first**
       (page:line ripples into verifier + UI). Skeletons: RAGFlow `qa.py`, Docling `PageChunker`, PyMuPDF
       per-line y-coords. Not bundled with the tables arc.

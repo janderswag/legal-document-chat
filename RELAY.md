@@ -19,9 +19,12 @@ Tester prompt; Tester reports results back to the Planner).
   `DECISIONS.md`, keeps `RUN_STATE.md`/`TASKS_M2.md` current, and writes the next **Builder prompt**
   (a **complete feature end-to-end** — data+core+API+UI+tests — owner-gated, self-contained, NOT a
   micro-step; see `[[feedback-builder-comprehensive-prompts]]`). Flags every new install at its gate.
-- **Builder (tab 2):** restores from `BUILDER_STATE.md`, executes one complete task/feature **test-first**
-  — **do not be lazy, finish everything, going slow is OK** (Reviewer + Tester find the gaps) —
-  reports (files / commands / verification / risks / scope), then emits the **Reviewer prompt**.
+- **Builder (tab 2):** restores from `BUILDER_STATE.md`, grinds a comprehensive backlog via a PROGRESS.md
+  checklist **test-first** — **do not be lazy, finish every task, no stubs, going slow is OK** (Reviewer +
+  Tester find the gaps) — but **HARD-STOP + `[GATE]`** for any new install/dep/model-fetch, real data,
+  hardware, non-loopback bind, weakening the verifier, or re-indexing/re-running the eval baseline (D-54);
+  keep grinding all other tasks. Reports (files / commands / verification / risks / scope), then emits the
+  **Reviewer prompt**.
 - **Reviewer (tab 3):** audits the Builder's work against the task contract + `DECISIONS.md` +
   `eval/TEST_PLAN.md`; checks correctness, scope discipline, and safety (loopback-only, no real data,
   conservative verifier). Emits the **Tester prompt**.

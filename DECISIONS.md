@@ -435,6 +435,51 @@
   `pemberton-demo`, + the two from D-48) → prune before any attorney demo. (CE_PLAN §6.3/§8/§14; D-11,
   D-15, D-19, D-38, D-47, D-50, D-51, D-52)
 
+- **D-54 — Builder execution protocol hardened + M-ENRICH backlog scoped (2026-06-21, owner-directed).**
+  Owner asked to give the Builder a **comprehensive backlog** with anti-laziness "senior-engineer" framing
+  (PROGRESS.md checklist, complete every task, no stubs, "going slow is OK"). Adopted as the standing
+  Builder protocol (extends `feedback-builder-comprehensive-prompts`), with **one critical hardening the
+  generic template lacked: a `[GATE]` HARD-STOP exception to "never ask permission"** — the Builder must
+  STOP and surface (not proceed) for any **new install/dep/model-fetch, real data, hardware, non-loopback
+  bind, weakening the span verifier, or re-indexing/re-running the eval baseline**; it keeps grinding all
+  *other* tasks. **Definition-of-Done encodes our invariants** (test-first; never-false-accept preserved;
+  baselines byte-identical via the audit-canon fold; loopback-only + PID-scoped egress; no new install).
+  **Backlog IN scope (buildable, synthetic/public, no gate):** T-GRID; small wins (`answering._norm`
+  escape-align, `openapi_url=None`, compose-only deploy README, logprob confidence, **non-gating** fuzzy
+  span fallback, streaming SSE); retrieval experiments (top-k×N/F-026, sentence-window) **on SCRATCH +
+  measured** (baseline mutation/M2-8 re-run = `[GATE]`); real-PDF robustness (bankruptcy-parser techniques
+  **reimplemented on PyMuPDF — no new dep**; public court-PDF fixtures). **Backlog items that are `[GATE]`
+  on install:** `eyecite` (new pip dep) → flag, don't install. **HELD OUT of any Builder prompt
+  (Planner/owner-gated, NOT laziness):** **M6 real data + M4-5 hardware** = hard safety gates, *never* a
+  Builder task (hard rules #1–2, D-21/D-22); **T-TRANS transcripts** = brainstorm-first (design gate,
+  page:line ripples into verifier+UI); **G-LAT latency** = hardware-hypothesis (D-22), instrument-only;
+  **M4 UAT / `/app` screenshot** = attorney-gated / manual demo asset. (CE_PLAN §2/§12/§14; hard rules
+  #1–#4; D-19, D-21, D-22, D-31, D-38, D-47, D-49, D-51, D-53)
+
+- **D-55 — M-ENRICH comprehensive backlog COMPLETE, Tester GREEN + Planner closeouts applied + committed
+  (2026-06-21).** One PROGRESS.md grind (D-54 protocol) delivered **T-GRID + B1–B6 + C1/C2 + D1** —
+  Tester-confirmed **240/240**, never-false-accept holds across the grid, the streaming path, AND the
+  non-gating fuzzy fallback; bounded concurrency (ThreadPool ≤4); no cross-doc/matter leak; eval baselines
+  byte-identical; production egress **0 non-loopback**. **Highlights:** A0 `TABLEFORMER_REVISION`
+  code-enforced + KB pruned to one clean `demo-matter`; `POST /grid` SSE doc×question matrix reusing
+  `clauses._classify` (not forked); B1 `answering._norm` aligned; B2 `openapi_url=None`; B3 compose-only
+  README; B4 logprob confidence (display-only); B5 fuzzy fallback ("probable/unverified" UI only, **never**
+  enters the verified set); B6 streaming chat; D1 bankruptcy-parser techniques reimplemented on **PyMuPDF
+  (no new dep)** + public court fixtures. **C1 result (F-026):** top-k×N(20)+rerank **RECOVERS F-026**
+  (page-1 caption chunk None→rank 3) — hypothesis now **measured/confirmed**, but rank@1 on easy facts
+  trades 5/8→4/8 (matches D-36 neutral-lift); **turning it on is baseline-affecting → owner decision, NOT
+  self-adopted** (`rerank=False` stays). **C2:** sentence-window marginal at our chunk size (avg −13.8%
+  context, span always retained) → **defer** (revisit with larger/real-PDF chunks). Both measured
+  READ-ONLY, no re-embed/re-index/M2-8 re-run (all `[GATE]`). **`eyecite` correctly held `[GATE]`** (new
+  pip dep). **Planner closeouts applied at record (Tester carry-forwards):** (a) added the canonical
+  **CWD-independent** `scripts/baseline_hash.sh` (cd-into-store → invocation-independent) — this **re-pins
+  the audit-canon baseline hashes to `537146cf…`/`d329c91e…`/`07f04972…`** (the prior `13b242de…` set was
+  path-prefix-sensitive — the very cross-role divergence carry-forward (a) flagged; contents unchanged,
+  representation stabilized); (b) removed the empty `documents/kb/tables-demo/` leftover; (d) the A0
+  **import-time air-gap fix** (offline env moved to module import so a standalone `assert_model_revision()`
+  makes zero egress — the lone yellow; 20 table tests green). Committed (feature + governance). (CE_PLAN
+  §6/§8/§10/§14; D-19, D-36, D-38, D-47, D-49, D-51, D-53, D-54)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

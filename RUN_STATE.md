@@ -196,14 +196,22 @@ reject); **offset-routing per D-51** (table self-relative, prose PyMuPDF byte-id
 `has_tables` gating; 175/175; baselines byte-identical; PID-scoped 0 non-loopback. Committed (governance +
 feature). **Carry-forwards:** TABLEFORMER_REVISION code-enforce (a); prune synthetic KB matters before demo (c).
 
-**▶ NEXT: T-GRID — tabular review grid (M-ENRICH).** Columns = the T-CLAUSE clause questions; server-side
-`POST /grid` fanning `answer()`+verifier across a doc×question matrix (bounded concurrency, SSE), static
-grid page reusing our span-verified highlight. Comprehensive Builder prompt to be emitted on owner go.
+**✅ M-ENRICH backlog COMPLETE (D-55, Tester GREEN 240/240 + Planner closeouts + committed, 2026-06-21).**
+T-GRID + B1–B6 + C1/C2 + D1 all done; never-false-accept holds across grid/streaming/fuzzy; bounded
+concurrency; no leak; baselines byte-identical; 0 non-loopback. Closeouts applied: canonical
+`scripts/baseline_hash.sh` (+ re-pinned audit canon above); empty leftover dir removed; A0 import-time
+air-gap fix (yellow closed, 20 table tests green). **F-026 fix PROVEN** (C1: top-k×N+rerank → None→rank3)
+but baseline-affecting → **owner decision to adopt** (not self-applied). `eyecite` held `[GATE]`.
 
-### Audit canon (pin — stops audits diverging on representation; D-47/D-52/D-53)
-- **Baseline store hashes (must stay constant; mtimes 2026-06-20):** `.lancedb=13b242de…`,
-  `.lancedb_full=0df0525c…`, `.lancedb_hyb=51e13b31…`.
-- **Canonical fold method:** `find <store> -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256`.
+**▶ NEXT: T-TRANS — transcripts (page:line citation + Q/A chunking).** The big net-new build; **brainstorm-
+first** (page:line ripples into the verifier + UI) — Planner to run a design brainstorm with the owner
+before any Builder prompt. Then opportunistic: adopt-F-026 decision, eyecite (owner gate), OcrMac/MPS.
+
+### Audit canon (pin — stops audits diverging on representation; D-47/D-52/D-53/D-55)
+- **Canonical hash script (use this ONLY — CWD-independent, all roles):** `scripts/baseline_hash.sh`.
+- **Baseline store hashes (must stay constant; mtimes 2026-06-20), per that script:**
+  `.lancedb=537146cf…`, `.lancedb_full=d329c91e…`, `.lancedb_hyb=07f04972…`. _(Supersedes the old
+  path-sensitive `13b242de…`/`0df0525c…`/`51e13b31…` — same bytes, stable representation, D-55.)_
 - **Egress-log line format:** `[timestamp] pid=<PID> sample=<n> established_nonloopback=<n> ollama_loopback=<n>`;
   monitors **PID-scoped** (`lsof -a -p PID -iTCP`) — a system-wide sample is not pipeline proof.
 

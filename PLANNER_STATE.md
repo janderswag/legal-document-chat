@@ -25,12 +25,14 @@ now **complete features end-to-end**, anti-laziness, "going slow OK" — Reviewe
   end-to-end; tables span-verifiably citable; never-false-accept holds on table chunks; offset-routing D-51
   (table self-relative, prose PyMuPDF byte-identical, never mixed); `has_tables` gating; 175/175; baselines
   untouched. Carry-forwards: TABLEFORMER_REVISION code-enforce (a); prune synthetic KB matters before demo (c).
-- **▶ T-GRID NEXT — comprehensive Builder prompt on owner go.** Tabular review grid; columns = the
-  T-CLAUSE clause questions; server-side `POST /grid` over `answer()`+verifier (bounded concurrency, SSE),
-  static grid page reusing our span-verified highlight (never fuzzy).
-- **Then:** T-TRANS (transcripts, brainstorm-first, separate track), plus small wins (eyecite, logprob
-  confidence, non-gating fuzzy fallback, OcrMac/MPS). Audit canon (baseline hashes/fold/egress format) now
-  pinned in RUN_STATE.
+- **✅ M-ENRICH backlog DONE (D-55, Tester GREEN 240/240 + closeouts + committed).** T-GRID + B1–B6 +
+  C1/C2 + D1. Never-false-accept across grid/streaming/fuzzy; bounded concurrency; baselines byte-identical;
+  0 non-loopback. Closeouts: canonical `scripts/baseline_hash.sh` (CWD-independent; re-pinned canon hashes
+  `537146cf…`/`d329c91e…`/`07f04972…`); empty dir removed; A0 import-time air-gap fix.
+- **▶ T-TRANS NEXT — the big net-new build, BRAINSTORM-FIRST.** Page:line citation + Q/A chunking ripple
+  into the verifier + UI; run a design brainstorm with the owner before any Builder prompt.
+- **Owner decisions queued (not auto):** adopt the **F-026 fix** (C1 proven: top-k×N+rerank → None→rank3;
+  baseline-affecting, needs re-eval); approve **eyecite** install (`[GATE]`). Opportunistic: OcrMac/MPS.
 - **Owner-gated, untouched:** M4-5 hardware (no purchase on spec), M6 real data (written approval); open
   G-LAT `<3s` latency yellow (unaffected by M-ENRICH).
 
