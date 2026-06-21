@@ -309,6 +309,25 @@
     NOT authorize M4-5 hardware purchase (no purchase on spec, D-21/D-22) or M6 real data (written
     approval). (CE_PLAN §2, §14 M2/M3; D-15, D-36, D-40, D-41, D-43, D-45, D-46)
 
+- **D-48 — SAM-style local UI COMPLETE (2026-06-20, Tester-confirmed + Planner-verified).** The 7-task
+  SAM-inspired but **100% local/air-gapped** UI (plan: `docs/superpowers/plans/2026-06-20-sam-style-ui.md`)
+  landed as 7 per-task commits (`77a3b88`→`0e7abdb`); Planner verified the commits + a clean tree. The
+  Tester independently confirmed all 7 🟢: app shell + **local-only assets (no CDN)**; Matters (SQLite
+  catalog, path-safe slugs, D-18); **Document Hub** (drag/drop upload → async `Parsing→Ready` ingest into
+  the dedicated **`.lancedb_kb`**, status table, **safe delete locked to `documents/kb/`** — hard rule
+  #5); matter-scoped **cited chat** + persisted history (chunk-derived D-38 + span-verified D-19; D-30
+  refusal; no cross-matter leak); **retrieved-page thumbnails + cited-span highlight** (PyMuPDF, read-only
+  source); rich answer render (markdown + source chips + Sources, **escape-before-render XSS guard**);
+  **Settings privacy badge** ("100% local · 0 outbound", derived not hardcoded). **88 real egress rows, 0
+  non-loopback;** the three eval stores + M2-8 artifacts **byte-identical** (all writes went to the
+  git-ignored `.lancedb_kb`/`.kb_catalog.db`). **Product boundary held** — nav is exactly New Chat ·
+  Matters · Document Hub · Chat History · Settings; no drafting/advice/actions/CDN/cloud. **Housekeeping
+  (not blockers):** two clearly-labelled synthetic matters remain in the git-ignored live catalog
+  (removable; no `DELETE /matters` route by design); no live `/app` screenshot captured yet. This is the
+  **CE_PLAN Milestone-4 demo surface** — it does NOT by itself complete M4 (which also needs a user-guide
+  + demo script + attorney UAT) and does NOT authorize M4-5 hardware (D-21/D-22) or M6 real data. (CE_PLAN
+  §14 M4; D-2, D-18, D-30, D-38, D-41)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

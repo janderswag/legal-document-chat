@@ -65,6 +65,16 @@ Tester prompt; Tester reports results back to the Planner).
 
 ## Where we are (update this line each milestone beat)
 
+**✅ SAM-style local UI COMPLETE (D-48, 2026-06-20, Tester-confirmed):** 7 tasks 🟢 (commits
+`77a3b88`→`0e7abdb`) — left nav, matter-scoped upload+cited-chat, retrieved-page thumbnails + cited-span
+highlight, "100% local · 0 outbound" badge; dedicated `.lancedb_kb`; eval stores + M2-8 byte-identical; 0
+non-loopback; product boundary held. App at `http://127.0.0.1:8000/app`; tree clean. **Next = OWNER
+DIRECTION:** complete CE_PLAN M4 (user-guide + demo script → attorney UAT) / UI polish / `<3s` latency
+yellow / housekeeping. Plans under `docs/superpowers/plans/`. _M2/M3 gap-closure (D-47) done; M4-5
+hardware + M6 real data owner-gated._
+
+### (Prior beat)
+
 **🎉 MILESTONE 2-3 COMPLETE (D-44, 2026-06-20).** M2-8 = FINAL PASS (D-40: page+span 62/63 = 98.4%, 0
 displayed fabrications, NF 9/9, DRM 2/2), M2-7 done (D-41: loopback FastAPI surface), M2-9 done (D-43:
 single-service Compose, Ollama on host via `host.docker.internal`, published `127.0.0.1:8000` only,

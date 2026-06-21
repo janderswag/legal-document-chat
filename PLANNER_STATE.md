@@ -12,6 +12,15 @@ Record every decision into `DECISIONS.md`; keep `RUN_STATE.md` + `TASKS_M2.md` c
 install at its gate.
 
 ## Current position
+**✅ SAM-style local UI COMPLETE (D-48, Tester-confirmed + Planner-verified 2026-06-20).** All 7 tasks 🟢
+(commits `77a3b88`→`0e7abdb`); eval stores + M2-8 byte-identical; 0 non-loopback; product boundary held.
+App runs at `http://127.0.0.1:8000/app`; tree clean (all committed). **Next = OWNER DIRECTION** (relay
+auto-starts nothing): complete CE_PLAN M4 (user-guide + demo script → attorney UAT) / more UI polish /
+close the `<3s` latency yellow (G-LAT) / housekeeping (drop 2 synthetic test matters from the live
+catalog; capture an `/app` screenshot). Owner-gated beyond M4: M4-5 hardware (no purchase on spec), M6
+real data (written approval). _Earlier position retained below for history._
+
+### (Earlier) Current position
 **M2-3 capability complete (D-44); M2/M3 acceptance-gap closeout underway (D-45).** M2-8 = FINAL PASS
 (D-40), M2-7 (D-41), M2-9 (D-43) all Tester-confirmed. A **CE_PLAN cross-reference** (§2 SC-1..SC-7 /
 §14) showed D-44's "complete" was capability-level (page+span eval) and surfaced real CE_PLAN acceptance

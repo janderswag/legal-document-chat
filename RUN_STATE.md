@@ -206,16 +206,24 @@ top_k/reranker/chunking, `TASKS_M2.md` Risks). Loopback-only re-verified
 git-ignored `eval/results/run-2026-06-20-m2-rerun.jsonl`. **The custom M2-3 pipeline clears the
 verifiable page+span bar the turnkey stack proved impossible (M1, D-29).**
 
-**Active workstream = SAM-style local UI (CE_PLAN M4 attorney-demo direction, owner-chosen 2026-06-20).**
-The owner chose to build a polished, SAM-inspired but **100% local/air-gapped** UI as the M4-demo surface:
-left nav (Chat · Matters · Document Hub · Chat History · Settings), matter-scoped upload+chat with cited
-answers, retrieved-page thumbnails + **cited-span highlight**, privacy "100% local · 0 outbound" badge —
-all over the existing pipeline, into a **dedicated `.lancedb_kb`** store (eval stores untouched). Plan:
-**`docs/superpowers/plans/2026-06-20-sam-style-ui.md`** (7 tasks). Being built as a single Builder batch
-(no-laziness mandate), then Reviewer audits all + Tester verifies all + run locally on `127.0.0.1:8000`.
-Curated to the product's hard rules (cited retrieval only — NO drafting/advice/actions/CDN/cloud). _The
-M2/M3 gap-closure (D-47) is done; latency remains the lone yellow; M4-5 hardware + M6 real data stay
-owner-gated._
+**✅ SAM-style local UI COMPLETE (D-48, Tester-confirmed 2026-06-20). Next = OWNER DIRECTION.** The
+SAM-inspired, **100% local/air-gapped** UI is built + independently verified (7 tasks 🟢, commits
+`77a3b88`→`0e7abdb`): left nav (New Chat · Matters · Document Hub · Chat History · Settings), matter-scoped
+upload+chat with chunk-derived/span-verified citations, retrieved-page thumbnails + **cited-span
+highlight**, privacy "100% local · 0 outbound" badge. Dedicated **`.lancedb_kb`** store; eval stores +
+M2-8 byte-identical; 88 egress rows, 0 non-loopback; product boundary held (no drafting/advice/actions/
+CDN/cloud). Plan: `docs/superpowers/plans/2026-06-20-sam-style-ui.md`. **All work committed; tree clean;
+app runs at `http://127.0.0.1:8000/app`.**
+
+**Next = OWNER DIRECTION** (relay auto-starts nothing). Candidate directions:
+- **Complete CE_PLAN Milestone 4** — the UI is the demo *surface*; M4 also needs a **user-guide draft +
+  demo script** (synthetic), then the **attorney UAT** (owner-gated). This is the natural next step.
+- **More UI polish** — additional SAM-style refinements / a Matters dashboard / Search view.
+- **Close the lone yellow** — `<3s` first-token latency (G-LAT; validate on D-22 hardware vs. pilot).
+- **Housekeeping** — remove the two synthetic test matters from the live catalog; capture an `/app`
+  screenshot for the demo deck.
+_Still owner-gated: M4-5 hardware (no purchase on spec, D-21/D-22), M6 real data (written approval). The
+M2/M3 gap-closure (D-47) is done; latency is the one open §2/M3 yellow._
 
 **(Prior boundary) M2/M3 gap-closure DONE; latency the lone yellow (D-47).** The 7-task gap-closure batch landed + was independently Tester-confirmed and
 Planner-verified (commits `89c7c66`→`c2cc89f`; baseline `.lancedb`/M2-8 byte-identical; new stores
