@@ -19,3 +19,4 @@
 {"filename": "pemberton_renewal_email.txt", "format": "txt", "document_type": "correspondence", "matter_or_client": "Pemberton Logistics (Nimbus MSA)", "synthetic": true}
 {"filename": "arclight_retainer_terms.md", "format": "md", "document_type": "contract", "matter_or_client": "Arclight Media (Consulting)", "synthetic": true}
 {"filename": "drakemoor_deposition_summary.txt", "format": "txt", "document_type": "pleading", "matter_or_client": "Holloway v. Drakemoor Industries", "synthetic": true}
+{"filename": "scan_only_velez_settlement.pdf", "format": "scanned_pdf", "document_type": "correspondence", "matter_or_client": "Velez Settlement (Scan Only)", "synthetic": true}

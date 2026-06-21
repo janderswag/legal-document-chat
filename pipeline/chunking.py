@@ -21,7 +21,11 @@ import os
 import re
 from pathlib import Path
 
-from ingestion import extract_pages
+from ingestion import extract_pages, extract_pages_ocr
+
+# Below this many non-whitespace extractable chars a PDF page has no real text layer
+# (image-only) -> it is treated as scanned for the OCR-aware corpus path (T3/T4).
+_SCANNED_TEXT_CHARS = 20
 
 # A heading line in the M2-1 page text, e.g. "## ARTICLE 9 — INDEMNIFICATION".
 _HEADING_RE = re.compile(r"(?m)^(#{1,6})[ \t]+(\S.*?)\s*$")
@@ -96,12 +100,19 @@ def docling_section_headers(pdf_path, cache_dir):
     return headers
 
 
-def chunk_pdf(pdf_path, doc_meta, docling_headers):
+def chunk_pdf(pdf_path, doc_meta, docling_headers, ocr=False):
     """Page/section-aware chunks for one PDF.
 
     Each chunk: {source_filename, matter, document_type, page_number, section,
     char_start, char_end, text, embedding_text, section_detected_by_docling}.
     char_start/char_end index the chunk's PAGE text (M2-1 substrate).
+
+    ``ocr=False`` (default, unchanged): born-digital text via ``extract_pages``.
+    ``ocr=True`` (T3/T4): per-page routing via ``extract_pages_ocr`` — image-only pages
+    are OCR'd; each chunk additionally carries ``source`` ("pymupdf"|"tesseract")
+    provenance, and pages whose OCR failed (low confidence) are SKIPPED (not indexed as
+    authoritative garbage, §8). OCR'd pages carry no ``#`` heading markers, so their
+    section breadcrumb is empty — expected (offsets/text/verification still hold).
     """
     pdf_path = Path(pdf_path)
     meta = doc_meta.get(pdf_path.name, {})
@@ -116,7 +127,10 @@ def chunk_pdf(pdf_path, doc_meta, docling_headers):
     chunks = []
     stack = []  # list of (level, heading_text); persists across pages
     stack_confirmed = False
-    for page in extract_pages(pdf_path):
+    pages = extract_pages_ocr(pdf_path) if ocr else extract_pages(pdf_path)
+    for page in pages:
+        if ocr and page.get("ocr_failed"):
+            continue  # low-confidence OCR -> not authoritative, don't index (§8)
         pt = page["page_text"]
         pno = page["page_number"]
         headings = [(m.start(), len(m.group(1)), m.group(2)) for m in _HEADING_RE.finditer(pt)]
@@ -134,7 +148,7 @@ def chunk_pdf(pdf_path, doc_meta, docling_headers):
                 stack_confirmed = confirmed_by_docling(htext)
             section = " › ".join(t for _, t in stack)
             sac = f"[Matter: {matter} | Type: {doc_type} | Section: {section}]\n{text}"
-            chunks.append({
+            chunk = {
                 "source_filename": pdf_path.name,
                 "matter": matter,
                 "document_type": doc_type,
@@ -145,15 +159,23 @@ def chunk_pdf(pdf_path, doc_meta, docling_headers):
                 "text": text,
                 "embedding_text": sac,
                 "section_detected_by_docling": bool(stack) and stack_confirmed,
-            })
+            }
+            if ocr:  # provenance only on the OCR-aware path (keeps born-digital keys exact)
+                chunk["source"] = page.get("source", "tesseract")
+            chunks.append(chunk)
     return chunks
 
 
-def chunk_corpus(pdf_dir, manifest_path, out_dir=None):
+def chunk_corpus(pdf_dir, manifest_path, out_dir=None, ocr=False):
     """Chunk all PDFs in ``pdf_dir``; write chunks.jsonl to a git-ignored dir.
 
     Returns the list of all chunks. Output (document text) is written under
     ``<pdf_dir>/../chunks/`` which is git-ignored (D-28).
+
+    ``ocr=True`` (T3) routes each page (born-digital text vs OCR for image-only) and
+    carries OCR provenance. Image-only PDFs carry no text-layer headings, so Docling
+    section detection is skipped for them; for born-digital PDFs Docling is still used
+    but its failure is non-fatal (section degrades to empty rather than crashing a build).
     """
     pdf_dir = Path(pdf_dir)
     out_dir = Path(out_dir) if out_dir else pdf_dir.parent / "chunks"
@@ -162,8 +184,20 @@ def chunk_corpus(pdf_dir, manifest_path, out_dir=None):
 
     all_chunks = []
     for pdf in sorted(pdf_dir.glob("*.pdf")):
-        headers = docling_section_headers(pdf, out_dir)
-        all_chunks.extend(chunk_pdf(pdf, doc_meta, headers))
+        if ocr:
+            is_scanned = all(
+                len(p["page_text"].strip()) < _SCANNED_TEXT_CHARS for p in extract_pages(pdf)
+            )
+            if is_scanned:
+                headers = []
+            else:
+                try:
+                    headers = docling_section_headers(pdf, out_dir)
+                except Exception:
+                    headers = []  # section degrades, build continues
+        else:
+            headers = docling_section_headers(pdf, out_dir)
+        all_chunks.extend(chunk_pdf(pdf, doc_meta, headers, ocr=ocr))
 
     with open(out_dir / "chunks.jsonl", "w", encoding="utf-8") as f:
         for c in all_chunks:
