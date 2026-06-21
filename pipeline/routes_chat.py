@@ -9,11 +9,12 @@ empty matter (no indexed chunks) returns the exact D-30 refusal — never a tool
 import json
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 import catalog
 import routes_kb  # for the shared KB_DB path (monkeypatchable in tests)
-from answering import answer, REFUSAL
+from answering import answer, answer_stream, REFUSAL
 
 router = APIRouter()
 
@@ -25,7 +26,8 @@ class ChatRequest(BaseModel):
 
 
 def _refusal_result():
-    return {"answer_text": REFUSAL, "citations": [], "rejected_claims": [], "grounding_chunks": []}
+    return {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
+            "grounding_chunks": [], "confidence": None}
 
 
 @router.post("/chat")
@@ -41,7 +43,8 @@ def chat(body: ChatRequest):
     catalog.add_message(thread_id, "user", body.question)
 
     try:
-        res = answer(body.question, matter=body.matter, db_path=str(routes_kb.KB_DB))
+        res = answer(body.question, matter=body.matter, db_path=str(routes_kb.KB_DB),
+                     with_confidence=True)  # B4: non-gating display signal
     except ValueError:
         # matter has no indexed chunks yet (empty KB) -> D-30 refusal, no tool/web call
         res = _refusal_result()
@@ -57,6 +60,50 @@ def chat(body: ChatRequest):
                         json.dumps(res["citations"]))
     catalog.touch_thread(thread_id)
     return {"thread_id": thread_id, **res}
+
+
+def _enrich_doc_ids(matter, citations):
+    by_name = {d["filename"]: d["id"] for d in catalog.list_documents(matter)}
+    for c in citations:
+        c["doc_id"] = by_name.get(c["filename"])
+
+
+@router.post("/chat/stream")
+def chat_stream(body: ChatRequest):
+    """Streaming variant of /chat (B6): tokens stream live over SSE, then a 'done' event
+    carries the verified citations (verifier runs on the COMPLETE text, never a partial).
+    Perceived-latency only — citations are identical to /chat."""
+    if not catalog.get_matter(body.matter):
+        raise HTTPException(status_code=400, detail=f"unknown matter: {body.matter!r}")
+    if not body.question.strip():
+        raise HTTPException(status_code=400, detail="empty question")
+
+    thread_id = body.thread_id or catalog.create_thread(body.matter, body.question.strip())["id"]
+    catalog.add_message(thread_id, "user", body.question)
+
+    def event(name, obj):
+        return f"event: {name}\ndata: {json.dumps(obj)}\n\n"
+
+    def gen():
+        result = None
+        try:
+            for ev in answer_stream(body.question, matter=body.matter,
+                                    db_path=str(routes_kb.KB_DB)):
+                if ev["type"] == "token":
+                    yield event("token", {"text": ev["text"]})
+                else:
+                    result = ev
+        except ValueError:
+            result = {"answer_text": REFUSAL, "citations": [], "rejected_claims": []}
+        _enrich_doc_ids(body.matter, result["citations"])
+        catalog.add_message(thread_id, "assistant", result["answer_text"],
+                            json.dumps(result["citations"]))
+        catalog.touch_thread(thread_id)
+        yield event("done", {"thread_id": thread_id, "answer_text": result["answer_text"],
+                             "citations": result["citations"],
+                             "rejected_claims": result.get("rejected_claims", [])})
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
 
 
 @router.get("/chat/threads")

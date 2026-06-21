@@ -39,6 +39,13 @@ class TestDeployScripts(unittest.TestCase):
         for s in SCRIPTS:
             self.assertNotIn("OLLAMA_HOST", (DEPLOY / s).read_text(), f"{s} sets OLLAMA_HOST")
 
+    def test_readme_warns_compose_only_never_docker_run_p(self):
+        # B3: the compose-only constraint (D-43a) must be documented prominently.
+        readme = (DEPLOY / "README.md").read_text().lower()
+        self.assertIn("compose-only", readme)
+        self.assertIn("docker run -p", readme)
+        self.assertIn("d-43a", readme)
+
     def test_compose_binds_loopback_only(self):
         text = COMPOSE.read_text()
         self.assertIn("127.0.0.1:8000:8000", text)

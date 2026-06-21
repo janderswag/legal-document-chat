@@ -1,5 +1,12 @@
 # Deploy — scripted redeploy + restore (SC-7)
 
+> ## ⚠️ COMPOSE-ONLY — never `docker run -p` (D-43a, hard rule #4)
+> The image's container CMD binds `0.0.0.0` **inside the container only**. The loopback
+> boundary is supplied **exclusively** by `docker-compose.yml`, which publishes
+> `127.0.0.1:8000:8000`. A bare **`docker run -p 8000:8000 <image>`** would publish to
+> `0.0.0.0` and expose the service off-host — a hard-rule violation. **Always** bring the
+> service up with `deploy/up.sh` / `docker compose up`. Never `docker run -p` this image.
+
 Compose-only, loopback-only redeploy of the Legal Document Intelligence FastAPI service.
 **Never** binds `0.0.0.0`; **never** sets `OLLAMA_HOST`. The published port is bound to
 `127.0.0.1` by `docker-compose.yml` (`127.0.0.1:8000:8000`); host Ollama stays on

@@ -108,9 +108,10 @@ class TestSafetyStructural(unittest.TestCase):
                           "/matters", "/eval/matters", "/source/{filename:path}",
                           "/kb/upload", "/kb/documents", "/kb/source/{doc_id}",
                           "/kb/documents/{doc_id}",
-                          "/chat", "/chat/threads", "/chat/threads/{thread_id}",
+                          "/chat", "/chat/stream", "/chat/threads", "/chat/threads/{thread_id}",
                           "/kb/thumb/{doc_id}", "/kb/highlight/{doc_id}",
                           "/clauses/taxonomy", "/clauses/review",
+                          "/grid",
                           "/settings/status"})
 
     def test_only_the_locked_kb_delete_mutates(self):
@@ -125,6 +126,11 @@ class TestSafetyStructural(unittest.TestCase):
     def test_app_binds_loopback_only(self):
         self.assertEqual(api.HOST, "127.0.0.1")
         self.assertNotEqual(api.HOST, "0.0.0.0")
+
+    def test_no_openapi_schema_surface(self):
+        # B2 defense-in-depth: docs/redoc AND the OpenAPI schema are all disabled.
+        for path in ("/openapi.json", "/docs", "/redoc"):
+            self.assertEqual(client.get(path).status_code, 404, path)
 
 
 class TestLoopbackOnlyEgress(unittest.TestCase):

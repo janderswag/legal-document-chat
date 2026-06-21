@@ -2,7 +2,7 @@
    per-view data fetches. Extended task-by-task (matters/hub/chat/history/settings). */
 (function () {
   "use strict";
-  var VIEWS = ["chat", "matters", "hub", "clauses", "history", "settings"];
+  var VIEWS = ["chat", "matters", "hub", "clauses", "grid", "history", "settings"];
   var state = { matter: null };
   window.appState = state;
   window.viewHooks = window.viewHooks || {};
@@ -248,7 +248,15 @@
         ? "<li><a class='src-chip' target='_blank' href='" + highlightUrl(c) + "'>" + label + "</a></li>"
         : "<li>" + label + "</li>";
     }).join("");
-    return "<div class='answer'>" + md(safe) + "</div>" +
+    // B4: non-gating confidence pill (display only — never affects which citations show).
+    var conf = "";
+    if (typeof body.confidence === "number") {
+      var pct = Math.round(body.confidence * 100);
+      var lvl = pct >= 70 ? "ok" : (pct >= 40 ? "warn" : "low");
+      conf = "<span class='conf-pill " + lvl + "' title='Model self-confidence " +
+        "(display only — does not affect citations)'>confidence " + pct + "%</span>";
+    }
+    return "<div class='answer'>" + md(safe) + "</div>" + conf +
       (thumbs ? "<div class='thumb-row'>" + thumbs + "</div>" : "") +
       (sources ? "<div class='sources'><b>Sources</b><ul>" + sources + "</ul></div>" : "");
   };
@@ -458,6 +466,149 @@
     document.getElementById("clause-run").addEventListener("click", runClauseReview);
   }
   window.viewHooks.clauses = renderClauses;
+
+  // --- Review Grid view ------------------------------------------------------
+  // A document x clause matrix streamed live over SSE (POST /grid). Each cell is a
+  // span-verified finding ("found" + citation chip -> /kb/highlight), an advisory
+  // "potentially missing", or "not confirmed" — reusing the SAME verifier as the rest of
+  // the app (never a fuzzy highlight). Cells render as skeletons until their SSE event
+  // arrives. All model-supplied text passes through esc() before render (D-48 XSS guard).
+  var GRID_BADGE = { found: "found", potentially_missing: "missing", not_confirmed: "unconf" };
+  var gridData = { columns: [], docs: [], cells: {} };
+
+  function gridCellId(docId, colId) { return "gc-" + docId + "-" + colId; }
+
+  function buildGridSkeleton(meta) {
+    gridData = { columns: meta.columns || [], docs: meta.docs || [], cells: {} };
+    var head = "<th class='grid-corner'>Document</th>" +
+      gridData.columns.map(function (c) {
+        return "<th class='grid-col' title='" + esc(c.question) + "'>" + esc(c.name || c.id) + "</th>";
+      }).join("");
+    var body = gridData.docs.map(function (d) {
+      var cells = gridData.columns.map(function (c) {
+        return "<td class='grid-cell skeleton' id='" + gridCellId(d.doc_id, c.id) + "'>…</td>";
+      }).join("");
+      return "<tr><th class='grid-rowhead' title='" + esc(d.filename) + "'>" + esc(d.filename) +
+        "</th>" + cells + "</tr>";
+    }).join("");
+    var out = document.getElementById("grid-results");
+    out.innerHTML = "<div class='grid-scroll'><table class='grid-table'><thead><tr>" +
+      head + "</tr></thead><tbody>" + body + "</tbody></table></div>";
+  }
+
+  function fillGridCell(cell) {
+    gridData.cells[gridCellId(cell.doc_id, cell.column_id)] = cell;
+    var td = document.getElementById(gridCellId(cell.doc_id, cell.column_id));
+    if (!td) return;
+    var badge = GRID_BADGE[cell.status] || "unconf";
+    var inner = "<span class='clause-badge " + badge + "'>" + esc(badge) + "</span>";
+    if (cell.status === "found") {
+      var c = (cell.citations || [])[0];
+      var snippet = (cell.value || "").replace(/\s+/g, " ").slice(0, 90);
+      inner += " <span class='grid-val'>" + esc(snippet) + "</span>";
+      if (c && c.doc_id != null) {
+        inner += " <a class='src-chip' target='_blank' href='" + highlightUrl(c) +
+          "' title='" + esc(c.filename) + " p." + esc(c.page) + "'>p." + esc(c.page) + "</a>";
+      }
+    } else if (cell.status === "potentially_missing") {
+      inner += " <span class='muted'>not located</span>";
+    } else {
+      inner += " <span class='muted'>unverified</span>";
+    }
+    td.className = "grid-cell " + badge;
+    td.innerHTML = inner;
+  }
+
+  function gridToCsv() {
+    var rows = [["Document", "Clause", "Status", "Value", "Citation"]];
+    gridData.docs.forEach(function (d) {
+      gridData.columns.forEach(function (col) {
+        var cell = gridData.cells[gridCellId(d.doc_id, col.id)] || {};
+        var c = (cell.citations || [])[0];
+        rows.push([d.filename, col.name || col.id, cell.status || "",
+          (cell.value || "").replace(/\s+/g, " "),
+          c ? (c.filename + " p." + c.page) : ""]);
+      });
+    });
+    return rows.map(function (r) {
+      return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
+    }).join("\n");
+  }
+
+  function downloadCsv() {
+    var blob = new Blob([gridToCsv()], { type: "text/csv" });  // local, no network
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "review-grid.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  window.gridToCsv = gridToCsv;
+
+  function parseSseBlock(block) {
+    var ev = null, data = null;
+    block.split("\n").forEach(function (line) {
+      if (line.indexOf("event:") === 0) ev = line.slice(6).trim();
+      else if (line.indexOf("data:") === 0) { try { data = JSON.parse(line.slice(5).trim()); } catch (e) {} }
+    });
+    return ev ? { event: ev, data: data } : null;
+  }
+
+  async function runGrid() {
+    var err = document.getElementById("grid-err");
+    if (err) err.textContent = "";
+    if (!state.matter) { if (err) err.textContent = "Choose a matter first."; return; }
+    document.getElementById("grid-csv").disabled = true;
+    document.getElementById("grid-results").innerHTML =
+      "<p class='muted'>Evaluating the matrix over " + esc(state.matter) + " — cells stream in live…</p>";
+    try {
+      var resp = await fetch("/grid", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matter: state.matter }),
+      });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      var reader = resp.body.getReader(), dec = new TextDecoder(), buf = "";
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buf += dec.decode(chunk.value, { stream: true });
+        var parts = buf.split("\n\n"); buf = parts.pop();
+        parts.forEach(function (b) {
+          var msg = parseSseBlock(b);
+          if (!msg) return;
+          if (msg.event === "meta") buildGridSkeleton(msg.data);
+          else if (msg.event === "cell") fillGridCell(msg.data);
+          else if (msg.event === "done") document.getElementById("grid-csv").disabled = false;
+        });
+      }
+    } catch (e) {
+      document.getElementById("grid-results").innerHTML =
+        "<span style='color:var(--err)'>" + esc(e.message) + "</span>";
+    }
+  }
+
+  function renderGrid() {
+    var inner = document.querySelector("#view-grid .view-inner");
+    inner.innerHTML =
+      "<h1>Review Grid</h1>" +
+      "<p class='muted'>A document × clause matrix. Each cell is span-verified, advisory " +
+      "(potentially missing), or unverified — locate &amp; summarize only.</p>" +
+      "<div class='panel' style='display:flex;gap:8px;align-items:center'>" +
+      "<label class='muted'>Matter:</label>" +
+      "<select class='matter-picker' id='grid-matter' style='max-width:340px'></select>" +
+      "<button class='btn' id='grid-run'>Run grid</button>" +
+      "<button class='btn secondary' id='grid-csv' disabled>Export CSV</button></div>" +
+      "<div id='grid-err' style='color:var(--err);font-size:13px'></div>" +
+      "<div id='grid-results'></div>";
+    fillMatterPickers().catch(function () {});
+    document.getElementById("grid-matter").addEventListener("change", function (e) {
+      var opt = e.target.selectedOptions[0];
+      setActiveMatter(e.target.value, opt ? opt.textContent : null);
+    });
+    document.getElementById("grid-run").addEventListener("click", runGrid);
+    document.getElementById("grid-csv").addEventListener("click", downloadCsv);
+  }
+  window.viewHooks.grid = renderGrid;
 
   // --- router ----------------------------------------------------------------
   function showView(name) {

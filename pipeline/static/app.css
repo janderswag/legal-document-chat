@@ -89,3 +89,26 @@ th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;le
 .clause-badge.unconfirmed{background:#eef1f5;color:var(--muted)}
 .clause-advisory{font-size:13px;margin:4px 0 0}
 .clause-foot{margin-top:16px;font-size:12px}
+
+/* Review Grid (document x clause matrix, sticky header + first column) */
+.grid-scroll{overflow:auto;max-height:72vh;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
+.grid-table{border-collapse:separate;border-spacing:0;font-size:13px;min-width:640px}
+.grid-table th,.grid-table td{border-bottom:1px solid var(--border);border-right:1px solid var(--border);padding:8px 10px;vertical-align:top}
+.grid-table thead th{position:sticky;top:0;z-index:3;background:#f0f3f8;font-weight:600;white-space:nowrap}
+.grid-corner{position:sticky;left:0;top:0;z-index:4;background:#e9eef6}
+.grid-rowhead{position:sticky;left:0;z-index:2;background:#f7f9fc;font-weight:600;max-width:220px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grid-col{max-width:180px}
+.grid-cell{min-width:150px;max-width:240px}
+.grid-cell.skeleton{color:transparent;background:linear-gradient(90deg,#eef1f5,#f7f9fc,#eef1f5);
+  background-size:200% 100%;animation:gridpulse 1.2s ease-in-out infinite}
+@keyframes gridpulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.grid-cell.found{background:#f4fbf6}
+.grid-cell.missing{background:#fffaf2}
+.grid-val{display:block;color:var(--text);margin-top:3px;font-size:12px}
+
+/* B4: non-gating confidence pill (display only) */
+.conf-pill{display:inline-block;margin-top:6px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+.conf-pill.ok{background:#e8f7ee;color:var(--ok)}
+.conf-pill.warn{background:#fff4e5;color:var(--warn)}
+.conf-pill.low{background:#fdeaea;color:var(--err)}

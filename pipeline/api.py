@@ -36,11 +36,15 @@ _STATIC_MEDIA = {".js": "application/javascript", ".css": "text/css", ".html": "
                  ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon",
                  ".woff2": "font/woff2", ".json": "application/json"}
 
-app = FastAPI(title="Legal Document Intelligence (M2-7)", docs_url=None, redoc_url=None)
+# Defense-in-depth (B2): no interactive docs AND no schema endpoint (openapi_url=None) —
+# the loopback single-tenant API exposes no introspection surface.
+app = FastAPI(title="Legal Document Intelligence (M2-7)", docs_url=None, redoc_url=None,
+              openapi_url=None)
 
 # App routers (the SAM-style UI surfaces). Loopback-only, cited-retrieval only.
 import routes_chat  # noqa: E402
 import routes_clauses  # noqa: E402
+import routes_grid  # noqa: E402
 import routes_kb  # noqa: E402
 import routes_matters  # noqa: E402
 import routes_settings  # noqa: E402
@@ -49,6 +53,7 @@ app.include_router(routes_matters.router)
 app.include_router(routes_kb.router)
 app.include_router(routes_chat.router)
 app.include_router(routes_clauses.router)
+app.include_router(routes_grid.router)
 app.include_router(routes_settings.router)
 
 

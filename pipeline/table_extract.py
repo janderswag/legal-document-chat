@@ -23,9 +23,59 @@ pinned to ``TABLEFORMER_REVISION`` below — a revision change forces a table re
 import os
 from pathlib import Path
 
+# Air-gap (rule #4): force HF/Transformers offline at IMPORT time — before any
+# huggingface_hub import, including a bare standalone ``assert_model_revision()`` (the A0
+# startup enforcement) — so even that makes ZERO egress. The owner-approved one-time fetch
+# opts out per-run by launching with ``DOCLING_ALLOW_MODEL_FETCH=1`` set before import.
+if os.environ.get("DOCLING_ALLOW_MODEL_FETCH") != "1":
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 # docling-project/docling-models @ v2.3.0 (the snapshot cached on this machine; contains
 # the TableFormer weights). Pinned D-11 style — a change forces table re-index.
 TABLEFORMER_REVISION = "fc0f2d45e2218ea24bce5045f58a389aed16dc23"
+
+_MODEL_REPO_DIR = "models--docling-project--docling-models"
+
+
+def cached_model_revision():
+    """The commit hash the local HF cache resolves for docling-project/docling-models, or
+    ``None`` if it can't be determined unambiguously (e.g. a fresh machine before the
+    approved one-time fetch). Reads the HF cache layout (refs/<tag> -> commit, else the
+    single snapshot dir) — no network, no Docling import."""
+    try:
+        from huggingface_hub.constants import HF_HUB_CACHE
+        cache_root = Path(HF_HUB_CACHE)
+    except Exception:
+        cache_root = Path.home() / ".cache" / "huggingface" / "hub"
+    repo = cache_root / _MODEL_REPO_DIR
+    refs = repo / "refs"
+    if refs.is_dir():
+        commits = {p.read_text(encoding="utf-8").strip()
+                   for p in refs.iterdir() if p.is_file()}
+        commits.discard("")
+        if len(commits) == 1:
+            return commits.pop()
+    snaps = repo / "snapshots"
+    if snaps.is_dir():
+        dirs = [p.name for p in snaps.iterdir() if p.is_dir()]
+        if len(dirs) == 1:
+            return dirs[0]
+    return None
+
+
+def assert_model_revision():
+    """Fail loud if the cached Docling model snapshot differs from ``TABLEFORMER_REVISION``
+    — a silent model swap must force a deliberate re-index, never silently change table
+    extraction (D-50/D-53). Returns the resolved revision (or None when the cache can't be
+    resolved — a fresh machine about to fetch; not blocked)."""
+    rev = cached_model_revision()
+    if rev is not None and rev != TABLEFORMER_REVISION:
+        raise RuntimeError(
+            f"TableFormer model revision mismatch: cached {rev!r} != pinned "
+            f"{TABLEFORMER_REVISION!r}. A model change forces a table re-index — update "
+            f"TABLEFORMER_REVISION deliberately (table_extract.py) after re-indexing.")
+    return rev
 
 
 def _bbox_dict(bbox):
@@ -46,11 +96,11 @@ def extract_tables(pdf_path):
     """
     pdf_path = Path(pdf_path)
 
-    # Loopback-only by default: serve cached models, suppress the hub revision-check, so a
-    # conversion makes zero egress. The approved one-time fetch sets DOCLING_ALLOW_MODEL_FETCH=1.
+    # Offline by default (HF/Transformers offline env is set at IMPORT time above). On a
+    # non-fetch run the cached snapshot must match the pin (a swap forces re-index); on a
+    # fetch run the pin is what gets pulled, so the check is skipped there.
     if os.environ.get("DOCLING_ALLOW_MODEL_FETCH") != "1":
-        os.environ["HF_HUB_OFFLINE"] = "1"
-        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        assert_model_revision()
 
     # Lazy import so a caller that never extracts tables never loads Docling/torch.
     from docling.datamodel.base_models import InputFormat

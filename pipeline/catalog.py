@@ -116,6 +116,17 @@ def get_matter(slug, db_path=None):
         conn.close()
 
 
+def delete_matter(slug, db_path=None):
+    """Remove a matter row (catalog only). Callers must remove its documents + chunks
+    first; this never touches a vector store or any document file."""
+    conn = _connect(db_path)
+    try:
+        conn.execute("DELETE FROM matters WHERE slug = ?", (slug,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 # --- documents ---------------------------------------------------------------
 
 def _sha256(path):

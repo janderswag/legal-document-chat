@@ -13,7 +13,9 @@ offsets it needs ARE returned here), no reranker (rerank=False), no LlamaIndex
 (D-37), no HTTP surface (M2-7).
 """
 
+import html
 import json
+import math
 import re
 import time
 import urllib.request
@@ -69,23 +71,50 @@ _QUOTED_RE = re.compile(r"\"([^\"]{15,})\"")
 
 
 def _norm(text):
-    """Quote/whitespace-insensitive form for mapping a quoted span back to a chunk."""
+    """Quote/whitespace-insensitive form for mapping a quoted span back to a chunk.
+
+    Aligned with the verifier's normalization contract (B1): decode HTML entities and drop
+    backslashes that escape a quote BEFORE the reflow/quote/case pass, so a tag-less escaped
+    span (``&quot;``, ``\\"``) resolves to its chunk instead of false-rejecting. Precision
+    only — it just removes characters, so it can recover a truthful span but never make a
+    fabricated one match (the mechanical verifier remains the separate display gate)."""
+    text = html.unescape(text)
+    text = re.sub(r'\\(?=["\'“”‘’])', "", text)  # drop a backslash escaping a quote
     text = re.sub(r"-\n", "-", text)
     text = re.sub(r"[\"'“”‘’]", "", text)
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
-def _chat(messages, host=None, model="qwen3:14b"):
+def _post_chat(messages, host=None, model="qwen3:14b", want_logprobs=False):
+    """Loopback Ollama /api/chat call -> the full response dict. When ``want_logprobs`` is
+    set, requests per-token logprobs (for the B4 confidence signal); otherwise the request
+    body is identical to the original _chat call (parity preserved)."""
     host = host or ollama_url()
-    body = json.dumps({
-        "model": model, "stream": False, "think": False,
-        "messages": messages, "options": {"temperature": 0},
-    }).encode("utf-8")
+    payload = {"model": model, "stream": False, "think": False,
+               "messages": messages, "options": {"temperature": 0}}
+    if want_logprobs:
+        payload["logprobs"] = True
     req = urllib.request.Request(
-        f"{host}/api/chat", data=body, headers={"Content-Type": "application/json"}
+        f"{host}/api/chat", data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req) as resp:
-        return json.load(resp)["message"]["content"]
+        return json.load(resp)
+
+
+def _chat(messages, host=None, model="qwen3:14b"):
+    return _post_chat(messages, host=host, model=model)["message"]["content"]
+
+
+def confidence_from_logprobs(logprobs):
+    """Non-gating answer confidence = exp(mean token logprob) (kotaemon qa_score), in
+    (0, 1], or None when no logprobs are present. DISPLAY ONLY — never feeds the verifier,
+    so it cannot change which citations are verified/displayed (D-19/D-38)."""
+    vals = [x["logprob"] for x in (logprobs or [])
+            if isinstance(x, dict) and isinstance(x.get("logprob"), (int, float))]
+    if not vals:
+        return None
+    return math.exp(sum(vals) / len(vals))
 
 
 def _chat_stream_ttft(messages, host=None, model="qwen3:14b", think=False,
@@ -193,15 +222,11 @@ def _parse_citations(answer_text, grounding):
     return citations
 
 
-def answer(question, matter=None, top_k=5, db_path=None):
-    """Answer ``question`` grounded in the matter-filtered context; refuse if unsupported.
-
-    Returns {answer_text, citations:[{filename,page,chunk_id}],
-    grounding_chunks:[{chunk_id,source_filename,page_number,char_start,char_end,text}]}.
-    """
+def _assemble_context(question, matter, top_k, db_path):
+    """Retrieve the matter-filtered chunks and build (messages, grounding). Shared by
+    answer() and answer_stream() so the prompt + grounding are identical on both paths."""
     chunks = retrieve(question, matter=matter, top_k=top_k, db_path=db_path, rerank=False)
-    grounding = []
-    context_blocks = []
+    grounding, context_blocks = [], []
     for i, c in enumerate(chunks, 1):
         cid = f"C{i}"
         grounding.append({
@@ -216,24 +241,93 @@ def answer(question, matter=None, top_k=5, db_path=None):
             f"[chunk: {cid} | document: {c['source_filename']} | page: {c['page_number']} "
             f"| section: {c['section']}]\n{c['text']}"
         )
-
     user = (
         "<context>\n" + "\n\n".join(context_blocks) + "\n</context>\n\n"
         "Cite each factual claim with the tag [document: <filename>, page: <page_number>, "
         "chunk: <chunk_id>, span: \"<verbatim quote>\"] using the chunk labels shown above.\n\n"
         "User question:\n" + question
     )
-    raw = _chat([
+    messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user},
-    ])
+    ]
+    return messages, grounding
+
+
+def _stream_tokens(messages, host=None, model="qwen3:14b"):
+    """Yield qwen3 content deltas from the loopback Ollama stream (think disabled). Used by
+    the streaming chat path (B6) for perceived latency — the verifier still runs on the
+    fully-assembled text, never on a partial."""
+    host = host or ollama_url()
+    body = {"model": model, "stream": True, "think": False,
+            "messages": messages, "options": {"temperature": 0}}
+    req = urllib.request.Request(
+        f"{host}/api/chat", data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req) as resp:
+        for line in resp:
+            if not line.strip():
+                continue
+            obj = json.loads(line)
+            chunk = obj.get("message", {}).get("content", "")
+            if chunk:
+                yield chunk
+            if obj.get("done"):
+                break
+
+
+def answer(question, matter=None, top_k=5, db_path=None, with_confidence=False):
+    """Answer ``question`` grounded in the matter-filtered context; refuse if unsupported.
+
+    Returns {answer_text, citations:[{filename,page,chunk_id}],
+    grounding_chunks:[{chunk_id,source_filename,page_number,char_start,char_end,text}]}.
+
+    with_confidence=False (default) is byte-identical to the original behavior — no logprobs
+    requested. with_confidence=True adds a display-only ``confidence`` (B4) computed from the
+    response logprobs; it never touches the verifier, so citations are unchanged.
+    """
+    messages, grounding = _assemble_context(question, matter, top_k, db_path)
+    confidence = None
+    if with_confidence:
+        resp = _post_chat(messages, want_logprobs=True)
+        raw = resp["message"]["content"]
+        confidence = confidence_from_logprobs(resp.get("logprobs"))
+    else:
+        raw = _chat(messages)
     answer_text = _THINK_RE.sub("", raw).strip()
 
     # M2-6: mechanically verify each asserted span overlaps its cited chunk's offsets.
     # Verified citations are chunk-derived (D-38); unverifiable claims are surfaced.
+    # NOTE: confidence is NOT consulted here — verification is purely mechanical.
     from verifier import verify_answer  # lazy: avoids an import cycle
     verdict = verify_answer(answer_text, grounding)
-    return {
+    result = {
+        "answer_text": answer_text,
+        "citations": verdict["citations"],
+        "rejected_claims": verdict["rejected_claims"],
+        "grounding_chunks": grounding,
+    }
+    if with_confidence:
+        result["confidence"] = confidence  # display-only (B4)
+    return result
+
+
+def answer_stream(question, matter=None, top_k=5, db_path=None):
+    """Generator for the streaming chat path (B6). Yields ``{"type":"token","text":...}``
+    deltas as the model generates, then a final ``{"type":"result", ...}`` whose citations
+    come from running the EXACT verifier on the COMPLETE text (never a partial) — so
+    streaming changes perceived latency only and preserves never-false-accept (D-19/D-38)."""
+    messages, grounding = _assemble_context(question, matter, top_k, db_path)
+    parts = []
+    for tok in _stream_tokens(messages):
+        parts.append(tok)
+        yield {"type": "token", "text": tok}
+    answer_text = _THINK_RE.sub("", "".join(parts)).strip()
+    from verifier import verify_answer  # lazy: avoids an import cycle
+    verdict = verify_answer(answer_text, grounding)
+    yield {
+        "type": "result",
         "answer_text": answer_text,
         "citations": verdict["citations"],
         "rejected_claims": verdict["rejected_claims"],
