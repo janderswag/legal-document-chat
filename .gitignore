@@ -27,3 +27,26 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Credentials / keys — defense-in-depth so a contributor can never commit a real
+# secret (only .env.example is ever tracked). Never commit real keys.
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+id_rsa*
+credentials.json
+service-account*.json
+*-credentials.json
+secrets.*
+
+# Vector stores / local app data (also in pipeline/.gitignore — root belt-and-suspenders)
+.lancedb*/
+*.lance
+.kb_catalog*.db
+
+# Node / JS tooling (none today, but guard future contributors)
+node_modules/
+npm-debug.log*
+.pnpm-debug.log*
