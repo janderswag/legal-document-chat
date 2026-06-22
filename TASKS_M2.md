@@ -217,6 +217,19 @@ git-ignored):_
   speedups). Real-PDF robustness (bankruptcy-parser line-geometry / font-band / checkbox-glyph + real
   court PDF fixtures) folds into the M6-readiness track._
 
+## Future / parked work (not scheduled — owner will trigger)
+
+- [ ] **⏸️ Transcripts — page:line Cited Q&A (DESIGN DONE, build HELD IN RESERVE, D-56).** Full design at
+      `docs/superpowers/specs/2026-06-21-transcripts-design.md`. Depositions already work as normal
+      Document-Hub uploads (verified, **page-level** cites). This adds court-grade **page:line** precision.
+      **Trigger:** a real deposition shows page-level isn't precise enough (attorney is deposition-heavy).
+      Cheap interim option meanwhile: strip the line-number gutter so it doesn't pollute retrieval.
+- [ ] **⏸️ Agent personality for attorney-facing communication (PARKED, D-56).** Give the assistant a warmer/
+      more human voice when talking to the attorney. **Not now — low priority.** ⚠️ Design constraint when
+      picked up: personality must NOT erode the product boundary (CLAUDE.md — not an AI lawyer, no advice,
+      locate/summarize only) or the conservative/grounded/verifiable tone, and must avoid AI-slop framing
+      (`[[feedback-no-ai-built-this]]`). Tone only; never changes what the system asserts or cites.
+
 ## Constraints (carry-forward from M1)
 
 - Local-only, **loopback-only**; no cloud; **synthetic/public docs only**, no real data (real data is M6).

@@ -203,9 +203,14 @@ concurrency; no leak; baselines byte-identical; 0 non-loopback. Closeouts applie
 air-gap fix (yellow closed, 20 table tests green). **F-026 fix PROVEN** (C1: top-k×N+rerank → None→rank3)
 but baseline-affecting → **owner decision to adopt** (not self-applied). `eyecite` held `[GATE]`.
 
-**▶ NEXT: T-TRANS — transcripts (page:line citation + Q/A chunking).** The big net-new build; **brainstorm-
-first** (page:line ripples into the verifier + UI) — Planner to run a design brainstorm with the owner
-before any Builder prompt. Then opportunistic: adopt-F-026 decision, eyecite (owner gate), OcrMac/MPS.
+**▶ RELAY IDLE — at owner direction (2026-06-21).** Transcripts were brainstormed to a complete design but
+the **build is DEFERRED / held in reserve** (D-56): depositions already work as normal Document-Hub uploads
+(verified, page-level cites); page:line precision is built only if a real deposition proves page-level isn't
+enough. Builder is clear-safe (`BUILDER_STATE.md` refreshed). **Queued owner decisions (none auto-start):**
+adopt the F-026 fix (C1 proven, baseline-affecting), approve `eyecite` (`[GATE]` install), build the cheap
+transcript gutter-strip, or pick OcrMac/MPS. **Parked future work (D-56):** transcripts page:line build;
+agent personality for attorney comms. Owner-gated milestones unchanged: G-LAT latency, M4 UAT, M4-5
+hardware, M6 real data.
 
 ### Audit canon (pin — stops audits diverging on representation; D-47/D-52/D-53/D-55)
 - **Canonical hash script (use this ONLY — CWD-independent, all roles):** `scripts/baseline_hash.sh`.

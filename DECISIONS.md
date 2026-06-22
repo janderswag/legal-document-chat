@@ -480,6 +480,21 @@
   makes zero egress — the lone yellow; 20 table tests green). Committed (feature + governance). (CE_PLAN
   §6/§8/§10/§14; D-19, D-36, D-38, D-47, D-49, D-51, D-53, D-54)
 
+- **D-56 — Transcripts design done but BUILD DEFERRED; agent personality PARKED (2026-06-21, owner).**
+  Brainstormed transcripts (page:line Cited Q&A) to a complete design (`docs/superpowers/specs/
+  2026-06-21-transcripts-design.md`): born-digital full-size PDFs, page-based line-aware chunking, and a
+  **keystone that keeps never-false-accept intact** — page:line is *derived from the verified char-span*
+  via a per-line map, never model-asserted (D-38 extended page→page:line). **Decision: do NOT build on
+  spec.** Critical finding: depositions already work today as ordinary Document-Hub uploads (grounded,
+  verified, **page-level** cites — ~80% of the value for free); the feature adds court-grade **page:line**
+  precision, valuable **only if the attorney is deposition-heavy**, and carries a real "confidently-wrong
+  line label" risk. **Trigger to build:** a real deposition shows page-level isn't precise enough. Cheap
+  interim option (not yet scheduled): strip the line-number gutter so it doesn't pollute retrieval.
+  Separately, **agent personality** for attorney-facing comms is **parked as future work** (owner: "could
+  be good… not important now"); when picked up it must stay tone-only and not erode the product boundary
+  (not an AI lawyer / no advice, CLAUDE.md) or the grounded-verifiable posture. Both tracked in `TASKS_M2.md`
+  → Future/parked. (CE_PLAN §3/§14; CLAUDE.md hard rules; D-19, D-38, D-52)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

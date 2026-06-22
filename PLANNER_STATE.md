@@ -29,10 +29,14 @@ now **complete features end-to-end**, anti-laziness, "going slow OK" — Reviewe
   C1/C2 + D1. Never-false-accept across grid/streaming/fuzzy; bounded concurrency; baselines byte-identical;
   0 non-loopback. Closeouts: canonical `scripts/baseline_hash.sh` (CWD-independent; re-pinned canon hashes
   `537146cf…`/`d329c91e…`/`07f04972…`); empty dir removed; A0 import-time air-gap fix.
-- **▶ T-TRANS NEXT — the big net-new build, BRAINSTORM-FIRST.** Page:line citation + Q/A chunking ripple
-  into the verifier + UI; run a design brainstorm with the owner before any Builder prompt.
-- **Owner decisions queued (not auto):** adopt the **F-026 fix** (C1 proven: top-k×N+rerank → None→rank3;
-  baseline-affecting, needs re-eval); approve **eyecite** install (`[GATE]`). Opportunistic: OcrMac/MPS.
+- **⏸️ T-TRANS DESIGN DONE, BUILD DEFERRED (D-56).** Brainstormed to a full spec
+  (`docs/superpowers/specs/2026-06-21-transcripts-design.md`); not built on spec — depositions already work
+  as normal uploads (page-level cites); build the page:line layer only when a real deposition proves
+  page-level insufficient (attorney deposition-heavy). Keystone preserves never-false-accept (page:line
+  derived from the verified span). Parked alongside **agent personality** (tone-only, must not erode the
+  no-advice product boundary).
+- **▶ RELAY IDLE at owner direction. Queued decisions (not auto):** adopt the **F-026 fix** (C1 proven,
+  baseline-affecting); approve **eyecite** (`[GATE]`); cheap transcript **gutter-strip**; OcrMac/MPS.
 - **Owner-gated, untouched:** M4-5 hardware (no purchase on spec), M6 real data (written approval); open
   G-LAT `<3s` latency yellow (unaffected by M-ENRICH).
 
