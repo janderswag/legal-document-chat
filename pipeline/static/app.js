@@ -467,7 +467,7 @@
   }
   window.viewHooks.clauses = renderClauses;
 
-  // --- Review Grid view ------------------------------------------------------
+  // --- Compare Documents view ------------------------------------------------
   // A document x clause matrix streamed live over SSE (POST /grid). Each cell is a
   // span-verified finding ("found" + citation chip -> /kb/highlight), an advisory
   // "potentially missing", or "not confirmed" — reusing the SAME verifier as the rest of
@@ -590,7 +590,7 @@
   function renderGrid() {
     var inner = document.querySelector("#view-grid .view-inner");
     inner.innerHTML =
-      "<h1>Review Grid</h1>" +
+      "<h1>Compare Documents</h1>" +
       "<p class='muted'>A document × clause matrix. Each cell is span-verified, advisory " +
       "(potentially missing), or unverified — locate &amp; summarize only.</p>" +
       "<div class='panel' style='display:flex;gap:8px;align-items:center'>" +

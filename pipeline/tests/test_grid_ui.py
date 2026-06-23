@@ -25,7 +25,7 @@ class TestGridNav(unittest.TestCase):
     def test_app_shell_has_review_grid_nav(self):
         r = client.get("/app")
         self.assertEqual(r.status_code, 200)
-        self.assertIn("Review Grid", r.text)
+        self.assertIn("Compare Documents", r.text)
         self.assertIn('data-view="grid"', r.text)
 
 
