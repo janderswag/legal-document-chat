@@ -296,69 +296,34 @@
   function renderChat() {
     var inner = document.querySelector("#view-chat .view-inner");
     inner.innerHTML =
+      "<div class='chat-head'>" +
+      "<span class='field-label'>Matter</span>" +
+      "<select class='matter-picker' id='chat-matter'></select>" +
+      "<button class='btn secondary' id='chat-new'>＋ New chat</button>" +
+      "</div>" +
+      "<div id='chat-messages' class='chat-messages'>" +
+      "<div class='chat-empty'>" +
       "<p class='eyebrow'>Cited retrieval</p>" +
       "<h1>New Chat</h1>" +
       "<p class='lede'>Select a matter and ask a question grounded in its documents. " +
       "Every answer returns a verified citation to the exact page and span — or tells " +
-      "you it couldn't find one.</p>" +
-      "<div class='chat-workspace'>" +
-      "<div class='chat-main'>" +
-      "<div class='panel matter-card'>" +
-      "<span class='field-label'>Matter</span>" +
-      "<select class='matter-picker' id='chat-matter'></select>" +
-      "<button class='btn secondary' id='chat-new'>＋ New chat</button></div>" +
-      "<div class='panel ask-card'>" +
-      "<span class='field-label'>Question</span>" +
-      "<textarea id='chat-input' rows='5' placeholder='e.g. What are the indemnification " +
-      "obligations, and where are they stated?'></textarea>" +
-      "<div class='ask-foot'><span class='hint'>" +
-      "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7'>" +
-      "<path d='M9 11l2 2 4-4'/><circle cx='12' cy='12' r='9'/></svg>" +
-      "Answers are span-verified before they're shown.</span>" +
-      "<button class='btn' id='chat-send'>Ask&nbsp;→</button></div></div>" +
-      "<div class='starters'><span class='starters-label'>Try asking</span>" +
-      "<div class='starter-grid'>" +
-      "<button class='starter-chip'>Summarize the indemnification obligations.</button>" +
-      "<button class='starter-chip'>List every termination trigger and its notice period.</button>" +
-      "<button class='starter-chip'>What is the governing law and venue?</button>" +
-      "<button class='starter-chip'>Identify any limitation-of-liability caps.</button>" +
+      "you it couldn't find one. Ask follow-ups in the same thread.</p>" +
       "</div></div>" +
-      "<div id='chat-messages' class='chat-messages'></div>" +
-      "</div>" +
-      "<aside class='chat-rail'>" +
-      "<div class='panel rail-card'><span class='field-label'>How cited retrieval works</span>" +
-      "<ol class='steps'>" +
-      "<li><span class='step-n'>1</span><div><b>Retrieve</b><p>Scoped to the active matter's documents only.</p></div></li>" +
-      "<li><span class='step-n'>2</span><div><b>Verify</b><p>Every quote is checked character-by-character against the source.</p></div></li>" +
-      "<li><span class='step-n'>3</span><div><b>Cite</b><p>Answers link to the exact page and span — or say nothing was found.</p></div></li>" +
-      "</ol></div>" +
-      "<div class='panel rail-card'><span class='field-label'>Review tools</span>" +
-      "<div class='rail-links'>" +
-      "<button class='rail-link' data-go='clauses'><b>Contract Review</b><span>Run a clause checklist over a contract.</span></button>" +
-      "<button class='rail-link' data-go='grid'><b>Compare Documents</b><span>Ask the same questions across many documents.</span></button>" +
-      "<button class='rail-link' data-go='hub'><b>Document Hub</b><span>Upload and manage matter documents.</span></button>" +
-      "</div></div>" +
-      "</aside></div>";
-    inner.querySelectorAll(".starter-chip").forEach(function (c) {
-      c.addEventListener("click", function () {
-        var ta = document.getElementById("chat-input");
-        ta.value = c.textContent.trim(); ta.focus();
-      });
-    });
-    inner.querySelectorAll(".rail-link").forEach(function (l) {
-      l.addEventListener("click", function () { window.showView(l.dataset.go); });
-    });
+      "<div class='chat-composer'>" +
+      "<textarea id='chat-input' rows='2' placeholder='Ask a question grounded in this matter&#39;s documents…'></textarea>" +
+      "<button class='btn' id='chat-send'>Ask&nbsp;→</button>" +
+      "</div>";
     fillMatterPickers().catch(function () {});
     document.getElementById("chat-matter").addEventListener("change", function (e) {
       var opt = e.target.selectedOptions[0];
       setActiveMatter(e.target.value, opt ? opt.textContent : null);
     });
     document.getElementById("chat-new").addEventListener("click", function () {
-      state.threadId = null; document.getElementById("chat-messages").innerHTML = "";
+      state.threadId = null; renderChat();
     });
     document.getElementById("chat-send").addEventListener("click", sendChat);
     document.getElementById("chat-input").addEventListener("keydown", function (e) {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendChat();
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
     });
   }
   window.viewHooks.chat = renderChat;
