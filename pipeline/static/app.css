@@ -98,12 +98,11 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 .msg.system{align-self:center;color:var(--muted);font-size:13px}
 .chat-inputrow{display:flex;gap:8px;align-items:flex-end}
 .chat-inputrow textarea{resize:vertical}
-/* New Chat — ongoing conversation: header bar, scrolling thread, persistent composer. */
+/* New Chat — industry-standard chat: the empty state centers a greeting + input
+   in the middle; once a message exists, the thread fills and the input pins to
+   the bottom (the ChatGPT/Claude pattern). */
 #view-chat.view.active{display:block;height:100%}
 #view-chat .view-inner{display:flex;flex-direction:column;height:100%;max-width:900px;padding:20px 28px}
-#view-chat h1{font-size:32px;letter-spacing:-.3px;margin:0 0 8px}
-.eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 10px}
-.lede{font-size:14.5px;color:var(--muted);line-height:1.6;margin:0;max-width:54ch}
 .field-label{display:block;font-size:12px;font-weight:600;letter-spacing:.3px;color:var(--muted);text-transform:uppercase}
 
 .chat-head{display:flex;align-items:center;gap:12px;padding-bottom:14px;margin-bottom:6px;border-bottom:1px solid var(--border)}
@@ -112,12 +111,23 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 .chat-head .btn{margin-left:auto}
 
 .chat-messages{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin:0;padding:18px 2px;max-width:none}
-.chat-empty{margin:auto 0}
-.chat-messages:has(.msg) .chat-empty{display:none}
 
-.chat-composer{display:flex;gap:10px;align-items:flex-end;padding-top:14px;border-top:1px solid var(--border)}
-.chat-composer textarea{flex:1;width:auto;min-height:54px;max-height:200px;resize:none}
+.chat-composer-wrap{flex:0 0 auto;padding-top:14px}
+.chat-greeting{display:none}
+.chat-greeting h1{font-family:var(--serif);font-weight:500;font-size:30px;letter-spacing:-.3px;margin:0 0 10px;text-align:center}
+.greet-sub{font-size:14px;color:var(--muted);line-height:1.5;margin:0 auto;max-width:46ch;text-align:center}
+.chat-composer{display:flex;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--border-2);border-radius:16px;
+  padding:8px 8px 8px 16px;box-shadow:0 1px 2px rgba(29,27,22,.04),0 10px 26px -20px rgba(29,27,22,.28);
+  transition:border-color .15s,box-shadow .15s}
+.chat-composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(180,138,74,.16),0 10px 26px -20px rgba(29,27,22,.28)}
+.chat-composer textarea{flex:1;width:auto;border:0;background:transparent;padding:9px 0;min-height:24px;max-height:200px;resize:none}
+.chat-composer textarea:focus{box-shadow:none;border-color:transparent}
 .chat-composer .btn{flex:0 0 auto}
+
+/* Empty state: center greeting + input vertically; hide the (empty) thread. */
+#view-chat:not(:has(.msg)) .chat-messages{display:none}
+#view-chat:not(:has(.msg)) .chat-composer-wrap{margin:auto;width:100%;max-width:720px;padding-top:0}
+#view-chat:not(:has(.msg)) .chat-greeting{display:block;margin-bottom:22px}
 .answer h2,.answer h3{font-family:var(--serif);font-weight:500;margin:.5em 0 .2em;font-size:17px}
 .answer ul,.answer ol{margin:.3em 0 .3em 1.2em}
 .sources{margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:13px}

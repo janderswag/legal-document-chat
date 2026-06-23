@@ -301,18 +301,14 @@
       "<select class='matter-picker' id='chat-matter'></select>" +
       "<button class='btn secondary' id='chat-new'>＋ New chat</button>" +
       "</div>" +
-      "<div id='chat-messages' class='chat-messages'>" +
-      "<div class='chat-empty'>" +
-      "<p class='eyebrow'>Cited retrieval</p>" +
-      "<h1>New Chat</h1>" +
-      "<p class='lede'>Select a matter and ask a question grounded in its documents. " +
-      "Every answer returns a verified citation to the exact page and span — or tells " +
-      "you it couldn't find one. Ask follow-ups in the same thread.</p>" +
-      "</div></div>" +
+      "<div id='chat-messages' class='chat-messages'></div>" +
+      "<div class='chat-composer-wrap'>" +
+      "<div class='chat-greeting'><h1>What would you like to ask?</h1>" +
+      "<p class='greet-sub'>Answers are grounded in the selected matter&#39;s documents and cited to the exact page and span.</p></div>" +
       "<div class='chat-composer'>" +
-      "<textarea id='chat-input' rows='2' placeholder='Ask a question grounded in this matter&#39;s documents…'></textarea>" +
+      "<textarea id='chat-input' rows='1' placeholder='Ask anything about this matter&#39;s documents…'></textarea>" +
       "<button class='btn' id='chat-send'>Ask&nbsp;→</button>" +
-      "</div>";
+      "</div></div>";
     fillMatterPickers().catch(function () {});
     document.getElementById("chat-matter").addEventListener("change", function (e) {
       var opt = e.target.selectedOptions[0];
