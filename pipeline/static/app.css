@@ -98,6 +98,10 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 .msg.system{align-self:center;color:var(--muted);font-size:13px}
 .chat-inputrow{display:flex;gap:8px;align-items:flex-end}
 .chat-inputrow textarea{resize:vertical}
+/* New Chat: vertically center the empty state; once a conversation grows past the
+   viewport the auto margins collapse to 0 and it top-aligns + scrolls naturally. */
+#view-chat.view.active{display:flex;flex-direction:column;min-height:100%}
+#view-chat .view-inner{margin-block:auto}
 .answer h2,.answer h3{font-family:var(--serif);font-weight:500;margin:.5em 0 .2em;font-size:17px}
 .answer ul,.answer ol{margin:.3em 0 .3em 1.2em}
 .sources{margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:13px}
