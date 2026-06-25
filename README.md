@@ -6,8 +6,10 @@
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB.svg)](https://www.python.org/)
 [![Stack: FastAPI + Ollama + LanceDB](https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20Ollama%20%C2%B7%20LanceDB-0a7e8c.svg)](#tech-stack)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Featured on Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1180166&theme=light)](https://www.producthunt.com/posts/legal-document-chat-for-attorneys-open?utm_source=badge-featured&utm_medium=badge)
-[![Listed on Aback Launch](https://abacklaunch.com/badges/listed-on-blue.svg)](https://abacklaunch.com)
+
+<a href="https://www.producthunt.com/posts/legal-document-chat-for-attorneys-open?utm_source=badge-featured&amp;utm_medium=badge" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1180166&amp;theme=light" alt="Featured on Product Hunt" height="36" /></a>
+&nbsp;
+<a href="https://abacklaunch.com" target="_blank"><img src="https://abacklaunch.com/badges/listed-on-blue.svg" alt="Listed on Aback Launch" height="36" /></a>
 
 ![Legal Document Chat — local, cited document chat for attorneys: a matter-scoped conversation with answers cited to the exact page and section](docs/demo.png)
 
