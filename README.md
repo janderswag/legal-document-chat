@@ -8,6 +8,8 @@
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 <a href="https://www.producthunt.com/posts/legal-document-chat-for-attorneys-open?utm_source=badge-featured&amp;utm_medium=badge" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1180166&amp;theme=light" alt="Featured on Product Hunt" height="36" /></a>
+&nbsp;
+<a href="https://www.betterlaunch.co/product/legal-document-chat-for-attorneys" target="_blank"><img src="https://www.betterlaunch.co/badge-seen-gradient.svg" alt="As seen on Better Launch" height="36" /></a>
 
 ![Legal Document Chat — local, cited document chat for attorneys: a matter-scoped conversation with answers cited to the exact page and section](docs/demo.png)
 
