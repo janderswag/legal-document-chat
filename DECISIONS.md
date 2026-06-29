@@ -512,6 +512,29 @@
   UI, local Ollama). Ongoing governance commits are now public by this choice. (CLAUDE.md hard rule #7;
   D-28, D-37)
 
+- **D-58 — Desktop app distribution: phased launcher → one-click app, pywebview-first (2026-06-29,
+  owner-directed; design captured).** Goal: a downloadable, double-click app (macOS + Windows) so users
+  aren't forced to self-host via terminal/Docker. Full design + cited research:
+  `docs/superpowers/specs/2026-06-29-desktop-app-distribution.md`. **Owner decisions:** (1) **phased A→B**
+  — ship a cheap launcher first, full one-click app later; (2) **wrap, don't rewrite** — keep the entire
+  Python pipeline + the mechanical citation verifier (the moat) untouched. **Key research findings (2
+  cited passes):** a desktop wrapper solves only the window; the two real blockers are (a) freezing the
+  heavy Python backend (Docling pulls multi-GB PyTorch → 2–5 GB installer, 3 build machines, no
+  cross-compile) and (b) the external Ollama + ~10 GB models. **No comparable shipped app uses a Python
+  backend** (LM Studio/Jan/GPT4All/Ollama/Msty/AnythingLLM all embed a native llama.cpp/Ollama engine +
+  download models in-app on first run). **Framework call: pywebview/tray over Tauri** — our UI is already
+  vanilla HTML/JS over loopback, so Tauri's Rust IPC adds complexity for no benefit; pywebview ships the
+  same PyInstaller bundle with fewer moving parts (Tauri stays a fallback only if a native feel is
+  needed). **Phase A** = launcher around the existing FastAPI (still needs Ollama; **unsigned OK, $0**;
+  technical audience). **Phase B** = embed the engine as a sidecar (no separate Ollama install) +
+  in-app/offline first-run model download + PyInstaller backend sidecar + **signed/notarized installers
+  (~$220/yr: $99 Apple + ~$10/mo Azure)** for the attorney audience. **Non-negotiable lessons:** ship the
+  engine not the model; download models in-app on first run; keep loopback-only + no telemetry + opt-in
+  updates (the air-gap moat must survive — offer an offline model installer). Code-signing is a *trust
+  tax* (removes "unidentified developer / unknown publisher" warnings), NOT a distribution toll — unsigned
+  still downloads and runs. **Implementation is a separate packaging effort, owner-gated, not relay
+  pipeline code.** (CLAUDE.md hard rules #3/#4; D-37, D-57)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

@@ -219,6 +219,14 @@ git-ignored):_
 
 ## Future / parked work (not scheduled — owner will trigger)
 
+- [ ] **⏸️ Desktop app distribution — phased launcher → one-click app (DESIGN DONE, D-58).** Spec:
+      `docs/superpowers/specs/2026-06-29-desktop-app-distribution.md`. Downloadable double-click app
+      (macOS + Windows), **pywebview/tray-first, wrap-don't-rewrite** (keep the Python pipeline + verifier).
+      **Phase A:** launcher around the existing FastAPI (still needs Ollama; unsigned/$0; technical users).
+      **Phase B:** embed the engine as a sidecar + in-app/offline first-run model download + PyInstaller
+      backend + signed/notarized installers (~$220/yr) for attorneys. Separate packaging effort (not relay
+      pipeline code); honors loopback-only + no-telemetry + opt-in-update guardrails.
+
 - [ ] **⏸️ Transcripts — page:line Cited Q&A (DESIGN DONE, build HELD IN RESERVE, D-56).** Full design at
       `docs/superpowers/specs/2026-06-21-transcripts-design.md`. Depositions already work as normal
       Document-Hub uploads (verified, **page-level** cites). This adds court-grade **page:line** precision.
