@@ -112,6 +112,7 @@ class TestSafetyStructural(unittest.TestCase):
                           "/kb/thumb/{doc_id}", "/kb/highlight/{doc_id}",
                           "/clauses/taxonomy", "/clauses/review",
                           "/grid",
+                          "/setup", "/setup/status",
                           "/settings/status"})
 
     def test_only_the_locked_kb_delete_mutates(self):

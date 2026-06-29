@@ -1,0 +1,20 @@
+/* First-run setup wizard styling (local-only; complements app.css). */
+#setup{min-height:100vh;display:grid;place-items:center;background:var(--bg);padding:24px}
+.setup-card{max-width:560px;width:100%;background:var(--panel);border:1px solid var(--border);
+  border-radius:16px;padding:28px 30px;box-shadow:0 8px 30px rgba(20,30,50,.06)}
+.setup-brand{display:flex;align-items:center;gap:8px;font-weight:600;color:var(--muted);font-size:14px;margin-bottom:14px}
+.setup-card h1{font-size:22px;margin:0 0 4px}
+.setup-step{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--border)}
+.setup-step:first-of-type{border-top:0}
+.setup-dot{flex:0 0 24px;height:24px;display:grid;place-items:center;border-radius:999px;
+  font-size:13px;font-weight:700}
+.setup-step.done .setup-dot{background:#e8f7ee;color:var(--ok)}
+.setup-step.todo .setup-dot{background:#fff4e5;color:var(--warn)}
+.setup-step-title{font-weight:600;font-size:14px}
+.setup-step-body{color:var(--muted);font-size:13px;margin-top:3px;line-height:1.5}
+.setup-cmd{display:inline-flex;align-items:center;gap:8px;background:#0c1017;color:#d7e0ec;
+  border-radius:8px;padding:6px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:12.5px;margin-top:4px}
+.setup-copy{background:#2a3445;color:#cdd7e6;border:0;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px}
+.setup-actions{display:flex;gap:10px;margin-top:18px}
+.setup-foot{margin-top:16px;font-size:12px}

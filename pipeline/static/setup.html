@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legal Document Chat — First-run setup</title>
+  <!-- Local assets ONLY (air-gap; no CDN, no remote fonts). -->
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/setup.css">
+</head>
+<body>
+  <main id="setup">
+    <div class="setup-card">
+      <div class="setup-brand"><span class="brand-mark">§</span> Legal Document Chat</div>
+      <h1 id="setup-title">Checking your setup…</h1>
+      <p class="muted" id="setup-sub">Looking for Ollama and the required models on this computer.</p>
+      <div id="setup-steps"></div>
+      <div class="setup-actions">
+        <button class="btn" id="setup-recheck">Re-check</button>
+        <a class="btn secondary" id="setup-enter" href="/app" style="display:none">Open the app →</a>
+      </div>
+      <p class="muted setup-foot">Everything runs on <b>127.0.0.1</b> (this computer only). Setup
+        downloads the models from the internet once; afterward your documents stay 100% local.</p>
+    </div>
+  </main>
+  <script src="/static/setup.js"></script>
+</body>
+</html>

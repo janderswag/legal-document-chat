@@ -1,0 +1,3 @@
+# Desktop launcher (D-58 v1, Phase A) — the ONLY new dependency for this task.
+# pywebview pulls its macOS native deps (pyobjc-*, bottle, proxy_tools) automatically.
+pywebview==6.2.1

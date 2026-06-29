@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legal Document Chat — your documents, answered, on your own computer</title>
+  <meta name="description" content="A private AI for your legal documents. Ask questions, get answers pinned to the exact line — and it runs 100% on your own Mac. No cloud, no account, no telemetry.">
+  <!-- Public marketing page (NOT the air-gapped app). Distinctive web fonts are fine here. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="masthead">
+    <a class="wordmark" href="#top">
+      <span class="mark">§</span>
+      <span class="wordmark-text">Legal&nbsp;Document&nbsp;Chat</span>
+    </a>
+    <nav class="topnav">
+      <a href="#how">How it works</a>
+      <a href="#trust">Verified citations</a>
+      <a href="#get">Get the app</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <p class="eyebrow reveal" style="--d:0ms">For solo attorneys &middot; runs on your own computer</p>
+      <h1 class="reveal" style="--d:80ms">
+        Ask your documents.<br>
+        Get answers <em>pinned to the&nbsp;page.</em>
+      </h1>
+      <p class="lede reveal" style="--d:180ms">
+        A private assistant that reads your contracts, pleadings, and exhibits and answers in plain
+        English — with every fact tied to the exact line it came from. And it never leaves your Mac.
+      </p>
+      <div class="hero-cta reveal" style="--d:260ms">
+        <a class="btn btn-primary" href="#get">
+          <svg viewBox="0 0 24 24" class="apple" aria-hidden="true"><path d="M16.4 12.6c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.6.8-3.3.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.8.8-3.6 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.2-2.3 1.2-2.4-.1 0-2.2-.9-2.2-3.5zM14.3 6c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 2-.5 2.5-1.2z"/></svg>
+          Download for macOS
+        </a>
+        <span class="cta-aside">Apple&nbsp;silicon &amp; Intel &middot; <span class="soon">Windows — coming soon</span></span>
+      </div>
+      <p class="hero-fineprint reveal" style="--d:340ms">Free &amp; open. No account. No sign-up.</p>
+
+      <!-- the privacy wax-seal -->
+      <div class="seal reveal" style="--d:200ms" aria-label="100 percent local">
+        <svg viewBox="0 0 120 120" class="seal-svg" aria-hidden="true">
+          <defs><path id="ring" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
+          <circle cx="60" cy="60" r="56" class="seal-edge"/>
+          <circle cx="60" cy="60" r="44" class="seal-inner"/>
+          <text class="seal-text"><textPath href="#ring" startOffset="0">100% LOCAL &middot; NO CLOUD &middot; NO TELEMETRY &middot; </textPath></text>
+          <text x="60" y="55" class="seal-big">100%</text>
+          <text x="60" y="74" class="seal-sub">LOCAL</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- DEMO -->
+    <section class="demo reveal">
+      <figure class="screen">
+        <div class="screen-bar"><span></span><span></span><span></span>
+          <span class="screen-host">127.0.0.1:8000</span></div>
+        <div class="screen-body" id="demo-placeholder">
+          <div class="demo-chat">
+            <div class="bubble q">What is the indemnification cap in the Nimbus MSA?</div>
+            <div class="bubble a">
+              The Provider's aggregate liability is capped at <b>$568,200</b>, except for indemnification.
+              <a class="chip">nimbus_pemberton_msa.pdf · p.3</a>
+              <span class="verified">✓ verified against the source</span>
+            </div>
+          </div>
+          <p class="demo-note">▶ Demo recording goes here — a real screen capture is the top follow-up.</p>
+        </div>
+      </figure>
+    </section>
+
+    <!-- HOW IT WORKS — 3 downloads as a numbered legal procedure -->
+    <section id="how" class="steps">
+      <header class="section-head">
+        <span class="kicker">Setup</span>
+        <h2>Three things to install. Once.</h2>
+        <p>The first-run wizard inside the app walks you through each one and checks them off.
+           After setup, you can pull the network cable — it all runs offline.</p>
+      </header>
+
+      <ol class="step-list">
+        <li class="step reveal">
+          <span class="num">i</span>
+          <div>
+            <h3>Install Ollama — the local AI engine</h3>
+            <p>A small, free engine that runs the AI models on your own machine.
+               <a href="https://ollama.com/download" target="_blank" rel="noopener">Download Ollama&nbsp;↗</a></p>
+          </div>
+        </li>
+        <li class="step reveal">
+          <span class="num">ii</span>
+          <div>
+            <h3>Pull the two models</h3>
+            <p>One reads and writes; one understands meaning. Paste these into Terminal once:</p>
+            <pre class="cmd"><code>ollama pull qwen3:14b
+ollama pull bge-m3</code><button class="copy" data-cmd="ollama pull qwen3:14b&#10;ollama pull bge-m3">copy</button></pre>
+            <p class="muted">~10&nbsp;GB total, downloaded once. This is the only time anything touches the internet.</p>
+          </div>
+        </li>
+        <li class="step reveal">
+          <span class="num">iii</span>
+          <div>
+            <h3>Download Legal Document Chat</h3>
+            <p>Double-click to open it in its own window. <a href="#get">Get the macOS app&nbsp;↓</a></p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- TRUST — the moat -->
+    <section id="trust" class="trust">
+      <div class="trust-grid">
+        <div class="trust-lead reveal">
+          <span class="kicker">Why it's different</span>
+          <h2>It cites the line — or it says it couldn't find it.</h2>
+          <p>Most AI tools confidently invent citations. This one mechanically checks every quote against
+             your actual document before it shows you. If the words aren't really there, the claim is
+             dropped. You verify in one click.</p>
+        </div>
+        <ul class="trust-cards">
+          <li class="card reveal">
+            <h4>Pinned to the source</h4>
+            <p>Every answer carries the file, page, and the exact span — click to open the original at
+               that spot, highlighted.</p>
+          </li>
+          <li class="card reveal">
+            <h4>No invented citations</h4>
+            <p>A span that doesn't mechanically match a real passage never appears as a citation. Honest
+               "I couldn't find that" beats a confident fake.</p>
+          </li>
+          <li class="card reveal">
+            <h4>Your matter stays your matter</h4>
+            <p>Answers are scoped per matter — no bleed between clients. Nothing is uploaded, indexed in
+               the cloud, or shared.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- PRIVACY -->
+    <section class="privacy reveal">
+      <p class="privacy-statement">
+        One-time setup downloads the models from the internet.
+        <em>After that, your documents stay 100% local —</em>
+        searched, read, and answered entirely on your computer. No cloud. No account. No telemetry.
+      </p>
+    </section>
+
+    <!-- GET -->
+    <section id="get" class="get">
+      <header class="section-head center">
+        <span class="kicker">Download</span>
+        <h2>Open it in a window, not a terminal.</h2>
+      </header>
+      <div class="get-cards">
+        <a class="dl dl-mac" href="https://github.com/janderswag/legal-document-chat/releases" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" class="apple" aria-hidden="true"><path d="M16.4 12.6c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.6.8-3.3.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.8.8-3.6 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.2-2.3 1.2-2.4-.1 0-2.2-.9-2.2-3.5zM14.3 6c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 2-.5 2.5-1.2z"/></svg>
+          <span class="dl-title">Download for macOS</span>
+          <span class="dl-sub">Universal · Apple silicon &amp; Intel</span>
+        </a>
+        <div class="dl dl-win" aria-disabled="true">
+          <svg viewBox="0 0 24 24" class="win" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5zM10.5 12.5v7.1L3 18.5v-6H10.5zM11.5 4.2 21 3v8.5h-9.5V4.2zM21 12.5V21l-9.5-1.3V12.5H21z"/></svg>
+          <span class="dl-title">Windows</span>
+          <span class="dl-sub">Coming soon</span>
+        </div>
+      </div>
+      <p class="get-note">Phase&nbsp;A is an unsigned developer build — macOS may ask you to confirm "Open"
+         the first time. Still needs Ollama + the two models (the in-app wizard checks for you).</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-row">
+      <span class="mark">§</span>
+      <span>Legal Document Chat</span>
+      <span class="dot">·</span>
+      <span class="muted">Private legal-document AI that runs on your computer.</span>
+    </div>
+    <p class="muted small">Synthetic/sample documents only in demos. Not legal advice — it locates and
+      summarizes what your documents say; you verify against the cited source.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

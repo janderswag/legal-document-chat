@@ -48,6 +48,7 @@ import routes_grid  # noqa: E402
 import routes_kb  # noqa: E402
 import routes_matters  # noqa: E402
 import routes_settings  # noqa: E402
+import routes_setup  # noqa: E402
 
 app.include_router(routes_matters.router)
 app.include_router(routes_kb.router)
@@ -55,6 +56,7 @@ app.include_router(routes_chat.router)
 app.include_router(routes_clauses.router)
 app.include_router(routes_grid.router)
 app.include_router(routes_settings.router)
+app.include_router(routes_setup.router)
 
 
 @app.get("/", response_class=HTMLResponse)
