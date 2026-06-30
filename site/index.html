@@ -30,86 +30,80 @@
   <main id="top">
     <!-- HERO -->
     <section class="hero">
+      <div class="glow" aria-hidden="true"></div>
       <p class="eyebrow reveal" style="--d:0ms">For attorneys &amp; law offices &middot; runs on your own computer</p>
       <h1 class="reveal" style="--d:80ms">
         Ask your documents.<br>
         Get answers <em>pinned to the&nbsp;page.</em>
       </h1>
-      <p class="lede reveal" style="--d:180ms">
-        A private assistant that reads your contracts, pleadings, and exhibits and answers in plain
-        English — with every fact tied to the exact line it came from. And it never leaves your Mac.
+      <p class="lede reveal" style="--d:160ms">
+        A private assistant that reads your contracts, pleadings, and exhibits and answers in
+        plain English — every fact tied to the exact line it came from. It never leaves your computer.
       </p>
-      <div class="hero-cta reveal" style="--d:260ms">
-        <a class="btn btn-primary" href="#get">
+      <div class="hero-cta reveal" style="--d:240ms">
+        <a class="btn btn-mac" href="#get">
           <svg viewBox="0 0 24 24" class="apple" aria-hidden="true"><path d="M16.4 12.6c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.6.8-3.3.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.8.8-3.6 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.2-2.3 1.2-2.4-.1 0-2.2-.9-2.2-3.5zM14.3 6c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 2-.5 2.5-1.2z"/></svg>
-          Download for macOS
+          Download for Mac
         </a>
-        <span class="cta-aside">Apple&nbsp;silicon &amp; Intel &middot; <span class="soon">Windows — coming soon</span></span>
+        <a class="btn btn-win" href="#get">
+          <svg viewBox="0 0 24 24" class="win" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5zM10.5 12.5v7.1L3 18.5v-6H10.5zM11.5 4.2 21 3v8.5h-9.5V4.2zM21 12.5V21l-9.5-1.3V12.5H21z"/></svg>
+          Download for Windows <span class="btn-soon">soon</span>
+        </a>
       </div>
-      <p class="hero-fineprint reveal" style="--d:340ms">Free &amp; open. No account. No sign-up.</p>
+      <p class="hero-fineprint reveal" style="--d:320ms">Free &amp; open &middot; no account &middot; no sign-up</p>
+
+      <!-- Product shot, directly under the buttons — the LIVE animated demo
+           (auto-plays, loops). Swap the iframe src for a real screen-recording later. -->
+      <figure class="hero-shot reveal" style="--d:420ms"
+              aria-label="Legal Document Chat in action: typing a question and getting an answer cited to the exact page and section of the source document.">
+        <div class="screen-bar"><span></span><span></span><span></span></div>
+        <iframe class="screen-demo" src="demo.html" title="Legal Document Chat — live demo"
+                loading="lazy" scrolling="no" tabindex="-1"></iframe>
+      </figure>
     </section>
 
-    <!-- DEMO -->
-    <section class="demo">
-      <div class="demo-grid">
-        <!-- Real product screenshot -->
-        <figure class="screen reveal">
-          <div class="screen-bar"><span></span><span></span><span></span></div>
-          <img class="screen-shot" src="demo.png" id="demo-shot" loading="lazy" width="2880" height="1800"
-               alt="Legal Document Chat: a cited answer about indemnification obligations and the liability cap, each fact pinned to the page and section of the source document.">
-        </figure>
-
-        <!-- Demo video slot — owner drops a real recording in here later.
-             NON-CLICKABLE placeholder (a <figure>, not a link, pointer-events disabled).
-             EMBED GOES HERE: replace the .vidslot-inner block below with
-             <video class="screen-shot" src="demo.mp4" controls poster="demo.png"></video>
-             (or an <iframe> embed). -->
-        <figure class="vidslot reveal" id="demo-video-slot" aria-label="Demo video coming soon">
-          <div class="vidslot-inner" aria-hidden="true">
-            <span class="vidslot-play">▶</span>
-            <span class="vidslot-title">Demo video</span>
-            <span class="vidslot-sub">Coming soon</span>
-          </div>
-        </figure>
-      </div>
-    </section>
-
-    <!-- HOW IT WORKS — 3 downloads as a numbered legal procedure -->
-    <section id="how" class="steps">
-      <header class="section-head">
+    <!-- SETUP — intro + a diagram of the whole local stack -->
+    <section id="how" class="setup">
+      <div class="setup-intro reveal">
         <span class="kicker">Setup</span>
-        <h2>Three things to install. Once.</h2>
-        <p>The first-run wizard inside the app walks you through each one and checks them off.
-           After setup, you can pull the network cable — it all runs offline.</p>
-      </header>
+        <h2>Three things to&nbsp;install. Once.</h2>
+        <p>A first-run wizard inside the app walks you through each step and checks it off.
+           Everything else — parsing, search, OCR, and the citation checker — is built in.</p>
+        <p class="setup-after"><strong>After setup, pull the network cable.</strong> It all runs offline.</p>
+        <a class="setup-link" href="#get">Get the macOS app&nbsp;↓</a>
+      </div>
 
-      <ol class="step-list">
-        <li class="step reveal">
-          <span class="num">i</span>
-          <div>
-            <h3>Install Ollama — the local AI engine</h3>
-            <p>A small, free engine that runs the AI models on your own machine.
-               <a href="https://ollama.com/download" target="_blank" rel="noopener">Download Ollama&nbsp;↗</a></p>
-          </div>
-        </li>
-        <li class="step reveal">
-          <span class="num">ii</span>
-          <div>
-            <h3>Pull the two models</h3>
-            <p>One reads and writes; one understands meaning. Paste these into Terminal once:</p>
-            <pre class="cmd"><code>ollama pull qwen3:14b
-ollama pull bge-m3</code><button class="copy" data-cmd="ollama pull qwen3:14b&#10;ollama pull bge-m3">copy</button></pre>
-            <p class="muted">~10&nbsp;GB total, downloaded once. This is the only time anything touches the internet.</p>
-          </div>
-        </li>
-        <li class="step reveal">
-          <span class="num">iii</span>
-          <div>
-            <h3>Download Legal Document Chat</h3>
-            <p>Double-click to open it in its own window. <a href="#get">Get the macOS app&nbsp;↓</a></p>
-          </div>
-        </li>
-      </ol>
+      <div class="setup-grid">
+        <!-- the 2 things you install -->
+        <div class="setup-featured">
+          <article class="scard s-1 reveal">
+            <span class="snum">Step 01</span>
+            <span class="sico"><svg viewBox="0 0 24 24" class="brand" aria-hidden="true"><path d="M16.361 10.26a.894.894 0 0 0-.558.47l-.072.148.001.207c0 .193.004.217.059.353.076.193.152.312.291.448.24.238.51.3.872.205a.86.86 0 0 0 .517-.436.752.752 0 0 0 .08-.498c-.064-.453-.33-.782-.724-.897a1.06 1.06 0 0 0-.466 0zm-9.203.005c-.305.096-.533.32-.65.639a1.187 1.187 0 0 0-.06.52c.057.309.31.59.598.667.362.095.632.033.872-.205.14-.136.215-.255.291-.448.055-.136.059-.16.059-.353l.001-.207-.072-.148a.894.894 0 0 0-.565-.472 1.02 1.02 0 0 0-.474.007Zm4.184 2c-.131.071-.223.25-.195.383.031.143.157.288.353.407.105.063.112.072.117.136.004.038-.01.146-.029.243-.02.094-.036.194-.036.222.002.074.07.195.143.253.064.052.076.054.255.059.164.005.198.001.264-.03.169-.082.212-.234.15-.525-.052-.243-.042-.28.087-.355.137-.08.281-.219.324-.314a.365.365 0 0 0-.175-.48.394.394 0 0 0-.181-.033c-.126 0-.207.03-.355.124l-.085.053-.053-.032c-.219-.13-.259-.145-.391-.143a.396.396 0 0 0-.193.032zm.39-2.195c-.373.036-.475.05-.654.086-.291.06-.68.195-.951.328-.94.46-1.589 1.226-1.787 2.114-.04.176-.045.234-.045.53 0 .294.005.357.043.524.264 1.16 1.332 2.017 2.714 2.173.3.033 1.596.033 1.896 0 1.11-.125 2.064-.727 2.493-1.571.114-.226.169-.372.22-.602.039-.167.044-.23.044-.523 0-.297-.005-.355-.045-.531-.288-1.29-1.539-2.304-3.072-2.497a6.873 6.873 0 0 0-.855-.031zm.645.937a3.283 3.283 0 0 1 1.44.514c.223.148.537.458.671.662.166.251.26.508.303.82.02.143.01.251-.043.482-.08.345-.332.705-.672.957a3.115 3.115 0 0 1-.689.348c-.382.122-.632.144-1.525.138-.582-.006-.686-.01-.853-.042-.57-.107-1.022-.334-1.35-.68-.264-.28-.385-.535-.45-.946-.03-.192.025-.509.137-.776.136-.326.488-.73.836-.963.403-.269.934-.46 1.422-.512.187-.02.586-.02.773-.002zm-5.503-11a1.653 1.653 0 0 0-.683.298C5.617.74 5.173 1.666 4.985 2.819c-.07.436-.119 1.04-.119 1.503 0 .544.064 1.24.155 1.721.02.107.031.202.023.208a8.12 8.12 0 0 1-.187.152 5.324 5.324 0 0 0-.949 1.02 5.49 5.49 0 0 0-.94 2.339 6.625 6.625 0 0 0-.023 1.357c.091.78.325 1.438.727 2.04l.13.195-.037.064c-.269.452-.498 1.105-.605 1.732-.084.496-.095.629-.095 1.294 0 .67.009.803.088 1.266.095.555.288 1.143.503 1.534.071.128.243.393.264.407.007.003-.014.067-.046.141a7.405 7.405 0 0 0-.548 1.873c-.062.417-.071.552-.071.991 0 .56.031.832.148 1.279L3.42 24h1.478l-.05-.091c-.297-.552-.325-1.575-.068-2.597.117-.472.25-.819.498-1.296l.148-.29v-.177c0-.165-.003-.184-.057-.293a.915.915 0 0 0-.194-.25 1.74 1.74 0 0 1-.385-.543c-.424-.92-.506-2.286-.208-3.451.124-.486.329-.918.544-1.154a.787.787 0 0 0 .223-.531c0-.195-.07-.355-.224-.522a3.136 3.136 0 0 1-.817-1.729c-.14-.96.114-2.005.69-2.834.563-.814 1.353-1.336 2.237-1.475.199-.033.57-.028.776.01.226.04.367.028.512-.041.179-.085.268-.19.374-.431.093-.215.165-.333.36-.576.234-.29.46-.489.822-.729.413-.27.884-.467 1.352-.561.17-.035.25-.04.569-.04.319 0 .398.005.569.04a4.07 4.07 0 0 1 1.914.997c.117.109.398.457.488.602.034.057.095.177.132.267.105.241.195.346.374.43.14.068.286.082.503.045.343-.058.607-.053.943.016 1.144.23 2.14 1.173 2.581 2.437.385 1.108.276 2.267-.296 3.153-.097.15-.193.27-.333.419-.301.322-.301.722-.001 1.053.493.539.801 1.866.708 3.036-.062.772-.26 1.463-.533 1.854a2.096 2.096 0 0 1-.224.258.916.916 0 0 0-.194.25c-.054.109-.057.128-.057.293v.178l.148.29c.248.476.38.823.498 1.295.253 1.008.231 2.01-.059 2.581a.845.845 0 0 0-.044.098c0 .006.329.009.732.009h.73l.02-.074.036-.134c.019-.076.057-.3.088-.516.029-.217.029-1.016 0-1.258-.11-.875-.295-1.57-.597-2.226-.032-.074-.053-.138-.046-.141.008-.005.057-.074.108-.152.376-.569.607-1.284.724-2.228.031-.26.031-1.378 0-1.628-.083-.645-.182-1.082-.348-1.525a6.083 6.083 0 0 0-.329-.7l-.038-.064.131-.194c.402-.604.636-1.262.727-2.04a6.625 6.625 0 0 0-.024-1.358 5.512 5.512 0 0 0-.939-2.339 5.325 5.325 0 0 0-.95-1.02 8.097 8.097 0 0 1-.186-.152.692.692 0 0 1 .023-.208c.208-1.087.201-2.443-.017-3.503-.19-.924-.535-1.658-.98-2.082-.354-.338-.716-.482-1.15-.455-.996.059-1.8 1.205-2.116 3.01a6.805 6.805 0 0 0-.097.726c0 .036-.007.066-.015.066a.96.96 0 0 1-.149-.078A4.857 4.857 0 0 0 12 3.03c-.832 0-1.687.243-2.456.698a.958.958 0 0 1-.148.078c-.008 0-.015-.03-.015-.066a6.71 6.71 0 0 0-.097-.725C8.997 1.392 8.337.319 7.46.048a2.096 2.096 0 0 0-.585-.041Zm.293 1.402c.248.197.523.759.682 1.388.03.113.06.244.069.292.007.047.026.152.041.233.067.365.098.76.102 1.24l.002.475-.12.175-.118.178h-.278c-.324 0-.646.041-.954.124l-.238.06c-.033.007-.038-.003-.057-.144a8.438 8.438 0 0 1 .016-2.323c.124-.788.413-1.501.696-1.711.067-.05.079-.049.157.013zm9.825-.012c.17.126.358.46.498.888.28.854.36 2.028.212 3.145-.019.14-.024.151-.057.144l-.238-.06a3.693 3.693 0 0 0-.954-.124h-.278l-.119-.178-.119-.175.002-.474c.004-.669.066-1.19.214-1.772.157-.623.434-1.185.68-1.382.078-.062.09-.063.159-.012z"/></svg></span>
+            <h3>Install Ollama</h3>
+            <p>The free, open-source engine that runs the AI models on your own machine.</p>
+            <a href="https://ollama.com/download" target="_blank" rel="noopener">Download Ollama&nbsp;↗</a>
+          </article>
+
+          <article class="scard s-3 reveal">
+            <span class="snum">Step 02</span>
+            <span class="sico s3mark">§</span>
+            <h3>Download the app</h3>
+            <p>Open it — the first-run wizard fetches the two AI models for you (~10&nbsp;GB, once). Then you're set, fully offline.</p>
+            <a href="#get">Get the macOS app&nbsp;↓</a>
+          </article>
+        </div>
+
+        <!-- everything that's bundled and runs locally -->
+        <p class="setup-stack-label">…and the rest is built in — all on your machine:</p>
+        <div class="setup-stack reveal">
+          <span class="chip-stack"><span class="sico"><svg viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span><b>Local models<small>qwen3 + bge-m3</small></b></span>
+          <span class="chip-stack"><span class="sico"><svg viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg></span><b>PDF parsing<small>PyMuPDF</small></b></span>
+          <span class="chip-stack"><span class="sico"><svg viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1"/><path d="M4 10h16M4 14h16M10 5v14"/></svg></span><b>Tables &amp; exhibits<small>Docling</small></b></span>
+          <span class="chip-stack"><span class="sico"><svg viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3"/><path d="M4 12h16"/></svg></span><b>Scanned pages<small>Tesseract OCR</small></b></span>
+          <span class="chip-stack"><span class="sico"><svg viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg></span><b>Private index<small>LanceDB</small></b></span>
+          <span class="chip-stack accent"><span class="sico"><svg viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.4 7.7-8 9-4.6-1.3-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><b>Cited answers<small>Span verifier</small></b></span>
+        </div>
+      </div>
     </section>
 
     <!-- TRUST — the moat -->
