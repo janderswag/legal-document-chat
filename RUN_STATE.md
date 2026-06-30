@@ -182,6 +182,18 @@ disable done; M1-10 air-gap is **egress-monitored** (D-31), not physical disconn
 
 ## Next task
 
+**▶ NEXT: docuchat.app launch batch (D-61, owner-directed 2026-06-30; Builder prompt emitted).** Rebrand
+public `site/` → **docuchat.app** + repalette to **navy/light-gray/white + GOLD** (60-30-10), recolor the
+logo lock-shield gold + ship it as inline SVG, add **Cal.com** "book a call" + email + GitHub +
+**Product Hunt** badge + OSS star/share/PR band + `at1.png` problem illustration, strip em-dashes, broaden
+"solo attorney". **Windows: scaffold only** (PyInstaller `.spec` + build script + `desktop/WINDOWS_TEST.md`
++ launcher cross-platform fixes — owner builds the `.exe` on Windows). **Deploy:** GitHub Actions Pages
+workflow for `site/` + `site/CNAME=docuchat.app`. **DNS already wired by Planner** (Cloudflare apex+www
+CNAME → janderswag.github.io, DNS-only; apex resolves to GitHub Pages IPs). Planner finishes Pages
+custom-domain + Enforce-HTTPS after the first deploy. Marketing-site-only; pipeline/verifier/air-gap app
+untouched. _Absorbs the v1.1 "broaden copy" + root-route items below; the v1.1 launcher hard-kill +
+wizard auto-pull remain a separate desktop batch._
+
 **✅ T-CLAUSE DONE (D-52, Tester-confirmed GREEN ×6 + Planner-verified, 2026-06-21).** Contract Review
 clause checklist complete end-to-end (5 layers, no stubs): 20-clause taxonomy + `extract_clauses()`
 3-status classify + loopback API + UI panel + tests. Never-false-accept held on every path; 159/159 suite;

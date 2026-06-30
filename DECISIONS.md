@@ -567,6 +567,29 @@
   from MAS. App Store = a much-later milestone gated on embed-the-engine. Windows Store is analogous but
   looser. **Sequencing:** launch direct-notarized first; MAS/Store later. (CE_PLAN §12; D-57, D-58, D-59)
 
+- **D-61 — Public site rebrands to docuchat.app; brand palette = navy/light-gray/white + GOLD accent;
+  domain wired on Cloudflare; Windows scaffolded-not-built (2026-06-30, owner-directed).** Owner bought
+  **docuchat.app** on Cloudflare and supplied a logo (navy doc+chat mark + lock-shield). **Decisions
+  (owner-picked via Planner):** (1) **Rebrand** the public `site/` from "Legal Document Chat / §" to
+  **docuchat.app** (repo + app internal name stay `legal-document-chat` — renaming breaks links).
+  (2) **Repalette** off the current oxblood-red editorial theme to the **60-30-10 rule: Navy 60% /
+  light-gray 30% / white background / GOLD 10% accent** (owner chose gold over the logo's native teal →
+  **the logo's lock-shield is recolored gold** so logo+site agree). (3) **Windows:** cannot be built or
+  tested from this Mac (no PyInstaller cross-compile; needs the owner's Windows box + SmartScreen) →
+  Builder **scaffolds** (PyInstaller `.spec` + build script + `desktop/WINDOWS_TEST.md` + launcher
+  cross-platform fixes) and the owner runs it on Windows to produce `docuchat-setup.exe` for the Release;
+  button stays "soon" until the `.exe` lands. (4) **Domain/deploy:** GitHub Pages was **never enabled**
+  (404) and Pages can't serve an arbitrary `site/` folder → Builder adds a **GitHub Actions Pages deploy
+  workflow** for `site/` + `site/CNAME=docuchat.app`. **DNS DONE by Planner via Cloudflare API** (zone
+  `docuchat.app`, token used + wiped, not committed): apex + `www` **CNAME → janderswag.github.io,
+  DNS-only** (grey-cloud so GitHub issues the cert); apex resolves to `185.199.108-111.153`. Planner
+  finishes Pages custom-domain + Enforce-HTTPS **after** the deploy workflow's first run. (5) New page
+  content: **Cal.com** "need help? book a call" (`cal.com/hawkify/janderswag`) + email
+  `jacob.mm.anderson@gmail.com` + GitHub + **Product Hunt badge** (post: legal-document-chat-for-attorneys-open)
+  + an OSS star/share/PR band + `at1.png` "overwhelmed attorney" problem illustration. **Phone number NOT
+  published** (owner directive). **Copy:** strip em-dashes (owner standing pref) + broaden "solo attorney".
+  Marketing `site/` only — pipeline/verifier/air-gap app untouched. (D-57, D-58, D-60)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal
