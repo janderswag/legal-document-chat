@@ -1,9 +1,14 @@
-"""D-58 v1 — landing page content guards (site/, static).
+"""D-58 v1 / D-61 — landing page content guards (site/, static).
 
-The public landing page must clearly present the three downloads (Ollama -> models -> app),
-a macOS download CTA + "Windows coming soon", the privacy framing, and a demo placeholder.
+The public landing page must clearly present the setup story (Ollama -> models -> app),
+a macOS download CTA + "Windows coming soon", the privacy framing, and the live demo embed.
 These guards keep that messaging from silently regressing. (Web fonts / outbound download
 links are intentional here — this is the PUBLIC page, not the air-gapped app.)
+
+Updated for D-61: the landing was redesigned to embed the animated demo (`demo.html`) instead
+of a static `demo.png` + video-slot, and replaced raw `ollama pull` commands with first-run
+wizard copy; the Pages workflow is now `pages.yml` (auto-deploys site/ on push), superseding the
+manual `deploy-site.yml`. Brand/security/deploy specifics live in test_site_brand.py.
 """
 
 import unittest
@@ -19,10 +24,12 @@ class TestLandingPage(unittest.TestCase):
         cls.css = (SITE / "styles.css").read_text(encoding="utf-8")
 
     def test_three_downloads_present(self):
+        # Setup story = Ollama (engine) -> the two models -> the app. The redesigned landing
+        # surfaces the models in the stack diagram + wizard copy rather than raw pull commands.
         low = self.html.lower()
         self.assertIn("ollama", low)                       # 1) engine
-        self.assertIn("ollama pull qwen3:14b", self.html)  # 2) models
-        self.assertIn("ollama pull bge-m3", self.html)
+        self.assertIn("qwen3", low)                        # 2) models (in the stack diagram)
+        self.assertIn("bge-m3", low)
         self.assertIn("download for macos", low)           # 3) the app
 
     def test_macos_cta_points_at_releases(self):
@@ -37,20 +44,18 @@ class TestLandingPage(unittest.TestCase):
         self.assertIn("no telemetry", low)
         self.assertIn("downloads the models from the internet", low)
 
-    def test_real_demo_image_present(self):
-        self.assertIn('src="demo.png"', self.html)
-        self.assertTrue((SITE / "demo.png").is_file(), "site/demo.png missing (self-contained)")
+    def test_live_demo_embed_present(self):
+        # The hero product shot is the animated demo (demo.html) embedded in an iframe.
+        self.assertIn('src="demo.html"', self.html)
+        self.assertTrue((SITE / "demo.html").is_file(), "site/demo.html missing (self-contained)")
+        self.assertTrue((SITE / "demo.js").is_file(), "site/demo.js missing (CSP: external script)")
 
-    def test_video_slot_present_and_not_clickable(self):
-        self.assertIn('id="demo-video-slot"', self.html)
-        self.assertIn("Coming soon", self.html)
-        # the slot must be a <figure>, never an <a>/link, and pointer-events disabled
-        slot = self.html[self.html.index('id="demo-video-slot"'):]
-        slot = slot[:slot.index("</figure>")]
-        self.assertNotIn("<a", slot, "video slot must not be a link/clickable")
-        self.assertNotIn("href", slot)
-        self.assertIn("EMBED GOES HERE", self.html)         # marked for the owner's video
-        self.assertIn("pointer-events:none", self.css)
+    def test_demo_embed_is_not_interactive(self):
+        # The embedded demo must be a non-interactive product shot (taken out of the tab order),
+        # not something a visitor clicks into.
+        figure = self.html[self.html.index('class="hero-shot'):]
+        figure = figure[:figure.index("</figure>")]
+        self.assertIn('tabindex="-1"', figure, "demo iframe must be non-interactive (tabindex=-1)")
 
     def test_audience_copy_is_general_not_solo_exclusive(self):
         low = self.html.lower()
@@ -59,8 +64,10 @@ class TestLandingPage(unittest.TestCase):
 
     def test_pages_wiring_present(self):
         self.assertTrue((SITE / ".nojekyll").exists())
-        wf = (SITE.parent / ".github" / "workflows" / "deploy-site.yml").read_text()
-        self.assertIn("workflow_dispatch", wf)             # manual only — never auto-deploys
+        # D-61: pages.yml auto-deploys site/ on push (supersedes the manual deploy-site.yml).
+        wf = (SITE.parent / ".github" / "workflows" / "pages.yml").read_text()
+        self.assertIn("deploy-pages", wf)                  # the Pages deploy action
+        self.assertIn("push", wf)                          # auto-deploys on push
 
     def test_static_assets_exist(self):
         for f in ("styles.css", "script.js", "favicon.svg"):

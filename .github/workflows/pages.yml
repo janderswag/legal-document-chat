@@ -1,0 +1,38 @@
+# Deploy the docuchat.app landing page (site/) to GitHub Pages (D-61).
+# Triggers on push to main that touches site/**. The first successful run auto-enables Pages
+# as a GitHub Actions ("workflow") deployment source; the Planner then sets the custom domain
+# (docuchat.app, via site/CNAME) and Enforce HTTPS in repo Settings -> Pages afterward.
+name: Deploy site to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One in-flight Pages deploy at a time; don't cancel a publish midway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

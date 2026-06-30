@@ -1,5 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#7b2a25"/>
-  <text x="16" y="23" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
-        font-size="22" font-weight="600" fill="#f4efe4">§</text>
+  <rect width="32" height="32" rx="7" fill="#ffffff"/>
+  <!-- navy document with folded corner -->
+  <path d="M8 5 H19 L24 10 V24 a2 2 0 0 1 -2 2 H10 a2 2 0 0 1 -2 -2 V7 a2 2 0 0 1 2 -2 Z"
+        fill="none" stroke="#0e2240" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M19 5 L24 10 H19 Z" fill="#0e2240"/>
+  <path d="M11 12 H18 M11 15 H17" stroke="#0e2240" stroke-width="2" stroke-linecap="round"/>
+  <!-- gold padlock badge -->
+  <g transform="translate(0 1)">
+    <path d="M20 19 a3 3 0 0 1 6 0 V21" fill="none" stroke="#b8902f" stroke-width="2" stroke-linecap="round"/>
+    <rect x="18.5" y="20.5" width="9" height="7.5" rx="1.6" fill="#b8902f"/>
+    <circle cx="23" cy="24" r="1.1" fill="#ffffff"/>
+  </g>
 </svg>

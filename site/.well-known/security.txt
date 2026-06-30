@@ -1,0 +1,5 @@
+# docuchat.app security contact (RFC 9116)
+Contact: mailto:jacob.mm.anderson@gmail.com
+Expires: 2027-06-30T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://docuchat.app/.well-known/security.txt

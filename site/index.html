@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Legal Document Chat — your documents, answered, on your own computer</title>
-  <meta name="description" content="A private AI for your legal documents. Ask questions, get answers pinned to the exact line — and it runs 100% on your own Mac. No cloud, no account, no telemetry.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://api.producthunt.com https://ph-files.imgix.net; script-src 'self'; frame-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>docuchat.app: your documents, answered, on your own computer</title>
+  <meta name="description" content="A private AI for your legal documents. Ask questions, get answers pinned to the exact line, and it runs 100% on your own Mac. No cloud, no account, no telemetry.">
   <!-- Public marketing page (NOT the air-gapped app). Distinctive web fonts are fine here. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,9 +18,18 @@
   <div class="grain" aria-hidden="true"></div>
 
   <header class="masthead">
-    <a class="wordmark" href="#top">
-      <span class="mark">§</span>
-      <span class="wordmark-text">Legal&nbsp;Document&nbsp;Chat</span>
+    <a class="wordmark" href="#top" aria-label="docuchat.app home">
+      <svg class="logo-mark" viewBox="0 0 40 38" aria-hidden="true">
+        <path class="lk-bubble" d="M12 6 H24 L30 12 V27 Q30 30 27 30 H18 L10 36 L15 30 H13 Q8 30 8 27 V10 Q8 6 12 6 Z"/>
+        <path class="lk-fold" d="M24 6 L30 12 H24 Z"/>
+        <path class="lk-line" d="M13 13 H25"/>
+        <path class="lk-line" d="M13 17 H24"/>
+        <path class="lk-line" d="M13 21 H20"/>
+        <path class="lk-shield" d="M27 19 L33 21 V25 Q33 29 27 31 Q21 29 21 25 V21 Z"/>
+        <path class="lk-lock" d="M25 24 V23 Q25 21 27 21 Q29 21 29 23 V24"/>
+        <rect class="lk-lock-body" x="24.3" y="24" width="5.4" height="4.4" rx="1"/>
+      </svg>
+      <span class="wordmark-text">docuchat<span class="tld">.app</span></span>
     </a>
     <nav class="topnav">
       <a href="#how">How it works</a>
@@ -38,7 +49,7 @@
       </h1>
       <p class="lede reveal" style="--d:160ms">
         A private assistant that reads your contracts, transcripts, pleadings, and exhibits and answers in
-        plain English — every fact tied to the exact line it came from. It never leaves your computer.
+        plain English. Every fact is tied to the exact line it came from, and it never leaves your computer.
       </p>
       <div class="hero-cta reveal" style="--d:240ms">
         <a class="btn btn-mac" href="#get">
@@ -52,23 +63,23 @@
       </div>
       <p class="hero-fineprint reveal" style="--d:320ms">Free &amp; open &middot; no account &middot; no sign-up</p>
 
-      <!-- Product shot, directly under the buttons — the LIVE animated demo
-           (auto-plays, loops). Swap the iframe src for a real screen-recording later. -->
+      <!-- Product shot, directly under the buttons: the LIVE animated demo (auto-plays, loops).
+           Swap the iframe src for a real screen-recording later. -->
       <figure class="hero-shot reveal" style="--d:420ms"
-              aria-label="Legal Document Chat in action: typing a question and getting an answer cited to the exact page and section of the source document.">
+              aria-label="docuchat.app in action: typing a question and getting an answer cited to the exact page and section of the source document.">
         <div class="screen-bar"><span></span><span></span><span></span></div>
-        <iframe class="screen-demo" src="demo.html" title="Legal Document Chat — live demo"
+        <iframe class="screen-demo" src="demo.html" title="docuchat.app live demo"
                 loading="lazy" scrolling="no" tabindex="-1"></iframe>
       </figure>
     </section>
 
-    <!-- SETUP — intro + a diagram of the whole local stack -->
+    <!-- SETUP: intro + a diagram of the whole local stack -->
     <section id="how" class="setup">
       <div class="setup-intro reveal">
         <span class="kicker">Setup</span>
         <h2>Three things to&nbsp;install. Once.</h2>
         <p>A first-run wizard inside the app walks you through each step and checks it off.
-           Everything else — parsing, search, OCR, and the citation checker — is built in.</p>
+           Everything else (parsing, search, OCR, and the citation checker) is built in.</p>
         <p class="setup-after"><strong>After setup, pull the network cable.</strong> It all runs offline.</p>
         <a class="setup-link" href="#get">Get the macOS app&nbsp;↓</a>
       </div>
@@ -81,20 +92,27 @@
             <span class="sico"><svg viewBox="0 0 24 24" class="brand" aria-hidden="true"><path d="M16.361 10.26a.894.894 0 0 0-.558.47l-.072.148.001.207c0 .193.004.217.059.353.076.193.152.312.291.448.24.238.51.3.872.205a.86.86 0 0 0 .517-.436.752.752 0 0 0 .08-.498c-.064-.453-.33-.782-.724-.897a1.06 1.06 0 0 0-.466 0zm-9.203.005c-.305.096-.533.32-.65.639a1.187 1.187 0 0 0-.06.52c.057.309.31.59.598.667.362.095.632.033.872-.205.14-.136.215-.255.291-.448.055-.136.059-.16.059-.353l.001-.207-.072-.148a.894.894 0 0 0-.565-.472 1.02 1.02 0 0 0-.474.007Zm4.184 2c-.131.071-.223.25-.195.383.031.143.157.288.353.407.105.063.112.072.117.136.004.038-.01.146-.029.243-.02.094-.036.194-.036.222.002.074.07.195.143.253.064.052.076.054.255.059.164.005.198.001.264-.03.169-.082.212-.234.15-.525-.052-.243-.042-.28.087-.355.137-.08.281-.219.324-.314a.365.365 0 0 0-.175-.48.394.394 0 0 0-.181-.033c-.126 0-.207.03-.355.124l-.085.053-.053-.032c-.219-.13-.259-.145-.391-.143a.396.396 0 0 0-.193.032zm.39-2.195c-.373.036-.475.05-.654.086-.291.06-.68.195-.951.328-.94.46-1.589 1.226-1.787 2.114-.04.176-.045.234-.045.53 0 .294.005.357.043.524.264 1.16 1.332 2.017 2.714 2.173.3.033 1.596.033 1.896 0 1.11-.125 2.064-.727 2.493-1.571.114-.226.169-.372.22-.602.039-.167.044-.23.044-.523 0-.297-.005-.355-.045-.531-.288-1.29-1.539-2.304-3.072-2.497a6.873 6.873 0 0 0-.855-.031zm.645.937a3.283 3.283 0 0 1 1.44.514c.223.148.537.458.671.662.166.251.26.508.303.82.02.143.01.251-.043.482-.08.345-.332.705-.672.957a3.115 3.115 0 0 1-.689.348c-.382.122-.632.144-1.525.138-.582-.006-.686-.01-.853-.042-.57-.107-1.022-.334-1.35-.68-.264-.28-.385-.535-.45-.946-.03-.192.025-.509.137-.776.136-.326.488-.73.836-.963.403-.269.934-.46 1.422-.512.187-.02.586-.02.773-.002zm-5.503-11a1.653 1.653 0 0 0-.683.298C5.617.74 5.173 1.666 4.985 2.819c-.07.436-.119 1.04-.119 1.503 0 .544.064 1.24.155 1.721.02.107.031.202.023.208a8.12 8.12 0 0 1-.187.152 5.324 5.324 0 0 0-.949 1.02 5.49 5.49 0 0 0-.94 2.339 6.625 6.625 0 0 0-.023 1.357c.091.78.325 1.438.727 2.04l.13.195-.037.064c-.269.452-.498 1.105-.605 1.732-.084.496-.095.629-.095 1.294 0 .67.009.803.088 1.266.095.555.288 1.143.503 1.534.071.128.243.393.264.407.007.003-.014.067-.046.141a7.405 7.405 0 0 0-.548 1.873c-.062.417-.071.552-.071.991 0 .56.031.832.148 1.279L3.42 24h1.478l-.05-.091c-.297-.552-.325-1.575-.068-2.597.117-.472.25-.819.498-1.296l.148-.29v-.177c0-.165-.003-.184-.057-.293a.915.915 0 0 0-.194-.25 1.74 1.74 0 0 1-.385-.543c-.424-.92-.506-2.286-.208-3.451.124-.486.329-.918.544-1.154a.787.787 0 0 0 .223-.531c0-.195-.07-.355-.224-.522a3.136 3.136 0 0 1-.817-1.729c-.14-.96.114-2.005.69-2.834.563-.814 1.353-1.336 2.237-1.475.199-.033.57-.028.776.01.226.04.367.028.512-.041.179-.085.268-.19.374-.431.093-.215.165-.333.36-.576.234-.29.46-.489.822-.729.413-.27.884-.467 1.352-.561.17-.035.25-.04.569-.04.319 0 .398.005.569.04a4.07 4.07 0 0 1 1.914.997c.117.109.398.457.488.602.034.057.095.177.132.267.105.241.195.346.374.43.14.068.286.082.503.045.343-.058.607-.053.943.016 1.144.23 2.14 1.173 2.581 2.437.385 1.108.276 2.267-.296 3.153-.097.15-.193.27-.333.419-.301.322-.301.722-.001 1.053.493.539.801 1.866.708 3.036-.062.772-.26 1.463-.533 1.854a2.096 2.096 0 0 1-.224.258.916.916 0 0 0-.194.25c-.054.109-.057.128-.057.293v.178l.148.29c.248.476.38.823.498 1.295.253 1.008.231 2.01-.059 2.581a.845.845 0 0 0-.044.098c0 .006.329.009.732.009h.73l.02-.074.036-.134c.019-.076.057-.3.088-.516.029-.217.029-1.016 0-1.258-.11-.875-.295-1.57-.597-2.226-.032-.074-.053-.138-.046-.141.008-.005.057-.074.108-.152.376-.569.607-1.284.724-2.228.031-.26.031-1.378 0-1.628-.083-.645-.182-1.082-.348-1.525a6.083 6.083 0 0 0-.329-.7l-.038-.064.131-.194c.402-.604.636-1.262.727-2.04a6.625 6.625 0 0 0-.024-1.358 5.512 5.512 0 0 0-.939-2.339 5.325 5.325 0 0 0-.95-1.02 8.097 8.097 0 0 1-.186-.152.692.692 0 0 1 .023-.208c.208-1.087.201-2.443-.017-3.503-.19-.924-.535-1.658-.98-2.082-.354-.338-.716-.482-1.15-.455-.996.059-1.8 1.205-2.116 3.01a6.805 6.805 0 0 0-.097.726c0 .036-.007.066-.015.066a.96.96 0 0 1-.149-.078A4.857 4.857 0 0 0 12 3.03c-.832 0-1.687.243-2.456.698a.958.958 0 0 1-.148.078c-.008 0-.015-.03-.015-.066a6.71 6.71 0 0 0-.097-.725C8.997 1.392 8.337.319 7.46.048a2.096 2.096 0 0 0-.585-.041Zm.293 1.402c.248.197.523.759.682 1.388.03.113.06.244.069.292.007.047.026.152.041.233.067.365.098.76.102 1.24l.002.475-.12.175-.118.178h-.278c-.324 0-.646.041-.954.124l-.238.06c-.033.007-.038-.003-.057-.144a8.438 8.438 0 0 1 .016-2.323c.124-.788.413-1.501.696-1.711.067-.05.079-.049.157.013zm9.825-.012c.17.126.358.46.498.888.28.854.36 2.028.212 3.145-.019.14-.024.151-.057.144l-.238-.06a3.693 3.693 0 0 0-.954-.124h-.278l-.119-.178-.119-.175.002-.474c.004-.669.066-1.19.214-1.772.157-.623.434-1.185.68-1.382.078-.062.09-.063.159-.012z"/></svg></span>
             <h3>Install Ollama</h3>
             <p>The free, open-source engine that runs the AI models on your own machine.</p>
-            <a href="https://ollama.com/download" target="_blank" rel="noopener">Download Ollama&nbsp;↗</a>
+            <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Download Ollama&nbsp;↗</a>
           </article>
 
           <article class="scard s-3 reveal">
             <span class="snum">Step 02</span>
-            <span class="sico s3mark">§</span>
+            <span class="sico s3mark"><svg class="logo-mark" viewBox="0 0 40 38" aria-hidden="true">
+              <path class="lk-bubble" d="M12 6 H24 L30 12 V27 Q30 30 27 30 H18 L10 36 L15 30 H13 Q8 30 8 27 V10 Q8 6 12 6 Z"/>
+              <path class="lk-fold" d="M24 6 L30 12 H24 Z"/>
+              <path class="lk-line" d="M13 13 H25"/><path class="lk-line" d="M13 17 H24"/><path class="lk-line" d="M13 21 H20"/>
+              <path class="lk-shield" d="M27 19 L33 21 V25 Q33 29 27 31 Q21 29 21 25 V21 Z"/>
+              <path class="lk-lock" d="M25 24 V23 Q25 21 27 21 Q29 21 29 23 V24"/>
+              <rect class="lk-lock-body" x="24.3" y="24" width="5.4" height="4.4" rx="1"/>
+            </svg></span>
             <h3>Download the app</h3>
-            <p>Open it — the first-run wizard fetches the two AI models for you (~10&nbsp;GB, once). Then you're set, fully offline.</p>
+            <p>Open it: the first-run wizard fetches the two AI models for you (~10&nbsp;GB, once). Then you're set, fully offline.</p>
             <a href="#get">Get the macOS app&nbsp;↓</a>
           </article>
         </div>
 
         <!-- everything that's bundled and runs locally -->
-        <p class="setup-stack-label">…and the rest is built in — all on your machine:</p>
+        <p class="setup-stack-label">…and the rest is built in, all on your machine:</p>
         <div class="setup-stack reveal">
           <span class="chip-stack"><span class="sico"><svg viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span><b>Local models<small>qwen3 + bge-m3</small></b></span>
           <span class="chip-stack"><span class="sico"><svg viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg></span><b>PDF parsing<small>PyMuPDF</small></b></span>
@@ -106,12 +124,12 @@
       </div>
     </section>
 
-    <!-- TRUST — the moat -->
+    <!-- TRUST: the moat -->
     <section id="trust" class="trust">
       <div class="trust-grid">
         <div class="trust-lead reveal">
           <span class="kicker">Why it's different</span>
-          <h2>It cites the line — or it says it couldn't find it.</h2>
+          <h2>It cites the line, or it says it couldn't find it.</h2>
           <p>Most AI tools confidently invent citations. This one mechanically checks every quote against
              your actual document before it shows you. If the words aren't really there, the claim is
              dropped. You verify in one click.</p>
@@ -119,7 +137,7 @@
         <ul class="trust-cards">
           <li class="card reveal">
             <h4>Pinned to the source</h4>
-            <p>Every answer carries the file, page, and the exact span — click to open the original at
+            <p>Every answer carries the file, page, and the exact span. Click to open the original at
                that spot, highlighted.</p>
           </li>
           <li class="card reveal">
@@ -129,7 +147,7 @@
           </li>
           <li class="card reveal">
             <h4>Your matter stays your matter</h4>
-            <p>Answers are scoped per matter — no bleed between clients. Nothing is uploaded, indexed in
+            <p>Answers are scoped per matter, with no bleed between clients. Nothing is uploaded, indexed in
                the cloud, or shared.</p>
           </li>
         </ul>
@@ -140,10 +158,68 @@
     <section class="privacy reveal">
       <p class="privacy-statement">
         One-time setup downloads the models from the internet.
-        <em>After that, your documents stay 100% local —</em>
+        <em>After that, your documents stay 100% local,</em>
         searched, read, and answered entirely on your computer. No cloud. No account. No telemetry.
       </p>
     </section>
+
+    <!-- PROBLEM: the overwhelmed attorney -->
+    <section class="problem">
+      <div class="problem-grid">
+        <figure class="problem-figure reveal">
+          <img src="assets/docuchat-problem.jpg" width="1100" height="619" loading="lazy"
+               alt="An attorney at a desk buried under stacks of paper files, sticky notes, and binders, looking overwhelmed.">
+        </figure>
+        <div class="problem-copy reveal">
+          <p class="lead-in">The problem</p>
+          <h2>The answer is in there. Somewhere.</h2>
+          <p>Contracts, transcripts, exhibits, correspondence. The clause you need is buried on page 38
+             of one of two hundred files, and the clock is running.</p>
+          <p>docuchat reads the whole matter and hands you the passage, pinned to the file, page, and line,
+             so you can confirm it in one click instead of digging for an hour.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- HELP + OPEN SOURCE bands -->
+    <div class="bands">
+      <section class="band reveal">
+        <h3>Need help setting it up?</h3>
+        <p>Book a call and we'll walk through install, your first matter, and how the citations work.
+           No phone tag, no sales pitch.</p>
+        <div class="band-actions">
+          <a class="band-btn primary" href="https://cal.com/hawkify/janderswag" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3M17 2v3M3 8h18M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            Book a call
+          </a>
+          <a class="band-btn ghost" href="mailto:jacob.mm.anderson@gmail.com">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            Email
+          </a>
+          <a class="band-btn ghost" href="https://github.com/janderswag/legal-document-chat" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </section>
+
+      <section class="band reveal">
+        <h3>Free &amp; open source (MIT).</h3>
+        <p>No license servers, no lock-in. Star it, share it with a colleague, or send a pull request.
+           It's yours to run and to read.</p>
+        <div class="band-actions">
+          <a class="band-btn dark" href="https://github.com/janderswag/legal-document-chat" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.3l-6.18 3.7 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.73L18.18 21z"/></svg>
+            Star on GitHub
+          </a>
+          <!-- TODO: swap official PH badge SVG from PH dashboard (api.producthunt.com featured embed) -->
+          <a class="ph-badge" href="https://www.producthunt.com/p/legal-document-chat-for-attorneys-open/legal-document-chat-for-attorneys-open" target="_blank" rel="noopener noreferrer" aria-label="Find docuchat on Product Hunt">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#da552f"/><path d="M13.2 7H9v10h2.2v-3h2c2 0 3.5-1.5 3.5-3.5S15.2 7 13.2 7zm-.1 5H11.2V9h1.9c.9 0 1.5.6 1.5 1.5S14 12 13.1 12z" fill="#fff"/></svg>
+            <span><span class="ph-cat">On Product Hunt</span><span class="ph-name">Legal Document Chat</span></span>
+          </a>
+        </div>
+      </section>
+    </div>
 
     <!-- GET -->
     <section id="get" class="get">
@@ -152,10 +228,10 @@
         <h2>Open it in a window, not a terminal.</h2>
       </header>
       <div class="get-cards">
-        <a class="dl dl-mac" href="https://github.com/janderswag/legal-document-chat/releases" target="_blank" rel="noopener">
+        <a class="dl dl-mac" href="https://github.com/janderswag/legal-document-chat/releases" target="_blank" rel="noopener noreferrer">
           <svg viewBox="0 0 24 24" class="apple" aria-hidden="true"><path d="M16.4 12.6c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.6.8-3.3.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.8.8-3.6 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.2-2.3 1.2-2.4-.1 0-2.2-.9-2.2-3.5zM14.3 6c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 2-.5 2.5-1.2z"/></svg>
           <span class="dl-title">Download for macOS</span>
-          <span class="dl-sub">Universal · Apple silicon &amp; Intel</span>
+          <span class="dl-sub">Universal &middot; Apple silicon &amp; Intel</span>
         </a>
         <div class="dl dl-win" aria-disabled="true">
           <svg viewBox="0 0 24 24" class="win" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5zM10.5 12.5v7.1L3 18.5v-6H10.5zM11.5 4.2 21 3v8.5h-9.5V4.2zM21 12.5V21l-9.5-1.3V12.5H21z"/></svg>
@@ -163,20 +239,28 @@
           <span class="dl-sub">Coming soon</span>
         </div>
       </div>
-      <p class="get-note">Phase&nbsp;A is an unsigned developer build — macOS may ask you to confirm "Open"
+      <p class="get-note">Phase&nbsp;A is an unsigned developer build, so macOS may ask you to confirm "Open"
          the first time. Still needs Ollama + the two models (the in-app wizard checks for you).</p>
     </section>
   </main>
 
   <footer class="foot">
     <div class="foot-row">
-      <span class="mark">§</span>
-      <span>Legal Document Chat</span>
+      <svg class="logo-mark" viewBox="0 0 40 38" aria-hidden="true">
+        <path class="lk-bubble" d="M12 6 H24 L30 12 V27 Q30 30 27 30 H18 L10 36 L15 30 H13 Q8 30 8 27 V10 Q8 6 12 6 Z"/>
+        <path class="lk-fold" d="M24 6 L30 12 H24 Z"/>
+        <path class="lk-line" d="M13 13 H25"/><path class="lk-line" d="M13 17 H24"/><path class="lk-line" d="M13 21 H20"/>
+        <path class="lk-shield" d="M27 19 L33 21 V25 Q33 29 27 31 Q21 29 21 25 V21 Z"/>
+        <path class="lk-lock" d="M25 24 V23 Q25 21 27 21 Q29 21 29 23 V24"/>
+        <rect class="lk-lock-body" x="24.3" y="24" width="5.4" height="4.4" rx="1"/>
+      </svg>
+      <span>docuchat<span class="tld">.app</span></span>
       <span class="dot">·</span>
       <span class="muted">Private legal-document AI that runs on your computer.</span>
     </div>
-    <p class="muted small">Synthetic/sample documents only in demos. Not legal advice — it locates and
-      summarizes what your documents say; you verify against the cited source.</p>
+    <p class="muted small">Synthetic/sample documents only in demos. Not legal advice: it locates and
+      summarizes what your documents say; you verify against the cited source.
+      <a href="https://github.com/janderswag/legal-document-chat" target="_blank" rel="noopener noreferrer">Source on GitHub</a>.</p>
   </footer>
 
   <script src="script.js"></script>
