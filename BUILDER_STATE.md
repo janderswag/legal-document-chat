@@ -1,24 +1,37 @@
 # BUILDER_STATE.md — Builder handoff (pre-context-clear)
 
-_Regenerated 2026-06-21 at the **M-ENRICH-backlog boundary** (HEAD `40f02e7`). Snapshot of the Builder
-tab's state in the Planner→Builder→Reviewer→Tester relay. Read alongside **`RELAY.md`** (loop manual) and
-the canonical files it lists: `CLAUDE.md`, `RUN_STATE.md` (source of truth + "Next task" + **Audit
-canon**), `TASKS_M2.md` (→ M-ENRICH), `DECISIONS.md` (**D-1…D-55**), `eval/TEST_PLAN.md` (§6 page+span bar).
-The Builder is **IDLE at a clean between-task boundary — nothing in-flight, tree clean.**_
+_Regenerated 2026-06-30 at the **desktop-v1 / landing-redesign boundary** (HEAD `7ea6c43`). Snapshot of the
+Builder tab's state in the Planner→Builder→Reviewer→Tester relay. Read alongside **`RELAY.md`** (loop manual)
+and the canonical files: `CLAUDE.md`, `RUN_STATE.md` (source of truth + "Next task" + **Audit canon**),
+`TASKS_M2.md`, `DECISIONS.md` (**D-1…D-60**), the desktop spec `docs/superpowers/specs/2026-06-29-desktop-app-distribution.md`.
+The Builder is **IDLE at a clean boundary — nothing in-flight, tree clean. NEXT = the Desktop v1.1 batch.**_
 
 ## 1. Current task
 
-**NONE in progress — idle at a clean boundary.** The **M-ENRICH comprehensive backlog is COMPLETE**
-(D-55), independently Tester-confirmed **240/240** and committed (`38d12ae` feat, `40f02e7` gov). Delivered
-in one PROGRESS.md grind: **T-GRID** (review grid: `POST /grid` SSE doc×question matrix, bounded
-concurrency ≤4, reuses `clauses._classify` — not forked); **B1–B6** small wins (`answering._norm` align,
-`openapi_url=None`, compose-only README, logprob confidence display-only, **non-gating** fuzzy fallback,
-streaming-chat SSE); **C1/C2** read-only retrieval experiments; **D1** PyMuPDF form-robustness (no new
-dep). Never-false-accept held across grid/streaming/fuzzy; eval baselines byte-identical; 0 non-loopback.
+**NONE in progress — idle.** **▶ NEXT = Desktop v1.1 Builder batch** (TASKS_M2 → "Desktop v1.1", D-59/D-60):
+(a) **launcher hard-kill hardening** (`desktop/launcher.py` — signal handler / process-group so a *killed*
+launcher can't orphan the child uvicorn; window-close cleanup already works); (b) **root-route fix**
+(`pipeline/api.py` — `/` still serves the OLD demo page `static/index.html` while the real UI is `/app`;
+**redirect `/`→`/setup`**, retire the orphaned page, fix tests); (c) **wizard auto-pull** (make the
+first-run wizard RUN `ollama pull qwen3:14b`+`bge-m3` with progress, so the landing's "fetches the models
+for you" is literally true — today it only shows the commands); (d) broaden any remaining "solo attorney"
+copy. **Then the Windows pass** (owner runs the Windows test prompt on a Windows machine → `desktop/WINDOWS_TEST.md`).
+Approved install for desktop work: `pywebview` (already in). Anything else = `[GATE]`.
 
-_Prior beats (all DONE + committed): **T-TBL** Docling TableFormer tables (D-53, `5a325fc`); **T-CLAUSE**
-Contract Review clause checklist (D-52, `37fa31d`); the SAM-style UI, M2/M3 gap-closure, M2-9, M2-8a all
-earlier. Milestone is now the **M-ENRICH capability workstream** (post-M2-3)._
+**Done this session (committed):** **Desktop packaging v1** (D-59, `c0400cb`) — macOS pywebview launcher +
+in-app first-run wizard (`routes_setup.py`, `static/setup.*`) + landing page; Tester GREEN 240→**257/257**.
+**Landing redesign** (D-60-era, `7ea6c43`, **Planner-built live** — a deviation from the relay, recorded
+here for ground truth): white incident.io-style hero, **live animated demo** `site/demo.html` (embedded as
+the hero shot), setup "stack diagram". _Pending uncommitted on the Planner side: "transcripts" added to the
+hero lede._
+
+**Distribution constraint (D-60) — know this before any packaging/Store work:** direct **notarized
+download works WITH Ollama** (Phase B path, no sandbox); **Mac App Store is BLOCKED by the Ollama dependency**
+(sandbox can't launch external `ollama`; self-contained rule). MAS would require embedding the engine
+(llama.cpp) — a later Phase B+ effort. Launch direct-download first.
+
+_Prior beats (all DONE + committed): **M-ENRICH** backlog (D-55, `38d12ae`) — T-GRID + B1–B6 + C1/C2 + D1;
+**T-TBL** tables (D-53); **T-CLAUSE** clause checklist (D-52); SAM-style UI, M2/M3 gap-closure, M2-9, M2-8a._
 
 ## 2. Decisions made (and why) — recent (full list in `DECISIONS.md` D-1…D-55)
 
@@ -50,12 +63,14 @@ F-026-adopt decision (baseline-affecting, owner-gated).
 
 ## 4. Next 3 steps (immediately after resume)
 
-1. **Do NOT auto-start anything.** The next task — **T-TRANS (transcripts: page:line citation + Q/A-aware
-   chunking)** — is **BRAINSTORM-FIRST**: page:line reshapes the verifier + UI, so the Planner runs a
-   design brainstorm with the owner BEFORE writing the Builder prompt. Await that comprehensive prompt.
-2. When the Planner emits the T-TRANS prompt (or an owner-greenlit decision: **adopt F-026 fix** /
-   **approve `eyecite`** / **OcrMac/MPS**), execute it test-first per the D-54 protocol.
+1. **Do NOT auto-start.** Await the Planner's **Desktop v1.1 Builder prompt** (launcher hard-kill
+   hardening · root-route `/`→`/setup` fix · wizard auto-pull of the two models · broaden remaining
+   copy). Execute it test-first; keep loopback-only, suite green, baselines byte-identical.
+2. **Windows pass** when the owner provides Windows-machine results (the Windows test prompt → write
+   `desktop/WINDOWS_TEST.md`); apply small cross-platform fixes (esp. Windows port-kill / signal handling).
 3. On any new install/dep/model-fetch/baseline-reindex → **`[GATE]` HARD-STOP**, surface to the Planner.
+   _Owner-gated, NOT Builder: Mac App Store (needs embed-the-engine, D-60), transcripts page:line build
+   (D-56, brainstorm-first), eyecite install, F-026 adopt._
 
 ## 5. Key constraints (must be respected — see `RELAY.md` "Standing constraints")
 

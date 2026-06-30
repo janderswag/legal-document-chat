@@ -221,12 +221,23 @@ git-ignored):_
 
 - [x] **Desktop packaging v1 — landing page + in-app wizard + macOS launcher (DONE, D-59, `c0400cb`).**
       Tester GREEN; 257/257; footprint pywebview+pyobjc. One yellow → v1.1 (launcher hard-kill hardening).
-- [ ] **▶ Desktop v1.1 — landing tweaks + launcher hardening + root-route fix (ACTIVE, D-59).** Attach
-      `docs/demo.png`; non-clickable demo-video placeholder; broaden copy "solo attorneys" → any attorney
-      office/practice; launcher signal-handler/process-group cleanup. **+ Root-route bug (Windows-found):**
-      `/` still serves the OLD demo page (`static/index.html`) while the real UI is `/app` — **redirect
-      `/` → `/setup`** (funnels bare URL + launcher through wizard→app) and retire the orphaned old page;
-      fix any tests that asserted old `/` behavior. Then **Windows pass** (owner's machine).
+- [x] **Landing page redesign (DONE, Planner-built live, committed `7ea6c43`, 2026-06-30).** Pure-white
+      incident.io-style hero (centered serif, two pill OS buttons), **live animated demo** (`site/demo.html`:
+      type→Ask→streamed answer→cited source chip, embedded as the hero shot), **setup "stack diagram"** (2
+      install steps: Install Ollama w/ official logo · Download the app; + built-in stack cards). No-cache
+      local server on `127.0.0.1:8080` for iteration. _Pending uncommitted: "transcripts" added to hero lede._
+- [ ] **▶ Desktop v1.1 — Builder batch (ACTIVE, D-59/D-60).** Items: (a) launcher **hard-kill hardening**
+      (signal handler / process-group so a killed launcher can't orphan the child); (b) **root-route fix** —
+      `/` still serves the OLD demo page (`static/index.html`) while the real UI is `/app`; **redirect
+      `/`→`/setup`**, retire the orphaned page, fix tests; (c) **wizard auto-pull** — make the first-run
+      wizard RUN `ollama pull qwen3:14b`+`bge-m3` (progress) so the landing's "the app fetches the models for
+      you" is literally true (today it only shows the commands); (d) broaden any remaining "solo attorney"
+      copy. Then **Windows pass** (owner's machine — run the Windows test prompt; fold findings into
+      `desktop/WINDOWS_TEST.md`).
+- [ ] **⏸️ Transcripts copy ↔ feature (decision, D-56/D-60).** The landing now lists "transcripts" + an
+      "exact line" promise, but transcript **page:line** support is DEFERRED (D-56). Either un-defer the
+      transcripts build (design ready: `docs/superpowers/specs/2026-06-21-transcripts-design.md`) so the
+      claim is literally true, or soften the line-level wording for transcripts. Owner to pick.
 - [ ] **⏸️ Phase B + signing + Store/monetization (future).** Embed engine (no separate Ollama) + in-app
       model download + PyInstaller frozen bundle → code-signing (~$220/yr) → Apple/Windows Store. **Pricing
       idea banked** (10 free / $20 / $50/mo) — needs an enforcement-strategy brainstorm (OSS+local+MIT vs a

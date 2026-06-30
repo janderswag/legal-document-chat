@@ -11,7 +11,20 @@ prompt). Surface genuine forks to the **owner** via a question; never change a l
 Record every decision into `DECISIONS.md`; keep `RUN_STATE.md` + `TASKS_M2.md` current. Flag each new
 install at its gate.
 
-## Current position
+## Current position (2026-06-30)
+**Desktop distribution track in flight.** Desktop **v1 DONE** (D-59, Tester GREEN, `c0400cb`: macOS
+pywebview launcher + first-run wizard + landing). **Landing redesign DONE** (Planner-built live, `7ea6c43`:
+white incident.io-style hero, **animated demo** `site/demo.html` embedded as the hero shot, setup
+stack-diagram). **Distribution finding (D-60):** direct **notarized download works WITH Ollama** (Phase B
+path); **Mac App Store BLOCKED by the Ollama dependency** (sandbox + self-contained) → launch direct-download
+first, sell via license keys; MAS needs embed-the-engine (later). **▶ NEXT (owner-gated to kick):** Desktop
+**v1.1 Builder batch** (launcher hard-kill hardening · root-route `/`→`/setup` · **wizard auto-pull models**
+· broaden copy) → then **Windows pass** (owner's machine). **Open owner decisions:** transcripts copy↔build
+(landing now lists "transcripts"+exact-line, but page:line is deferred D-56); step-2 wording; pricing via
+license keys (D-58/D-60). _Uncommitted on Planner side at flush time: "transcripts" added to hero lede →
+committing now._ Earlier history below.
+
+### (Earlier) Current position
 **▶ M-ENRICH workstream underway (OSS-evaluation roadmap, D-49/D-51).** Owner directed a 9-repo deep dive
 (`docs/research/2026-06-21-oss-evaluation.md`); an independent Tester cross-eval converged (D-51). Roadmap
 greenlit, sequenced **clause → tables → grid**, transcripts separate; all four threads in `TASKS_M2.md` →

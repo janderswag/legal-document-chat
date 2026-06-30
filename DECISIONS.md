@@ -552,6 +552,21 @@
   A0 HF-offline ordering fixed; `scripts/baseline_hash.sh` already tracked; empty `documents/kb/tables-demo/`
   removed. (D-58; CLAUDE.md hard rules #3/#4)
 
+- **D-60 — Distribution reality: direct notarized download YES, Mac App Store BLOCKED by the Ollama
+  dependency (2026-06-30).** **Direct download (notarized, Developer ID, $99/yr) — the planned Phase B
+  path — works fine with Ollama:** no sandbox, so the app can spawn the Python backend, talk to Ollama on
+  `127.0.0.1`, and pull models. **Mac App Store is a hard path because of Ollama:** MAS mandates the App
+  Sandbox (a sandboxed app **cannot launch an external `ollama` binary or run Terminal commands**) AND
+  requires apps to be **self-contained** (guidelines 2.5.2 / 2.4.5 reject apps that need the user to
+  separately install other software / pull 10 GB to function). No major local-LLM app (Ollama's own app,
+  LM Studio, Jan, GPT4All) ships on MAS for exactly these reasons — they distribute direct. **To ever go
+  on MAS we'd have to drop external Ollama and EMBED the inference engine (llama.cpp), full-sandbox, in-app
+  model download, no Terminal — the bigger "true one-click" Phase B+ effort.** **Monetization implication:**
+  the App Store is NOT required to launch or to charge — sell the **direct-download build via license
+  keys / own checkout** (no 15–30% cut, no sandbox); the owner's doc-count pricing idea (D-58) decouples
+  from MAS. App Store = a much-later milestone gated on embed-the-engine. Windows Store is analogous but
+  looser. **Sequencing:** launch direct-notarized first; MAS/Store later. (CE_PLAN §12; D-57, D-58, D-59)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

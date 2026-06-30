@@ -203,8 +203,13 @@ concurrency; no leak; baselines byte-identical; 0 non-loopback. Closeouts applie
 air-gap fix (yellow closed, 20 table tests green). **F-026 fix PROVEN** (C1: top-k×N+rerank → None→rank3)
 but baseline-affecting → **owner decision to adopt** (not self-applied). `eyecite` held `[GATE]`.
 
-**✅ Desktop packaging v1 DONE (D-59, Tester GREEN + committed `c0400cb`, 2026-06-29):** macOS pywebview
-launcher + in-app first-run wizard + landing page; 257/257; baselines untouched; footprint pywebview+pyobjc.
+**✅ Desktop packaging v1 DONE (D-59, Tester GREEN + committed `c0400cb`):** macOS pywebview launcher +
+in-app first-run wizard + landing page; 257/257; baselines untouched; footprint pywebview+pyobjc.
+**✅ Landing redesign DONE (Planner-built live, `7ea6c43`, 2026-06-30):** white incident.io-style hero,
+**animated demo** (`site/demo.html`), setup stack-diagram. _Pending uncommitted: "transcripts" in hero lede._
+**🍎 Distribution finding (D-60):** direct notarized download works WITH Ollama (Phase B path); **Mac App
+Store is BLOCKED by the Ollama dependency** (sandbox + self-contained) → launch direct-download first, sell
+via license keys (App Store needs embed-the-engine, a later milestone).
 
 **▶ NEXT: Desktop v1.1 follow-up (Builder prompt emitted).** Landing-page tweaks (attach `docs/demo.png`;
 add a **non-clickable** demo-video placeholder; **broaden copy from "solo attorneys" → any attorney
