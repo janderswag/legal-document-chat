@@ -54,3 +54,4 @@ npm-debug.log*
 
 # marketing/SEO skills (internal tooling, not for the public repo)
 .agents/
+skills-lock.json
