@@ -9,6 +9,22 @@
   <meta name="description" content="A private AI for your legal documents. Ask questions, get answers pinned to the exact line, and it runs 100% on your own Mac. No cloud, no account, no telemetry.">
   <link rel="canonical" href="https://docuchat.app/">
   <!-- google-site-verification meta goes here (owner creates the Search Console property and supplies the token) -->
+
+  <!-- Open Graph / Twitter (share preview) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="docuchat.app">
+  <meta property="og:title" content="docuchat.app: private, local AI for your legal documents">
+  <meta property="og:description" content="Ask questions across your contracts, transcripts, and exhibits and get answers pinned to the exact page and span. Runs 100% on your own computer. Free and open source.">
+  <meta property="og:url" content="https://docuchat.app/">
+  <meta property="og:image" content="https://docuchat.app/assets/og-cover.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="docuchat.app: ask your documents, get answers pinned to the page.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="docuchat.app: private, local AI for your legal documents">
+  <meta name="twitter:description" content="Answers pinned to the exact page and span, running 100% on your own computer. Free and open source.">
+  <meta name="twitter:image" content="https://docuchat.app/assets/og-cover.png">
+
   <!-- Public marketing page (NOT the air-gapped app). Distinctive web fonts are fine here. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -84,8 +100,9 @@
         Get answers <em>pinned to the&nbsp;page.</em>
       </h1>
       <p class="lede reveal" style="--d:160ms">
-        A private assistant that reads your contracts, transcripts, pleadings, and exhibits and answers in
-        plain English. Every fact is tied to the exact line it came from, and it never leaves your computer.
+        docuchat is a private, local AI for your legal documents. It reads your contracts, transcripts,
+        pleadings, and exhibits and answers in plain English, with every fact tied to the exact line it came
+        from, and it never leaves your computer.
       </p>
       <div class="hero-cta reveal" style="--d:240ms">
         <a class="btn btn-mac" href="#get">
@@ -172,7 +189,61 @@
              of one of two hundred files, and the clock is running.</p>
           <p>docuchat reads the whole matter and hands you the passage, pinned to the file, page, and line,
              so you can confirm it in one click instead of digging for an hour.</p>
+          <p>Every quote is checked against the source before you see it: 98.4% page and span citation
+             accuracy (62 of 63), with zero fabricated citations, measured on our open evaluation.</p>
         </div>
+      </div>
+    </section>
+
+    <!-- COMPARISON: vs cloud AI chat -->
+    <section id="compare" class="compare">
+      <div class="section-head center reveal">
+        <span class="kicker">How it compares</span>
+        <h2>Local and cited, not uploaded to a cloud.</h2>
+        <p>How docuchat differs from sending privileged documents to a cloud chatbot.</p>
+      </div>
+      <div class="compare-wrap reveal">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th scope="col"><span class="ct-corner">Feature</span></th>
+              <th scope="col" class="ct-us">docuchat</th>
+              <th scope="col">Cloud AI chat<small>ChatGPT / Claude / Gemini</small></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Where your documents go</th>
+              <td class="ct-us" data-label="docuchat">Stay on your machine, loopback only (127.0.0.1)</td>
+              <td data-label="Cloud AI chat">Uploaded to a third-party cloud</td>
+            </tr>
+            <tr>
+              <th scope="row">Models</th>
+              <td class="ct-us" data-label="docuchat">Local, open-source via Ollama</td>
+              <td data-label="Cloud AI chat">Closed, vendor-hosted</td>
+            </tr>
+            <tr>
+              <th scope="row">Citations</th>
+              <td class="ct-us" data-label="docuchat">Mechanically verified to page and exact span</td>
+              <td data-label="Cloud AI chat">Often unverified or hallucinated</td>
+            </tr>
+            <tr>
+              <th scope="row">Works offline / air-gapped</th>
+              <td class="ct-us" data-label="docuchat">Yes, after a one-time model download</td>
+              <td data-label="Cloud AI chat">No</td>
+            </tr>
+            <tr>
+              <th scope="row">Cost</th>
+              <td class="ct-us" data-label="docuchat">Free, no API keys or per-token billing</td>
+              <td data-label="Cloud AI chat">Subscription or per-token</td>
+            </tr>
+            <tr>
+              <th scope="row">Attorney-client privilege</th>
+              <td class="ct-us" data-label="docuchat">Preserved, nothing leaves the machine</td>
+              <td data-label="Cloud AI chat">At risk, data leaves your control</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -237,6 +308,145 @@
       <p class="get-note">Phase&nbsp;A is an unsigned developer build, so macOS may ask you to confirm "Open"
          the first time. Still needs Ollama + the two models (the in-app wizard checks for you).</p>
     </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="faq">
+      <div class="section-head center reveal">
+        <span class="kicker">FAQ</span>
+        <h2>Questions attorneys ask.</h2>
+      </div>
+      <div class="faq-list">
+        <details class="faq-item reveal">
+          <summary>What is docuchat?</summary>
+          <p>docuchat is a private, local AI for legal documents. It runs entirely on your own computer and lets you ask plain-English questions across your contracts, transcripts, pleadings, and exhibits, with every answer cited to the exact page and span it came from. It is free and open source under the MIT license.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Is my data private? Does anything leave my computer?</summary>
+          <p>No. The query path makes no cloud calls and needs no API keys. Your documents are never uploaded to OpenAI, Anthropic, Google, or any third party. Inference, embeddings, OCR, and storage all run locally, and the service binds to loopback (127.0.0.1) only.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Does it work offline or air-gapped?</summary>
+          <p>Yes. After a one-time local model download through Ollama, docuchat runs with no internet connection.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Can I chat with scanned PDFs?</summary>
+          <p>Yes. Image-only pages are routed through local Tesseract OCR, while born-digital pages keep the fast text path. Tables and exhibits are extracted as structured, citable content.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>How accurate are the citations?</summary>
+          <p>Every cited quote is checked character-by-character against the retrieved source before you see it, so a fabricated or altered quote yields zero citations. On our open evaluation, page and span citation accuracy was 98.4% (62 of 63), with zero displayed fabrications.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>How is this different from using ChatGPT, Claude, or Gemini on legal documents?</summary>
+          <p>Those tools send your documents to a third-party cloud, which is a non-starter for privileged, confidential material. docuchat keeps everything local, uses open-source models, and mechanically verifies every citation to a real page and span.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Is this an AI lawyer? Does it give legal advice?</summary>
+          <p>No. It is a cited-retrieval assistant: it locates and summarizes what your documents say, with citations you verify. It gives no legal advice, draws no legal conclusions, and takes no actions.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>What does it cost?</summary>
+          <p>docuchat is free and open source under the MIT license. There are no API keys, no per-token billing, and no subscription.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>What models and stack does it use?</summary>
+          <p>Local open-source models through Ollama (qwen3:14b for chat, bge-m3 for embeddings), with FastAPI, LanceDB for vector search, and PyMuPDF, Docling, and Tesseract for parsing and OCR. The retrieval and answering path is hand-rolled, with no LangChain and no LlamaIndex, for a transparent citation trail.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Which platforms are supported?</summary>
+          <p>A one-click macOS app is available today, with a first-run wizard that installs the local models for you. A Windows build is coming soon. You can also run it from source on any platform with Python and Ollama.</p>
+        </details>
+      </div>
+    </section>
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is docuchat?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "docuchat is a private, local AI for legal documents. It runs entirely on your own computer and lets you ask plain-English questions across your contracts, transcripts, pleadings, and exhibits, with every answer cited to the exact page and span it came from. It is free and open source under the MIT license."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is my data private? Does anything leave my computer?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. The query path makes no cloud calls and needs no API keys. Your documents are never uploaded to OpenAI, Anthropic, Google, or any third party. Inference, embeddings, OCR, and storage all run locally, and the service binds to loopback (127.0.0.1) only."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it work offline or air-gapped?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. After a one-time local model download through Ollama, docuchat runs with no internet connection."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I chat with scanned PDFs?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Image-only pages are routed through local Tesseract OCR, while born-digital pages keep the fast text path. Tables and exhibits are extracted as structured, citable content."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How accurate are the citations?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Every cited quote is checked character-by-character against the retrieved source before you see it, so a fabricated or altered quote yields zero citations. On our open evaluation, page and span citation accuracy was 98.4% (62 of 63), with zero displayed fabrications."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is this different from using ChatGPT, Claude, or Gemini on legal documents?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Those tools send your documents to a third-party cloud, which is a non-starter for privileged, confidential material. docuchat keeps everything local, uses open-source models, and mechanically verifies every citation to a real page and span."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is this an AI lawyer? Does it give legal advice?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. It is a cited-retrieval assistant: it locates and summarizes what your documents say, with citations you verify. It gives no legal advice, draws no legal conclusions, and takes no actions."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What does it cost?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "docuchat is free and open source under the MIT license. There are no API keys, no per-token billing, and no subscription."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What models and stack does it use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Local open-source models through Ollama (qwen3:14b for chat, bge-m3 for embeddings), with FastAPI, LanceDB for vector search, and PyMuPDF, Docling, and Tesseract for parsing and OCR. The retrieval and answering path is hand-rolled, with no LangChain and no LlamaIndex, for a transparent citation trail."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which platforms are supported?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A one-click macOS app is available today, with a first-run wizard that installs the local models for you. A Windows build is coming soon. You can also run it from source on any platform with Python and Ollama."
+          }
+        }
+      ]
+    }
+    </script>
   </main>
 
   <footer class="foot">

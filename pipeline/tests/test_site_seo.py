@@ -9,6 +9,7 @@ GEO stat in visible copy.
 Pure file/string/JSON/XML checks — they never touch the pipeline, verifier, or any store.
 """
 
+import html
 import json
 import re
 import unittest
@@ -67,6 +68,63 @@ class TestPhaseAMachineFiles(unittest.TestCase):
         # sanity: the offer is free and the download points at the releases page
         self.assertEqual(app["offers"]["price"], "0")
         self.assertIn("releases", app["downloadUrl"])
+
+
+def _visible_faq(html_text):
+    """[(question, answer)] parsed from the visible <details class=faq-item> blocks."""
+    pairs = re.findall(
+        r'<details class="faq-item[^"]*">\s*<summary>(.*?)</summary>\s*<p>(.*?)</p>',
+        html_text, re.DOTALL)
+    return [(html.unescape(q).strip(), html.unescape(a).strip()) for q, a in pairs]
+
+
+def _strip_scripts(html_text):
+    """HTML with <script>...</script> blocks removed (approximate 'visible' text)."""
+    return re.sub(r"<script.*?</script>", "", html_text, flags=re.DOTALL)
+
+
+class TestPhaseBCustomerFacing(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.html = _read("index.html")
+
+    def test_open_graph_and_twitter_present(self):
+        for tag in ('property="og:title"', 'property="og:description"', 'property="og:url"',
+                    'property="og:type"', 'property="og:image"',
+                    'name="twitter:card"', 'name="twitter:title"', 'name="twitter:image"'):
+            self.assertIn(tag, self.html, f"missing meta {tag}")
+        self.assertIn("assets/og-cover.png", self.html, "OG image not referenced")
+        self.assertIn('content="summary_large_image"', self.html)
+
+    def test_og_cover_is_1200x630(self):
+        from PIL import Image
+        p = SITE / "assets" / "og-cover.png"
+        self.assertTrue(p.is_file(), "site/assets/og-cover.png missing")
+        self.assertEqual(Image.open(p).size, (1200, 630), "OG image must be 1200x630")
+
+    def test_visible_faq_has_enough_questions(self):
+        faq = _visible_faq(self.html)
+        self.assertGreaterEqual(len(faq), 8, f"expected >=8 FAQ pairs, got {len(faq)}")
+
+    def test_faqpage_jsonld_matches_visible_faq(self):
+        visible = _visible_faq(self.html)
+        blocks = _ldjson_blocks(self.html)
+        faqpage = next((b for b in blocks if b.get("@type") == "FAQPage"), None)
+        self.assertIsNotNone(faqpage, "FAQPage JSON-LD missing")
+        ld = [(q["name"].strip(), q["acceptedAnswer"]["text"].strip())
+              for q in faqpage["mainEntity"]]
+        # Google requires the structured Q&A to match the visible content exactly.
+        self.assertEqual(ld, visible, "FAQPage JSON-LD does not match the visible FAQ text")
+
+    def test_comparison_table_present(self):
+        self.assertIn('class="compare-table"', self.html, "comparison table missing")
+        low = self.html.lower()
+        self.assertIn("loopback", low)
+        self.assertIn("privilege", low)
+
+    def test_citation_stat_in_visible_copy(self):
+        self.assertIn("98.4%", _strip_scripts(self.html),
+                      "the 98.4% citation stat must appear in visible on-page copy")
 
 
 if __name__ == "__main__":
