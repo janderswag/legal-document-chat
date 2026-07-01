@@ -51,3 +51,6 @@ node_modules/
 npm-debug.log*
 .pnpm-debug.log*
 .gstack/
+
+# marketing/SEO skills (internal tooling, not for the public repo)
+.agents/
