@@ -590,6 +590,25 @@
   published** (owner directive). **Copy:** strip em-dashes (owner standing pref) + broaden "solo attorney".
   Marketing `site/` only — pipeline/verifier/air-gap app untouched. (D-57, D-58, D-60)
 
+- **D-62 — SEO/GEO/AEO program + deploy-approval rule + weekly GEO-pulse loop (2026-07-01).**
+  **Deploy-approval rule (standing, owner directive):** on the marketing site, **customer-facing/visual**
+  changes (layout, copy, visuals, OG share cards, visible content, blog posts) are staged on a **local
+  preview for owner approval before production**; **machine-only** changes (robots/sitemap/llms.txt,
+  canonical/meta/JSON-LD, tests, CI, backend/pipeline) **push straight to prod**. Deploy = push `main`
+  (`site/**` triggers Pages). **SEO batch (Tester GREEN ×8):** Phase A **LIVE** (`2ddaff6`) = robots.txt
+  (welcomes GPTBot/ClaudeBot/PerplexityBot/Google-Extended/CCBot) + sitemap.xml + llms.txt/llms-full.txt +
+  canonical + Organization & SoftwareApplication JSON-LD; Phase B **HELD** (`b6364c0`) = OG/Twitter cards +
+  1200×630 OG image + visible FAQ (10 Q&A) + FAQPage JSON-LD (byte-identical to visible) + comparison table
+  + GEO stat copy — **awaiting owner visual approval on `127.0.0.1:8090`**, then Planner pushes. 288 tests,
+  baselines byte-identical, app untouched. **Accuracy fix (`cbaa78d`, paired with Phase B):** live
+  `SoftwareApplication.operatingSystem` was `"macOS, Windows"` (overstatement — no Windows build yet) →
+  set to **`"macOS"`** until the `.exe` ships (brand ethos = never overstate; FAQ already honest re:
+  Windows-soon / run-from-source). **Weekly GEO-pulse loop:** DONE by Planner — installed `seo-audit`/
+  `schema`/`ai-seo` skills (gitignored `.agents/`), scheduled trigger `trig_01BVV4Gskw5NAqBpvUbm9UkL`
+  (Mondays 14:00 UTC, fresh cloud session, opens a review **PR** never pushes prod, emails+pushes a report).
+  **Owner-side amplifiers:** connect Google Search Console (supply the verification meta token), optionally
+  rename the Product Hunt listing to "docuchat" for the official badge. (D-57, D-59, D-60, D-61)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal
