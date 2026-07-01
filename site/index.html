@@ -106,72 +106,11 @@
               <rect class="lk-lock-body" x="24.3" y="24" width="5.4" height="4.4" rx="1"/>
             </svg></span>
             <h3>Download the app</h3>
-            <p>Open it: the first-run wizard fetches the two AI models for you (~10&nbsp;GB, once). Then you're set, fully offline.</p>
+            <p>Open it: the first-run wizard fetches the models (qwen3 + bge-m3, ~10&nbsp;GB) for you, once. Then you're set, fully offline.</p>
             <a href="#get">Get the macOS app&nbsp;↓</a>
           </article>
         </div>
       </div>
-    </section>
-
-    <!-- TRUST: the moat, as a local-pipeline infographic -->
-    <section id="trust" class="trust">
-      <div class="trust-head reveal">
-        <span class="kicker">How it works &middot; for attorneys &amp; law offices</span>
-        <h2>It cites the line, or it says it couldn't find it.</h2>
-        <p>Every step runs on your own computer. Your documents flow through parsing, search, and a
-           mechanical citation check, and the answer is verified against the source before you ever see it.</p>
-      </div>
-
-      <!-- the local pipeline, end to end -->
-      <div class="flow-frame reveal">
-        <span class="flow-frame-tag">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.4 7.7-8 9-4.6-1.3-8-4-8-9V6z"/></svg>
-          All on your computer &middot; nothing uploaded
-        </span>
-        <div class="flow">
-          <div class="flow-stage">
-            <span class="flow-k">Input</span>
-            <b>Your documents</b>
-            <small>contracts &middot; transcripts &middot; exhibits</small>
-          </div>
-          <span class="flow-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
-          <div class="flow-stage">
-            <span class="flow-k">Read</span>
-            <b>Parsed on-device</b>
-            <div class="flow-tags"><span>PyMuPDF</span><span>Docling</span><span>Tesseract&nbsp;OCR</span></div>
-          </div>
-          <span class="flow-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
-          <div class="flow-stage">
-            <span class="flow-k">Understand</span>
-            <b>Searched &amp; read</b>
-            <div class="flow-tags"><span>qwen3 + bge-m3</span><span>LanceDB</span></div>
-          </div>
-          <span class="flow-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
-          <div class="flow-stage gold">
-            <span class="flow-k">Verify</span>
-            <b>Cited answer</b>
-            <div class="flow-tags"><span>Span verifier</span></div>
-          </div>
-        </div>
-      </div>
-
-      <ul class="trust-cards reveal">
-        <li class="card">
-          <h4>Pinned to the source</h4>
-          <p>Every answer carries the file, page, and the exact span. Click to open the original at
-             that spot, highlighted.</p>
-        </li>
-        <li class="card">
-          <h4>No invented citations</h4>
-          <p>A span that doesn't mechanically match a real passage never appears as a citation. Honest
-             "I couldn't find that" beats a confident fake.</p>
-        </li>
-        <li class="card">
-          <h4>Your matter stays your matter</h4>
-          <p>Answers are scoped per matter, with no bleed between clients. Nothing is uploaded, indexed in
-             the cloud, or shared.</p>
-        </li>
-      </ul>
     </section>
 
     <!-- PRIVACY -->

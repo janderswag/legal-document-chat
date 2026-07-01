@@ -142,43 +142,6 @@ h1 em{font-weight:500}
 .s-1{background:var(--paper-2);border-color:#dbe2ec}.s-1 .sico{background:#dde4f0;color:var(--navy)}
 .s-3{background:#faf3e2;border-color:#ecdcb6}.s-3 .sico{background:#f1e3bf;color:var(--gold-deep)}
 
-/* trust — local-pipeline infographic */
-.trust{padding:96px 28px 40px}
-.trust-head{max-width:720px;margin:0 auto 40px;text-align:center}
-.trust-head h2{margin:0 0 14px}
-.trust-head p{color:var(--ink-soft);font-size:19px;margin:0 auto;max-width:60ch}
-
-/* the end-to-end flow frame */
-.flow-frame{position:relative;max-width:1000px;margin:0 auto;border:1px solid var(--rule);border-radius:18px;
-  background:linear-gradient(180deg,#fff,var(--paper-2));padding:34px 26px 26px;box-shadow:var(--shadow)}
-.flow-frame-tag{position:absolute;top:-14px;left:50%;transform:translateX(-50%);display:inline-flex;
-  align-items:center;gap:8px;white-space:nowrap;background:var(--navy);color:#fff;
-  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
-  padding:7px 16px;border-radius:999px;box-shadow:0 10px 22px -14px rgba(14,34,64,.7)}
-.flow-frame-tag svg{width:13px;height:13px;fill:none;stroke:var(--gold);stroke-width:2;stroke-linejoin:round}
-.flow{display:flex;align-items:stretch;gap:6px}
-.flow-stage{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;background:#fff;
-  border:1px solid var(--rule);border-radius:13px;padding:16px 15px}
-.flow-stage .flow-k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--muted)}
-.flow-stage b{font-family:"Fraunces",serif;font-size:16px;font-weight:600;color:var(--navy);line-height:1.12}
-.flow-stage small{font-size:12.5px;color:var(--ink-soft);line-height:1.45}
-.flow-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
-.flow-tags span{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.02em;color:var(--ink-soft);
-  background:var(--paper-2);border:1px solid var(--rule);border-radius:7px;padding:3px 8px}
-.flow-stage.gold{background:#faf3e2;border-color:#ecdcb6}
-.flow-stage.gold b{color:var(--gold-deep)}
-.flow-stage.gold .flow-tags span{background:#f1e3bf;border-color:#e6d3a3;color:var(--gold-deep)}
-.flow-arrow{flex:0 0 22px;display:flex;align-items:center;justify-content:center;color:var(--gold)}
-.flow-arrow svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-
-.trust-cards{list-style:none;margin:40px auto 0;padding:0;max-width:1000px;
-  display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.card{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--gold);
-  border-radius:12px;padding:20px 22px}
-.card h4{font-family:"Fraunces",serif;font-size:18px;font-weight:600;margin:0 0 4px}
-.card p{margin:0;color:var(--ink-soft);font-size:15.5px;line-height:1.5}
-
 /* privacy statement */
 .privacy{max-width:920px;padding:70px 28px}
 .privacy-statement{font-family:"Fraunces",serif;font-weight:400;font-size:clamp(24px,3.6vw,38px);
@@ -256,7 +219,6 @@ h1 em{font-weight:500}
   .setup-intro p{max-width:none}
   .problem-grid{grid-template-columns:1fr;gap:28px}
   .bands{grid-template-columns:1fr}
-  .trust-cards{grid-template-columns:1fr;max-width:560px}
 }
 @media (max-width:820px){
   .hero{padding-top:56px}
@@ -265,12 +227,6 @@ h1 em{font-weight:500}
   h1{max-width:none}
   .topnav{display:none}
 }
-/* stack the pipeline infographic vertically, arrows point down */
-@media (max-width:760px){
-  .flow{flex-direction:column}
-  .flow-arrow{flex-basis:auto;height:20px;transform:rotate(90deg)}
-}
 @media (max-width:560px){
   .setup-featured{grid-template-columns:1fr}
-  .flow-frame-tag{white-space:normal;text-align:center;max-width:88%;line-height:1.5}
 }
