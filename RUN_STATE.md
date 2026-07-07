@@ -3,9 +3,30 @@
 > Single source of truth for "where are we right now." Update this after every working session.
 > Read at the start of each session alongside `CLAUDE.md`.
 
-_Last updated: 2026-06-20_
+_Last updated: 2026-07-07_
 
 ## Status
+
+**2026-07-07 session (P0-P3 speed/onboarding/packaging/site, D-63/D-64/D-65).** PUSHED to main:
+(1) **P0 speed** — the app UI's default answer path is now SSE `/chat/stream` (retrieved passages
+render first, tokens stream, verifier-confirmed citations replace everything on done; verifier
+untouched); production inference is warm + right-sized (`keep_alive=30m`, `num_ctx=8192`, startup
+preload; launcher starts a managed flash-attention Ollama when none runs). **[GATE] re-run: 62/63 =
+98.4%, 0 fabrications — grade-identical to M2-8a.** Cold-start cliff closed (post-preload
+`load_duration` 0.141s). TTFT median 3.45s under heavy machine load (see `eval/LATENCY.md` caveats);
+<3s target still honestly unmet. (2) **P1 onboarding** — fresh installs seed a synthetic Sample
+Matter (cited answer with zero setup, e2e-tested); guided first-run empty states + persistent
+default active matter; the setup wizard now DOWNLOADS models in-app with a progress bar
+(pinned-model allowlist). (3) **P2 packaging** — frozen-launcher relaunch bug fixed (in-process
+uvicorn under `sys.frozen`); macOS build kit (`desktop/build_macos.spec/.sh`, entitlements,
+notarization flow) + `desktop/SIGNING.md` owner checklist; **certs are the only missing input**
+(Apple Developer ID + notarytool profile; Azure Trusted Signing/OV for Windows). LOCAL, HELD for
+owner preview on `127.0.0.1:8090` (commit `fa2b6fb`, do NOT push until approved): honest site
+platform claims (no "available today" for never-shipped artifacts; run-from-source is the primary
+card) + privilege-safe wedge lede. 313 tests green. Next: owner approves site preview -> push;
+owner buys certs -> run `desktop/build_macos.sh` end-to-end and cut the first release.
+
+---
 
 **🎉 MILESTONE 2-3 COMPLETE (2026-06-20, D-44).** All M2 build tasks done + independently
 Tester-confirmed: page-accurate ingest → chunk+SAC → LanceDB → matter-pre-filter → grounded answering →
