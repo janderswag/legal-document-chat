@@ -6,16 +6,19 @@ dispose_matter() is the ONLY code path that removes a whole matter, and it:
   2. removes chunks from the KB store and COMPACTS it (deleted rows leave the live
      files), line maps, chat threads, catalog rows, and managed copies (structurally
      locked to documents/kb/ — hard rule #5 unchanged: never an outside path),
-  3. emits a Certificate of Disposition (NIST SP 800-88r2 App. C model) whose method is
-     stated HONESTLY as "Clear" — files unlinked + store compacted; OS snapshots and
-     backups are outside app control. The method upgrades to "Purge (cryptographic
-     erase)" only when the Move 4 encryption ships (see
-     docs/2026-07-07-retention-encryption-design.md). We never claim Purge before then.
+  3. crypto-shreds the matter's DEK (D-73) and emits a Certificate of Disposition
+     (NIST SP 800-88r2 App. C model) whose method is stated HONESTLY per artifact
+     class: original documents earn "Purge (cryptographic erase)" only when every
+     native was DEK-encrypted AND the key destruction actually happened; derived
+     index data is always "Clear" (rows deleted + store compacted — inside the
+     encrypted volume where one is mounted). One plain-era file in the tree keeps
+     the originals at Clear. Never a blanket Purge claim.
 Export ALWAYS happens before disposal in the API flow (Rule 1.16(d) surrender).
 """
 
 import io
 import json
+import os
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -91,6 +94,15 @@ def dispose_matter(matter_slug, kb_db, kb_docs_root, db_path=None):
                      "size_bytes": d["size_bytes"], "doc_type": d.get("doc_type", "document")}
                     for d in docs]
 
+    # D-73: the Purge claim is earned per artifact class, never blanket. Originals
+    # qualify only if EVERY native still on disk is DEK-encrypted (checked before
+    # unlinking) AND the DEK destruction below actually happens; one plain-era file
+    # in the tree keeps the originals at Clear — honestly.
+    present = [Path(d["stored_path"]) for d in docs
+               if Path(d["stored_path"]).is_file() and _within(d["stored_path"], kb_docs_root)]
+    all_encrypted = bool(present) and all(keyvault.is_encrypted_file(p) for p in present)
+    store_in_encrypted_volume = os.path.ismount(str(kb_db))
+
     # 1) vector store: delete the matter's chunks, then COMPACT so removed rows leave
     #    the live files (Lance keeps old versions until optimize/cleanup runs).
     store_state = "no-store"
@@ -124,9 +136,48 @@ def dispose_matter(matter_slug, kb_db, kb_docs_root, db_path=None):
         matter_dir.rmdir()
     catalog.delete_matter(matter_slug, db_path=db_path)
 
+    # D-73 crypto-shred: destroy the matter's wrapped DEK LAST (export needed it;
+    # the files above are already unlinked). After this line the ciphertext of every
+    # DEK-encrypted native — including copies in snapshots or backups — is
+    # irrecoverable by anyone. Recorded as its own audit event when it happens.
+    shredded = keyvault.destroy_matter_dek(matter_slug, db_path=db_path)
+    if shredded:
+        catalog.audit_append("crypto-shred", matter_slug,
+                             "matter DEK destroyed (wrapped key NULLed)",
+                             db_path=db_path)
+
+    originals_purged = all_encrypted and shredded
+    methods = {
+        "original documents": (
+            "Purge (cryptographic erase, NIST SP 800-88r2): every native was "
+            "AES-256-GCM encrypted with a matter key that has been destroyed"
+            if originals_purged else
+            "Clear (files unlinked)"),
+        "derived index data": (
+            "Clear (rows deleted and store compacted, inside an encrypted volume)"
+            if store_in_encrypted_volume else
+            "Clear (rows deleted and store compacted)"),
+    }
+    caveats = ["OS snapshots and backups made before disposition are outside app control."]
+    if originals_purged:
+        caveats = [
+            "Derived index data is Clear, not Purge: deleted and compacted inside "
+            "the app's encrypted volume, whose volume key remains in use."
+            if store_in_encrypted_volume else
+            "Derived index data is Clear, not Purge: the vector store is not "
+            "hosted on an encrypted volume on this install.",
+            "Database copies made before disposition could retain the wrapped matter "
+            "key; the app excludes its stores from Time Machine to prevent this.",
+        ]
+    else:
+        caveats.append(
+            "Purge (cryptographic erase) applies only when every original was "
+            "encrypted with a destroyed matter key; that was not the case here.")
+
     chain_head = catalog.audit_append(
         "disposition", matter_slug,
-        f"{len(docs)} documents, {n_threads} threads, store={store_state}",
+        f"{len(docs)} documents, {n_threads} threads, store={store_state}, "
+        f"crypto-shred={'yes' if shredded else 'no'}",
         db_path=db_path)
 
     return {
@@ -135,12 +186,13 @@ def dispose_matter(matter_slug, kb_db, kb_docs_root, db_path=None):
         "matter": {"slug": matter_slug, "display_name": matter["display_name"]},
         "documents": doc_manifest,
         "threads_removed": n_threads,
-        "method": "Clear (files unlinked; vector store rows deleted and compacted)",
-        "caveats": [
-            "OS snapshots and backups made before disposition are outside app control.",
-            "Upgrade to Purge (cryptographic erase) is planned; this certificate will "
-            "say Purge only when that ships.",
-        ],
+        "method": (
+            "Purge (cryptographic erase) for original documents; Clear for derived "
+            "index data" if originals_purged else
+            "Clear (files unlinked; vector store rows deleted and compacted)"),
+        "methods": methods,
+        "crypto_shred": shredded,
+        "caveats": caveats,
         "store_state": store_state,
         "performed_at": _now(),
         "app_version": APP_VERSION,
