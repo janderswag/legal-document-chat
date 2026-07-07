@@ -102,8 +102,8 @@
       <p class="lede reveal" style="--d:160ms">
         Privilege-safe by architecture: docuchat runs entirely on your own computer, so your documents
         never touch a cloud. It reads your contracts, transcripts, pleadings, and exhibits and answers
-        in plain English, with every fact cited to the exact page and passage and mechanically verified
-        against the source.
+        in plain English, with every fact cited to the exact page and passage (for depositions, the
+        exact page and line) and mechanically verified against the source.
       </p>
       <div class="hero-cta reveal" style="--d:240ms">
         <a class="btn btn-mac" href="#get">
@@ -336,6 +336,10 @@
           <p>Yes. After a one-time local model download through Ollama, docuchat runs with no internet connection.</p>
         </details>
         <details class="faq-item reveal">
+          <summary>Does it handle deposition transcripts?</summary>
+          <p>Yes. Mark an upload as a transcript and answers cite the exact page and line (for example p.45:12-18). The line numbers are derived from the verified quote itself, never guessed by the AI; if a quote appears twice on a page, you get a page citation instead of a wrong line. A one-click digest reads the entire transcript and produces a Word table where every row is a verified verbatim quote with its cite. Condensed four-per-sheet transcripts are detected and declined so line numbers are never wrong; upload the full-size transcript or the ASCII text file from your court reporter.</p>
+        </details>
+        <details class="faq-item reveal">
           <summary>Can I chat with scanned PDFs?</summary>
           <p>Yes. Image-only pages are routed through local Tesseract OCR, while born-digital pages keep the fast text path. Tables and exhibits are extracted as structured, citable content. OCR runs about a second per page on your own machine, so a large scanned collection is best left to ingest overnight; typed PDFs index in minutes.</p>
         </details>
@@ -393,6 +397,14 @@
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Yes. After a one-time local model download through Ollama, docuchat runs with no internet connection."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it handle deposition transcripts?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Mark an upload as a transcript and answers cite the exact page and line (for example p.45:12-18). The line numbers are derived from the verified quote itself, never guessed by the AI; if a quote appears twice on a page, you get a page citation instead of a wrong line. A one-click digest reads the entire transcript and produces a Word table where every row is a verified verbatim quote with its cite. Condensed four-per-sheet transcripts are detected and declined so line numbers are never wrong; upload the full-size transcript or the ASCII text file from your court reporter."
           }
         },
         {
