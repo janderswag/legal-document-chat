@@ -629,6 +629,23 @@
   identical grades → delta is load, not the knobs). <3s target still honestly NOT met;
   floor 0.28s. Full numbers + caveats: `eval/LATENCY.md`. (D-19, D-38, D-40)
 
+- **D-64 — P1 onboarding: first-value with zero setup (2026-07-07).** (a) **Sample matter
+  seeding:** on a truly FRESH install (zero matters), the app seeds "Sample Matter (Demo)" with
+  three PyMuPDF-generated, banner-labelled SYNTHETIC PDFs and ingests them through the normal KB
+  path once the local models are ready (bounded background wait) — a brand-new user reaches a
+  span-verified cited answer with no setup. Never runs when any matter exists (cannot touch or
+  shadow user data; D-35 isolation untouched). Sample docs are generated at seed time (no binary
+  fixtures in git; hard rule #1 synthetic-only). (b) **Guided first-run:** the Chat empty state
+  offers one-click suggested questions on the sample matter and a 3-step guided path (create
+  matter -> add document -> ask) when no matters exist; "Choose a matter first" dead-ends are
+  gone — the active matter persists in localStorage (slug only), is re-validated against
+  /matters, and defaults to the first (preferring sample) matter. (c) **The setup wizard is now
+  a DOER:** POST /setup/pull streams the local Ollama's /api/pull as SSE into a real in-app
+  progress bar (allowlisted to the two pinned models only — never a caller-supplied name), plus
+  Tesseract detection and free-disk notices. The one deliberate setup-time download (the same
+  model pull the wizard previously told the user to type into a terminal); zero terminal
+  commands remain in the happy path; the query/document path stays loopback-only. (D-58, D-63)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

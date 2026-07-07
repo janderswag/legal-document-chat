@@ -15,7 +15,16 @@ class NewMatter(BaseModel):
 
 @router.get("/matters")
 def get_matters():
-    return {"matters": catalog.list_matters()}
+    """All matters, with the seeded demo matter flagged (P1.3) so the UI can offer its
+    one-click suggested questions. Flag + questions are static metadata — no model or
+    retrieval involvement."""
+    import sample_matter
+    matters = catalog.list_matters()
+    for m in matters:
+        if m["slug"] == sample_matter.SAMPLE_MATTER_SLUG:
+            m["sample"] = True
+            m["suggested_questions"] = sample_matter.SUGGESTED_QUESTIONS
+    return {"matters": matters}
 
 
 @router.post("/matters")

@@ -3,7 +3,11 @@
 (function () {
   "use strict";
   var VIEWS = ["chat", "matters", "hub", "clauses", "grid", "history", "settings"];
-  var state = { matter: null };
+  // The active matter persists across launches (P1.4) — localStorage holds the slug
+  // only (never document content); it is re-validated against /matters on every load.
+  var MATTER_KEY = "docuchat.activeMatter";
+  var state = { matter: null, matters: [] };
+  try { state.matter = localStorage.getItem(MATTER_KEY) || null; } catch (e) {}
   window.appState = state;
   window.viewHooks = window.viewHooks || {};
 
@@ -26,6 +30,10 @@
 
   function setActiveMatter(slug, label) {
     state.matter = slug || null;
+    try {
+      if (state.matter) localStorage.setItem(MATTER_KEY, state.matter);
+      else localStorage.removeItem(MATTER_KEY);
+    } catch (e) {}
     var el = document.getElementById("active-matter");
     if (el) el.textContent = label || slug || "none";
     document.querySelectorAll(".matter-picker").forEach(function (sel) {
@@ -35,10 +43,14 @@
   }
   window.setActiveMatter = setActiveMatter;
 
-  // A shared <select> matter picker (reused by Chat + Document Hub).
+  // A shared <select> matter picker (reused by Chat + Document Hub). Also enforces the
+  // P1.4 default: a stale stored matter is dropped, and when none is active the first
+  // matter (preferring the seeded sample) becomes active — so the app never presents a
+  // "no matter selected" dead-end while matters exist.
   async function fillMatterPickers() {
     var data = await api("/matters");
     var matters = (data && data.matters) || [];
+    state.matters = matters;
     document.querySelectorAll(".matter-picker").forEach(function (sel) {
       sel.innerHTML = '<option value="">— choose matter —</option>' +
         matters.map(function (m) {
@@ -47,6 +59,15 @@
         }).join("");
       if (state.matter) sel.value = state.matter;
     });
+    var current = null;
+    matters.forEach(function (m) { if (m.slug === state.matter) current = m; });
+    if (state.matter && !current) setActiveMatter(null);          // stale -> clear
+    if (!state.matter && matters.length) {
+      var pick = matters.filter(function (m) { return m.sample; })[0] || matters[0];
+      setActiveMatter(pick.slug, pick.display_name);
+    } else if (current) {
+      setActiveMatter(current.slug, current.display_name);        // refresh the label
+    }
     return matters;
   }
   window.fillMatterPickers = fillMatterPickers;
@@ -96,7 +117,7 @@
     var tbody = document.getElementById("hub-rows");
     if (!tbody) return;
     if (!state.matter) {
-      tbody.innerHTML = "<tr><td colspan='6' class='muted'>Choose a matter to see its documents.</td></tr>";
+      tbody.innerHTML = "<tr><td colspan='6' class='muted'>Create a matter first (Matters view) — its documents will appear here.</td></tr>";
       return;
     }
     var docs = [];
@@ -127,7 +148,7 @@
   async function uploadFiles(files) {
     var err = document.getElementById("hub-err");
     if (err) err.textContent = "";
-    if (!state.matter) { if (err) err.textContent = "Choose a matter first."; return; }
+    if (!state.matter) { if (err) err.textContent = "Create a matter first (Matters view), then upload."; return; }
     for (var i = 0; i < files.length; i++) {
       var f = files[i];
       try {
@@ -272,23 +293,120 @@
     box.scrollTop = box.scrollHeight;
   }
 
+  // Retrieved passages shown while the model reads them — candidates only, deliberately
+  // NOT clickable/thumbnailed so they can't be mistaken for the verified citations that
+  // replace them on 'done' (never-false-accept: verified citations are the only things
+  // ever presented as citations).
+  function renderReadingSources(sources) {
+    if (!sources.length) return "";
+    var items = sources.map(function (s) {
+      return "<li><span class='src-chip'>" + esc(s.filename) + " — p." + esc(s.page) +
+        "</span> <span class='muted'>" + esc((s.snippet || "").slice(0, 140)) + "…</span></li>";
+    }).join("");
+    return "<div class='sources reading'><b>Reading these passages…</b><ul>" + items + "</ul></div>";
+  }
+
+  // Streaming display: hide a trailing half-typed citation tag, compact complete tags
+  // to a placeholder chip (the final render swaps in real verified chips on 'done').
+  function renderStreamingText(text) {
+    var shown = esc(text.replace(/\[document:[^\]]*$/i, ""))
+      .replace(/\[document:[^\]]*\]/gi, " <span class='src-chip'>…</span>");
+    return "<div class='answer'>" + md(shown) + "</div>";
+  }
+
+  // Default answer path = SSE streaming (/chat/stream): retrieved sources render first,
+  // tokens stream over them, and the 'done' event (verifier ran on the COMPLETE text)
+  // replaces everything with the standard verified-citation render.
+  // First-run guidance under the greeting (P1.4): a 3-step path when no matters exist,
+  // an "add documents" nudge for an empty matter, and one-click suggested questions for
+  // the seeded sample matter. Never a bare dead-end.
+  function renderChatGuide() {
+    var box = document.getElementById("chat-guide");
+    if (!box) return;
+    var active = null;
+    state.matters.forEach(function (m) { if (m.slug === state.matter) active = m; });
+    if (!state.matters.length) {
+      box.innerHTML =
+        "<div class='panel guide'><b>Get to your first cited answer</b><ol>" +
+        "<li><a href='#' data-goto='matters'>Create a matter</a> (the private scope for a client or case)</li>" +
+        "<li><a href='#' data-goto='hub'>Add a document</a> and wait for it to show Ready</li>" +
+        "<li>Come back here and ask a question about it</li></ol>" +
+        "<p class='muted'>A sample matter with demo documents is being prepared in the " +
+        "background and will appear here when ready.</p></div>";
+    } else if (active && active.doc_count === 0) {
+      box.innerHTML =
+        "<div class='panel guide'><b>" + esc(active.display_name) + "</b> has no documents yet. " +
+        "<a href='#' data-goto='hub'>Add a document</a>, wait for Ready, then ask.</div>";
+    } else if (active && active.sample && (active.suggested_questions || []).length) {
+      box.innerHTML =
+        "<div class='guide-chips'><span class='muted'>Try a question against the sample documents:</span> " +
+        active.suggested_questions.map(function (q) {
+          return "<button class='btn secondary guide-q' data-q='" + esc(q) + "'>" + esc(q) + "</button>";
+        }).join(" ") + "</div>";
+    } else {
+      box.innerHTML = "";
+    }
+    box.querySelectorAll("[data-goto]").forEach(function (a) {
+      a.addEventListener("click", function (e) { e.preventDefault(); showView(a.dataset.goto); });
+    });
+    box.querySelectorAll(".guide-q").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var input = document.getElementById("chat-input");
+        input.value = b.dataset.q;
+        sendChat();
+      });
+    });
+  }
+
   async function sendChat() {
     var input = document.getElementById("chat-input");
     var q = input.value.trim();
     if (!q) return;
-    if (!state.matter) { appendMsg("system", "<i>Choose a matter first.</i>"); return; }
+    if (!state.matter) {
+      appendMsg("system", "<i>Create a matter first — open <a href='#' " +
+        "onclick=\"showView('matters');return false\">Matters</a> to add one.</i>");
+      return;
+    }
     input.value = "";
     appendMsg("user", esc(q));
     appendMsg("assistant", "<i class='muted'>Searching " + esc(state.matter) + " …</i>");
     var box = document.getElementById("chat-messages");
     var pending = box.lastChild;
+    var sourcesHtml = "", streamed = "";
+    function paint() {
+      pending.innerHTML = sourcesHtml +
+        (streamed ? renderStreamingText(streamed)
+                  : "<i class='muted'>Drafting the cited answer…</i>");
+      box.scrollTop = box.scrollHeight;
+    }
     try {
-      var body = await api("/chat", {
+      var resp = await fetch("/chat/stream", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: q, matter: state.matter, thread_id: state.threadId || null }),
       });
-      state.threadId = body.thread_id;
-      pending.innerHTML = window.renderAnswerHtml(body);
+      if (!resp.ok) {
+        var d = null;
+        try { d = await resp.json(); } catch (e) { d = null; }
+        throw new Error((d && d.detail) || ("HTTP " + resp.status));
+      }
+      var reader = resp.body.getReader(), dec = new TextDecoder(), buf = "", done = null;
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buf += dec.decode(chunk.value, { stream: true });
+        var parts = buf.split("\n\n"); buf = parts.pop();
+        parts.forEach(function (b) {
+          var msg = parseSseBlock(b);
+          if (!msg) return;
+          if (msg.event === "sources") { sourcesHtml = renderReadingSources(msg.data.sources || []); paint(); }
+          else if (msg.event === "token") { streamed += msg.data.text; paint(); }
+          else if (msg.event === "done") done = msg.data;
+        });
+      }
+      if (!done) throw new Error("stream ended unexpectedly");
+      state.threadId = done.thread_id;
+      pending.innerHTML = window.renderAnswerHtml(done);
+      box.scrollTop = box.scrollHeight;
     } catch (e) { pending.innerHTML = "<span style='color:var(--err)'>" + esc(e.message) + "</span>"; }
   }
   window.sendChat = sendChat;
@@ -305,11 +423,12 @@
       "<div class='chat-composer-wrap'>" +
       "<div class='chat-greeting'><h1>What would you like to ask?</h1>" +
       "<p class='greet-sub'>Answers are grounded in the selected matter&#39;s documents and cited to the exact page and span.</p></div>" +
+      "<div id='chat-guide'></div>" +
       "<div class='chat-composer'>" +
       "<textarea id='chat-input' rows='1' placeholder='Ask anything about this matter&#39;s documents…'></textarea>" +
       "<button class='btn' id='chat-send'>Ask&nbsp;→</button>" +
       "</div></div>";
-    fillMatterPickers().catch(function () {});
+    fillMatterPickers().then(renderChatGuide).catch(function () {});
     document.getElementById("chat-matter").addEventListener("change", function (e) {
       var opt = e.target.selectedOptions[0];
       setActiveMatter(e.target.value, opt ? opt.textContent : null);
@@ -428,7 +547,7 @@
     var out = document.getElementById("clause-results");
     var err = document.getElementById("clause-err");
     if (err) err.textContent = "";
-    if (!state.matter) { if (err) err.textContent = "Choose a matter first."; return; }
+    if (!state.matter) { if (err) err.textContent = "Create a matter first (Matters view), then run the review."; return; }
     out.innerHTML = "<p class='muted'>Running the clause checklist over " +
       esc(state.matter) + " … this can take a moment.</p>";
     try {
@@ -561,7 +680,7 @@
   async function runGrid() {
     var err = document.getElementById("grid-err");
     if (err) err.textContent = "";
-    if (!state.matter) { if (err) err.textContent = "Choose a matter first."; return; }
+    if (!state.matter) { if (err) err.textContent = "Create a matter first (Matters view), then run the grid."; return; }
     document.getElementById("grid-csv").disabled = true;
     document.getElementById("grid-results").innerHTML =
       "<p class='muted'>Evaluating the matrix over " + esc(state.matter) + " — cells stream in live…</p>";

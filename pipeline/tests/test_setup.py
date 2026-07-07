@@ -6,9 +6,12 @@ the wizard renders. The Ollama probe is monkeypatchable so BOTH states are testa
 (reachable+models present -> ready; not found -> guided). Loopback-only; no telemetry.
 """
 
+import io
+import json
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -65,6 +68,54 @@ class TestSetupStatus(unittest.TestCase):
         self.assertEqual(set(s["missing"]), {"qwen3:14b", "bge-m3"})
         # the exact pull commands are surfaced for the guide
         self.assertIn("ollama pull qwen3:14b", " ".join(s["pull_commands"]))
+
+
+class TestSetupPull(unittest.TestCase):
+    """P1.5 — the wizard DOES the model install: /setup/pull streams Ollama pull
+    progress as SSE, allowlisted to the pinned models only."""
+
+    def test_rejects_unpinned_model(self):
+        r = client.post("/setup/pull", json={"model": "llama3:evil"})
+        self.assertEqual(r.status_code, 400)
+
+    def test_streams_progress_then_done(self):
+        lines = [json.dumps({"status": "pulling sha256:aa", "total": 100, "completed": 25}).encode(),
+                 json.dumps({"status": "pulling sha256:aa", "total": 100, "completed": 100}).encode(),
+                 json.dumps({"status": "success"}).encode()]
+
+        class _Resp(io.BytesIO):
+            def __init__(self):
+                super().__init__(b"\n".join(lines) + b"\n")
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                return False
+
+        with patch.object(routes_setup.urllib.request, "urlopen", lambda req, **k: _Resp()):
+            r = client.post("/setup/pull", json={"model": "bge-m3"})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("event: progress", r.text)
+        self.assertIn('"percent": 25.0', r.text)
+        self.assertIn("event: done", r.text)
+
+    def test_ollama_error_is_surfaced_not_crashed(self):
+        def boom(req, **k):
+            raise OSError("connection refused")
+        with patch.object(routes_setup.urllib.request, "urlopen", boom):
+            r = client.post("/setup/pull", json={"model": "qwen3:14b"})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("event: error", r.text)
+
+    def test_status_carries_advisory_fields(self):
+        orig = routes_setup._ollama_tags
+        routes_setup._ollama_tags = lambda *a, **k: ["qwen3:14b", "bge-m3"]
+        try:
+            s = client.get("/setup/status").json()
+        finally:
+            routes_setup._ollama_tags = orig
+        self.assertIn("tesseract", s)
+        self.assertIn("disk_free_gb", s)
+        self.assertIn("model_sizes_gb", s)
 
 
 class TestSetupPage(unittest.TestCase):

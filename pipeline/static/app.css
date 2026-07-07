@@ -132,6 +132,16 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 .answer ul,.answer ol{margin:.3em 0 .3em 1.2em}
 .sources{margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:13px}
 .sources ul{margin:.3em 0 0 1.1em}
+/* Reading state (streaming): retrieved candidates shown dimmed + not clickable, so they
+   are visually distinct from the verified citations that replace them. */
+.sources.reading{opacity:.75;border-top:none;margin-top:0;margin-bottom:10px}
+.sources.reading li{margin:.15em 0}
+/* First-run guidance (P1.4) */
+.guide ol{margin:.5em 0 .3em 1.3em}
+.guide li{margin:.25em 0}
+.guide a{color:#6e5220;font-weight:600}
+.guide-chips{margin:0 0 10px}
+.guide-chips .guide-q{margin:4px 6px 0 0;font-size:13px}
 .src-chip{display:inline-block;background:#f1e6cf;color:#6e5220;border:1px solid #e2d2ab;
   border-radius:6px;padding:0 6px;font-size:12px;cursor:pointer;text-decoration:none}
 .thumb{max-width:260px;border:1px solid var(--border);border-radius:8px;margin-top:6px;cursor:pointer;display:block}

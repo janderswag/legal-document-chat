@@ -113,6 +113,10 @@ class TestSafetyStructural(unittest.TestCase):
                           "/clauses/taxonomy", "/clauses/review",
                           "/grid",
                           "/setup", "/setup/status",
+                          # /setup/pull (P1.5): setup-time model install via the LOCAL
+                          # Ollama, allowlisted to the two pinned models — the one
+                          # deliberate non-read-only setup action; no document data.
+                          "/setup/pull",
                           "/settings/status"})
 
     def test_only_the_locked_kb_delete_mutates(self):

@@ -69,6 +69,15 @@ def _warm_chat_model():
     threading.Thread(target=preload_model, name="ollama-preload", daemon=True).start()
 
 
+@app.on_event("startup")
+def _seed_sample_matter():
+    """P1.3: on a truly FRESH install (zero matters in the catalog), seed the synthetic
+    sample matter in the background once the local models are ready — so a brand-new
+    user reaches a cited answer with no setup. No-ops when any matter exists."""
+    import sample_matter
+    sample_matter.maybe_seed_async()
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     """Thin read-only demo page (SC-5). Static HTML; all data flows via /answer +
