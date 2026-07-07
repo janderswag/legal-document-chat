@@ -796,6 +796,26 @@
   encryption. (e) Settings surfaces the hardening posture from real state. Site trust page +
   security.txt ride on the site-preview branch (owner preview). 358 tests green. (D-66, D-67)
 
+- **D-72 — Move 4 executed: retention primitives shipped; per-matter encryption DEFERRED by
+  design (2026-07-07).** Design doc: `docs/2026-07-07-retention-encryption-design.md`. SHIPPED:
+  (a) **legal holds** — first-class, reasoned, self-logging; an active hold 409s disposition AND
+  single-document deletes (FRCP 37(e) preservation); (b) **export-everything** — one zip per
+  matter: original natives + full chat threads with citations + catalog manifest (checksums) +
+  the matter's audit slice (Rule 1.16(d) surrender BEFORE disposal, enforced in the flow);
+  (c) **disposition + HONEST certificate** — removes chunks (store delete + compaction), line
+  maps, threads, catalog rows, managed copies (still structurally locked to documents/kb/);
+  emits a Certificate of Disposition modeled on NIST SP 800-88r2 App. C whose method is stated
+  as **"Clear"** with explicit caveats (OS snapshots/backups outside app control) — NEVER
+  "Purge" until cryptographic erase actually ships; (d) **hash-chained append-only audit log**
+  (RFC 6962-style) covering hold/release/export/disposition, locally verifiable
+  (/retention/audit/verify) — tampering with any entry breaks the chain, proven by test.
+  Matters view UI: hold/export/dispose with double-confirm + certificate download. DEFERRED
+  with rationale (design doc §4): per-matter envelope encryption (Keychain master key, DEK
+  wrapping, SQLCipher catalog, encrypted-volume Lance stores) and the crypto-shred upgrade —
+  key-custody mistakes on client data are unrecoverable and need their own focused cycle with a
+  migration rehearsal; the trust page states the honest current posture. Full lifecycle
+  acceptance test green (design §5). 359 tests green. (D-66, D-67, D-71)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

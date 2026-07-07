@@ -119,6 +119,12 @@ class TestSafetyStructural(unittest.TestCase):
                           # verifier-confirmed bullets survive, + Word export of a
                           # digest the user already received. No new trust surface.
                           "/transcripts/{doc_id}/digest", "/transcripts/digest.docx",
+                          # Retention (Move 4, D-72): legal hold, export-everything,
+                          # disposition with an HONEST certificate, audit verification.
+                          # Deletion stays structurally locked to app-managed data.
+                          "/retention/{matter}/status", "/retention/{matter}/hold",
+                          "/retention/{matter}/release", "/retention/{matter}/export",
+                          "/retention/{matter}/dispose", "/retention/audit/verify",
                           "/chat", "/chat/stream", "/chat/threads", "/chat/threads/{thread_id}",
                           "/kb/thumb/{doc_id}", "/kb/highlight/{doc_id}",
                           "/clauses/taxonomy", "/clauses/review",

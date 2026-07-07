@@ -81,7 +81,7 @@
       "<input id='new-matter-name' type='text' placeholder='New matter name (e.g. Pemberton Logistics)'>" +
       "<button class='btn' id='new-matter-btn'>Create</button></div>" +
       "<div id='new-matter-err' style='color:var(--err);font-size:13px;margin-top:8px'></div></div>" +
-      "<div class='panel'><table><thead><tr><th>Matter</th><th>Slug</th><th>Docs</th></tr></thead>" +
+      "<div class='panel'><table><thead><tr><th>Matter</th><th>Slug</th><th>Docs</th><th>Retention</th></tr></thead>" +
       "<tbody id='matters-rows'></tbody></table></div>";
 
     var matters = [];
@@ -90,9 +90,51 @@
     document.getElementById("matters-rows").innerHTML = matters.length
       ? matters.map(function (m) {
           return "<tr><td><b>" + esc(m.display_name) + "</b></td><td class='muted'>" +
-            esc(m.slug) + "</td><td>" + m.doc_count + "</td></tr>";
+            esc(m.slug) + "</td><td>" + m.doc_count + "</td><td>" +
+            "<button class='btn secondary' data-hold='" + esc(m.slug) + "'>hold</button> " +
+            "<button class='btn secondary' data-export='" + esc(m.slug) + "'>export</button> " +
+            "<button class='btn secondary' data-dispose='" + esc(m.slug) + "'>dispose</button>" +
+            "</td></tr>";
         }).join("")
-      : "<tr><td colspan='3' class='muted'>No matters yet — create one above.</td></tr>";
+      : "<tr><td colspan='4' class='muted'>No matters yet — create one above.</td></tr>";
+
+    // Retention actions (Move 4, D-72): hold toggles (with reasons), export downloads
+    // the complete matter file, dispose double-confirms and downloads the honest
+    // Certificate of Disposition. Holds block dispose and document deletes (409s).
+    inner.querySelectorAll("[data-hold]").forEach(function (b) {
+      b.onclick = async function () {
+        var st = await api("/retention/" + b.dataset.hold + "/status");
+        if (st.hold) {
+          var why = prompt("Active hold: " + st.hold.reason + "\nRelease reason (cancel to keep the hold):");
+          if (why) { await api("/retention/" + b.dataset.hold + "/release", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: why }) }); renderMatters(); }
+        } else {
+          var reason = prompt("Place a legal hold. Reason:");
+          if (reason) { await api("/retention/" + b.dataset.hold + "/hold", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: reason }) }); renderMatters(); }
+        }
+      };
+    });
+    inner.querySelectorAll("[data-export]").forEach(function (b) {
+      b.onclick = function () { window.open("/retention/" + b.dataset.export + "/export", "_blank"); };
+    });
+    inner.querySelectorAll("[data-dispose]").forEach(function (b) {
+      b.onclick = async function () {
+        var slug = b.dataset.dispose;
+        if (!confirm("Dispose of this matter? Export the complete file FIRST if you have not. " +
+                     "This removes its documents, index, and chat history from this computer.")) return;
+        if (!confirm("Final confirmation: dispose of '" + slug + "' now?")) return;
+        try {
+          var cert = await api("/retention/" + slug + "/dispose?confirm=true", { method: "POST" });
+          var blob = new Blob([JSON.stringify(cert, null, 2)], { type: "application/json" });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url; a.download = "certificate-of-disposition-" + slug + ".json";
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+          alert("Disposed. Certificate downloaded. Method: " + cert.method);
+        } catch (e) { alert(e.message); }
+        renderMatters(); fillMatterPickers();
+      };
+    });
 
     document.getElementById("new-matter-btn").addEventListener("click", async function () {
       var name = document.getElementById("new-matter-name").value;
