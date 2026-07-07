@@ -106,6 +106,49 @@ class TestSetupPull(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn("event: error", r.text)
 
+    def test_digest_mismatch_yields_error_not_done(self):
+        # D-71 supply chain: pulled name resolving to a NON-pinned digest = error.
+        pull_lines = [json.dumps({"status": "success"}).encode()]
+
+        class _Resp(io.BytesIO):
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                return False
+
+        def fake(req, timeout=None, **k):
+            if "/api/tags" in req.full_url:
+                return _Resp(json.dumps({"models": [
+                    {"name": "bge-m3:latest", "digest": "sha256:deadbeef00112233"}
+                ]}).encode())
+            return _Resp(b"\n".join(pull_lines) + b"\n")
+
+        with patch.object(routes_setup.urllib.request, "urlopen", fake):
+            r = client.post("/setup/pull", json={"model": "bge-m3"})
+        self.assertIn("event: error", r.text)
+        self.assertNotIn("event: done", r.text)
+        self.assertIn("digest", r.text)
+
+    def test_digest_match_yields_done(self):
+        pull_lines = [json.dumps({"status": "success"}).encode()]
+
+        class _Resp(io.BytesIO):
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                return False
+
+        def fake(req, timeout=None, **k):
+            if "/api/tags" in req.full_url:
+                return _Resp(json.dumps({"models": [
+                    {"name": "bge-m3:latest", "digest": "sha256:790764642607aabb"}
+                ]}).encode())
+            return _Resp(b"\n".join(pull_lines) + b"\n")
+
+        with patch.object(routes_setup.urllib.request, "urlopen", fake):
+            r = client.post("/setup/pull", json={"model": "bge-m3"})
+        self.assertIn("event: done", r.text)
+
     def test_status_carries_advisory_fields(self):
         orig = routes_setup._ollama_tags
         routes_setup._ollama_tags = lambda *a, **k: ["qwen3:14b", "bge-m3"]

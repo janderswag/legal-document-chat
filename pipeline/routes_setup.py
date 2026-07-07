@@ -26,6 +26,10 @@ router = APIRouter()
 
 # D-11 pinned models the app requires (frozen).
 PINNED_MODELS = {"chat": "qwen3:14b", "embed": "bge-m3"}
+# D-11/D-71: the registry digests those names must resolve to. The Ollama registry is
+# content-addressed but has NO publisher signing — pinning digests is the supply-chain
+# guard (a poisoned model under a familiar name fails the post-pull check, fail loud).
+PINNED_DIGESTS = {"qwen3:14b": "bdbd181c33f2", "bge-m3": "790764642607"}
 _STATIC = Path(__file__).resolve().parent / "static"
 
 
@@ -92,6 +96,32 @@ def status():
     return setup_status()
 
 
+def _verify_digest(host, model, timeout=5.0):
+    """(ok, detail): does the locally-installed ``model`` match its pinned digest?
+    True also when the pin or the local digest is unavailable (fail-open on missing
+    DATA, fail-closed only on a positive MISMATCH — the poisoned-name case)."""
+    pin = PINNED_DIGESTS.get(model)
+    if not pin:
+        return True, ""
+    try:
+        req = urllib.request.Request(f"{host}/api/tags")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            models = json.load(resp).get("models", [])
+    except Exception:
+        return True, ""
+    base = model.split(":")[0]
+    for m in models:
+        name = m.get("name", "")
+        if name == model or name == f"{model}:latest" or name.startswith(base + ":"):
+            digest = (m.get("digest") or "").replace("sha256:", "")
+            if digest.startswith(pin) or pin.startswith(digest[:12]):
+                return True, ""
+            return False, (f"{model} downloaded, but its digest {digest[:12]} does not "
+                           f"match the pinned {pin} (D-11). The registry copy may have "
+                           "changed - do not use it; please report this.")
+    return True, ""
+
+
 class PullRequest(BaseModel):
     model: str
 
@@ -131,9 +161,14 @@ def pull_model(body: PullRequest):
                                     if total and done is not None else None),
                     })
                     if obj.get("status") == "success":
-                        yield event("done", {"model": body.model})
-                        return
-            yield event("done", {"model": body.model})
+                        break
+            # Post-pull supply-chain check (D-71): the pulled name must resolve to the
+            # D-11 pinned digest; a mismatch is an error, never a done.
+            ok, detail = _verify_digest(host, body.model)
+            if ok:
+                yield event("done", {"model": body.model})
+            else:
+                yield event("error", {"detail": detail})
         except Exception as e:  # Ollama down / network drop — surface, never crash setup
             yield event("error", {"detail": f"{type(e).__name__}: {e}"})
 

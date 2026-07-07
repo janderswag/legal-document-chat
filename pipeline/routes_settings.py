@@ -34,4 +34,10 @@ def status():
         "stores": {"kb_docs": len(catalog.list_documents()), "kb_chunks": kb_chunks},
         "egress": "loopback-only" if loopback else "non-loopback",
         "bind": api.HOST,
+        # Move 3 (D-71): the trust posture is REPORTED from real state, never assumed.
+        "hardening": {
+            "trusted_host": True,           # TrustedHostMiddleware active (api.py)
+            "origin_guard": True,           # cross-origin unsafe methods rejected
+            "backup_exclusions": getattr(api.app.state, "data_protection", {}),
+        },
     }

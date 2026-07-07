@@ -34,6 +34,23 @@ CREATE TABLE IF NOT EXISTS documents (
     updated TEXT NOT NULL,
     FOREIGN KEY (matter_slug) REFERENCES matters(slug)
 );
+CREATE TABLE IF NOT EXISTS legal_holds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    matter_slug TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    created TEXT NOT NULL,
+    released TEXT,
+    released_reason TEXT
+);
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    prev_hash TEXT NOT NULL,
+    entry_hash TEXT NOT NULL,
+    ts TEXT NOT NULL,
+    event TEXT NOT NULL,
+    matter_slug TEXT,
+    detail TEXT
+);
 CREATE TABLE IF NOT EXISTS transcript_lines (
     doc_id INTEGER NOT NULL,
     page INTEGER NOT NULL,
@@ -305,5 +322,132 @@ def get_thread_messages(thread_id, db_path=None):
         rows = conn.execute("SELECT * FROM messages WHERE thread_id = ? ORDER BY id",
                             (thread_id,)).fetchall()
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+# --- retention: legal holds + hash-chained audit log (Move 4, D-72) -----------------
+
+def place_hold(matter_slug, reason, db_path=None):
+    """Create a legal hold on a matter. While ANY unreleased hold exists, disposition
+    and document deletion are refused (FRCP 37(e) preservation)."""
+    conn = _connect(db_path)
+    try:
+        conn.execute("INSERT INTO legal_holds (matter_slug, reason, created) VALUES (?, ?, ?)",
+                     (matter_slug, reason, _now()))
+        conn.commit()
+    finally:
+        conn.close()
+    audit_append("hold_placed", matter_slug, reason, db_path=db_path)
+
+
+def release_hold(matter_slug, reason, db_path=None):
+    """Release all active holds on a matter (with the release reason recorded)."""
+    conn = _connect(db_path)
+    try:
+        conn.execute("UPDATE legal_holds SET released = ?, released_reason = ? "
+                     "WHERE matter_slug = ? AND released IS NULL",
+                     (_now(), reason, matter_slug))
+        conn.commit()
+    finally:
+        conn.close()
+    audit_append("hold_released", matter_slug, reason, db_path=db_path)
+
+
+def active_hold(matter_slug, db_path=None):
+    """The oldest unreleased hold row for a matter, or None."""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute("SELECT * FROM legal_holds WHERE matter_slug = ? AND "
+                           "released IS NULL ORDER BY id LIMIT 1", (matter_slug,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def audit_append(event, matter_slug=None, detail=None, db_path=None):
+    """Append a tamper-EVIDENT audit entry: entry_hash = sha256(prev_hash | ts | event |
+    matter | detail). Editing or deleting any prior row breaks every later hash
+    (RFC 6962-style chain) — verifiable locally with no server. Returns the entry hash."""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute("SELECT entry_hash FROM audit_log ORDER BY id DESC LIMIT 1").fetchone()
+        prev = row["entry_hash"] if row else "genesis"
+        ts = _now()
+        material = "|".join([prev, ts, event, matter_slug or "", detail or ""])
+        entry = hashlib.sha256(material.encode("utf-8")).hexdigest()
+        conn.execute("INSERT INTO audit_log (prev_hash, entry_hash, ts, event, "
+                     "matter_slug, detail) VALUES (?, ?, ?, ?, ?, ?)",
+                     (prev, entry, ts, event, matter_slug, detail))
+        conn.commit()
+        return entry
+    finally:
+        conn.close()
+
+
+def audit_entries(matter_slug=None, db_path=None):
+    conn = _connect(db_path)
+    try:
+        if matter_slug:
+            rows = conn.execute("SELECT * FROM audit_log WHERE matter_slug = ? ORDER BY id",
+                                (matter_slug,)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM audit_log ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def verify_audit_chain(db_path=None):
+    """(ok, first_bad_id): recompute every hash in order; any edited/removed/reordered
+    entry breaks the chain at the first affected row."""
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute("SELECT * FROM audit_log ORDER BY id").fetchall()
+    finally:
+        conn.close()
+    prev = "genesis"
+    for r in rows:
+        material = "|".join([prev, r["ts"], r["event"], r["matter_slug"] or "",
+                             r["detail"] or ""])
+        if r["prev_hash"] != prev or \
+                hashlib.sha256(material.encode("utf-8")).hexdigest() != r["entry_hash"]:
+            return False, r["id"]
+        prev = r["entry_hash"]
+    return True, None
+
+
+def threads_for_matter(matter_slug, db_path=None):
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute("SELECT * FROM threads WHERE matter_slug = ? ORDER BY id",
+                            (matter_slug,)).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def messages_for_thread(thread_id, db_path=None):
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute("SELECT * FROM messages WHERE thread_id = ? ORDER BY id",
+                            (thread_id,)).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def delete_threads_for_matter(matter_slug, db_path=None):
+    """Remove a matter's chat threads + messages (disposition path only)."""
+    conn = _connect(db_path)
+    try:
+        ids = [r["id"] for r in conn.execute(
+            "SELECT id FROM threads WHERE matter_slug = ?", (matter_slug,)).fetchall()]
+        if ids:
+            q = ",".join("?" * len(ids))
+            conn.execute(f"DELETE FROM messages WHERE thread_id IN ({q})", ids)
+            conn.execute(f"DELETE FROM threads WHERE id IN ({q})", ids)
+        conn.commit()
+        return len(ids)
     finally:
         conn.close()

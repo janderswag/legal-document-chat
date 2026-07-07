@@ -778,6 +778,44 @@
   ingest path only); the Move 1 gate (63/63) remains the standing baseline. (D-56, D-66, D-67,
   D-69)
 
+- **D-71 — Move 3 executed: trust pack v1 (2026-07-07).** Loopback is not a security boundary;
+  the app now proves it: (a) **API guards** — TrustedHostMiddleware (local hostnames only; kills
+  DNS rebinding, where the attacker's domain resolves to 127.0.0.1) + an Origin guard rejecting
+  state-changing requests whose browser Origin is non-local (kills cross-site POST/DELETE);
+  the app's own same-origin requests and non-browser clients are unaffected; both proven by
+  attack-shaped tests. (b) **Ollama hardening** — the launcher refuses to START an Ollama below
+  0.17.1 (CVE-2026-7482 "Bleeding Llama", CVSS 9.1) with a clear upgrade message (fail-open only
+  when the version is undeterminable), and sets OLLAMA_ORIGINS to the app origin (Ollama's
+  default allows 0.0.0.0 — the 0-0-0-0-day/rebinding surface); a user's own Ollama is never
+  touched. (c) **Supply chain** — the wizard's pull now verifies the D-11 pinned digests after
+  download (the Ollama registry has no publisher signing); a digest mismatch is an error event,
+  never a done. (d) **Backup/index leak reduction** — Time Machine exclusions + Spotlight
+  markers applied to the KB store, document copies, and catalog at startup (idempotent,
+  macOS-only, log-never-block), REPORTED in Settings by store name (the no-path status contract
+  caught and fixed a path leak in the first cut); honest scope: interim until Move 4 at-rest
+  encryption. (e) Settings surfaces the hardening posture from real state. Site trust page +
+  security.txt ride on the site-preview branch (owner preview). 358 tests green. (D-66, D-67)
+
+- **D-72 — Move 4 executed: retention primitives shipped; per-matter encryption DEFERRED by
+  design (2026-07-07).** Design doc: `docs/2026-07-07-retention-encryption-design.md`. SHIPPED:
+  (a) **legal holds** — first-class, reasoned, self-logging; an active hold 409s disposition AND
+  single-document deletes (FRCP 37(e) preservation); (b) **export-everything** — one zip per
+  matter: original natives + full chat threads with citations + catalog manifest (checksums) +
+  the matter's audit slice (Rule 1.16(d) surrender BEFORE disposal, enforced in the flow);
+  (c) **disposition + HONEST certificate** — removes chunks (store delete + compaction), line
+  maps, threads, catalog rows, managed copies (still structurally locked to documents/kb/);
+  emits a Certificate of Disposition modeled on NIST SP 800-88r2 App. C whose method is stated
+  as **"Clear"** with explicit caveats (OS snapshots/backups outside app control) — NEVER
+  "Purge" until cryptographic erase actually ships; (d) **hash-chained append-only audit log**
+  (RFC 6962-style) covering hold/release/export/disposition, locally verifiable
+  (/retention/audit/verify) — tampering with any entry breaks the chain, proven by test.
+  Matters view UI: hold/export/dispose with double-confirm + certificate download. DEFERRED
+  with rationale (design doc §4): per-matter envelope encryption (Keychain master key, DEK
+  wrapping, SQLCipher catalog, encrypted-volume Lance stores) and the crypto-shred upgrade —
+  key-custody mistakes on client data are unrecoverable and need their own focused cycle with a
+  migration rehearsal; the trust page states the honest current posture. Full lifecycle
+  acceptance test green (design §5). 359 tests green. (D-66, D-67, D-71)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

@@ -143,6 +143,13 @@ def delete(doc_id: int):
     row = catalog.get_document(doc_id)
     if not row:
         raise HTTPException(status_code=404, detail="not found")
+    # Move 4 (D-72): a legal hold freezes ALL disposal in the matter, including
+    # single-document deletes (FRCP 37(e) preservation).
+    hold = catalog.active_hold(row["matter_slug"])
+    if hold:
+        raise HTTPException(status_code=409,
+                            detail=f"legal hold active since {hold['created']}: "
+                                   f"{hold['reason']}")
     # 1) remove this doc's chunks from the KB store (scoped to filename + matter)
     delete_doc(KB_DB, row["filename"], row["matter_slug"])
     # 2) remove the managed copy — ONLY if it is inside documents/kb/ (structural lock)
