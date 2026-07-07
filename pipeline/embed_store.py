@@ -42,6 +42,13 @@ _SCHEMA = pa.schema([
     pa.field("char_start", pa.int64()),
     pa.field("char_end", pa.int64()),
     pa.field("text", pa.string()),
+    # Move 1d (D-69): real metadata for filtering/search. document_type is the DOCUMENT
+    # kind (contract/pleading/transcript/document...); provenance is the extractor path
+    # (pymupdf/tesseract/txt) that previously squatted document_type; doc_date is an
+    # explicitly-stated document date when known ("" otherwise — never inferred).
+    pa.field("document_type", pa.string()),
+    pa.field("provenance", pa.string()),
+    pa.field("doc_date", pa.string()),
 ])
 
 
@@ -64,16 +71,7 @@ def build_store(chunks_path, db_path, table_name="chunks"):
     if any(len(v) != EMBED_DIM for v in vectors):
         raise ValueError("embedding dimension mismatch (expected 1024 from bge-m3)")
 
-    rows = [{
-        "vector": vec,
-        "source_filename": c["source_filename"],
-        "matter": c["matter"],
-        "page_number": c["page_number"],
-        "section": c["section"],
-        "char_start": c["char_start"],
-        "char_end": c["char_end"],
-        "text": c["text"],
-    } for c, vec in zip(chunks, vectors)]
+    rows = [_row(c, vec) for c, vec in zip(chunks, vectors)]
 
     db = lancedb.connect(str(db_path))
     return db.create_table(table_name, data=rows, schema=_SCHEMA, mode="overwrite")
@@ -84,15 +82,22 @@ def open_table(db_path, table_name="chunks"):
     return lancedb.connect(str(db_path)).open_table(table_name)
 
 
+def _row(c, vec):
+    return {
+        "vector": vec, "source_filename": c["source_filename"], "matter": c["matter"],
+        "page_number": c["page_number"], "section": c["section"],
+        "char_start": c["char_start"], "char_end": c["char_end"], "text": c["text"],
+        "document_type": c.get("document_type", "document"),
+        "provenance": c.get("provenance", c.get("source", "")),
+        "doc_date": c.get("doc_date", ""),
+    }
+
+
 def _rows_from_chunks(chunks):
     vectors = embed_texts([c["embedding_text"] for c in chunks])
     if any(len(v) != EMBED_DIM for v in vectors):
         raise ValueError("embedding dimension mismatch (expected 1024 from bge-m3)")
-    return [{
-        "vector": vec, "source_filename": c["source_filename"], "matter": c["matter"],
-        "page_number": c["page_number"], "section": c["section"],
-        "char_start": c["char_start"], "char_end": c["char_end"], "text": c["text"],
-    } for c, vec in zip(chunks, vectors)]
+    return [_row(c, vec) for c, vec in zip(chunks, vectors)]
 
 
 def add_chunks(chunks, db_path, table_name="chunks"):
@@ -103,7 +108,14 @@ def add_chunks(chunks, db_path, table_name="chunks"):
     rows = _rows_from_chunks(chunks)
     db = lancedb.connect(str(db_path))
     if table_name in db.table_names():
-        db.open_table(table_name).add(rows)
+        table = db.open_table(table_name)
+        if "document_type" not in [f.name for f in table.schema]:
+            # Pre-1d store: appending new-schema rows would corrupt/fail. Fail loud
+            # with the migration path instead (D-69).
+            raise RuntimeError(
+                f"store at {db_path} predates the 1d schema (no document_type column); "
+                "rebuild it via reingest_kb.py before adding documents")
+        table.add(rows)
     else:
         db.create_table(table_name, data=rows, schema=_SCHEMA)
 

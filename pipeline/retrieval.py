@@ -18,6 +18,8 @@ from embed_store import embed_texts, open_table
 _DEFAULT_DB = Path(__file__).resolve().parent / ".lancedb"
 _PAYLOAD_FIELDS = (
     "source_filename", "matter", "page_number", "section", "char_start", "char_end", "text",
+    # 1d metadata (present on post-D-69 stores; older stores simply omit them)
+    "document_type", "provenance", "doc_date",
 )
 _RRF_K = 60  # Reciprocal Rank Fusion constant (standard default)
 
@@ -93,7 +95,7 @@ def _rrf_fuse(dense_rows, fts_rows, top_k, k=_RRF_K):
 
 
 def retrieve(question, matter=None, top_k=5, db_path=None, rerank=False, candidate_k=20,
-             hybrid=False):
+             hybrid=False, fts_query=None):
     """Return the top-k chunks for ``question``, optionally hard-scoped to ``matter``.
 
     matter is None -> explicit search-all. matter set -> validated against the
@@ -121,7 +123,12 @@ def retrieve(question, matter=None, top_k=5, db_path=None, rerank=False, candida
         query_vec = embed_texts([question])[0]
         dense = _scoped(table.search(query_vec)).limit(candidate_k).to_arrow().to_pylist()
         _ensure_fts_index(table)
-        fts = _scoped(table.search(question, query_type="fts")).limit(candidate_k).to_arrow().to_pylist()
+        # fts_query (Move 1b, D-69): feed the FTS arm extracted anchors (numbers, quoted
+        # strings, proper nouns) instead of the raw question — question words drown
+        # exact terms in BM25 (measured: "$18,550" embedded in a question missed both
+        # arms). Falls back to the question when no anchors were extracted.
+        fts = _scoped(table.search(fts_query or question, query_type="fts")) \
+            .limit(candidate_k).to_arrow().to_pylist()
         fused = _rrf_fuse(dense, fts, top_k)
         return [{k: r[k] for k in _PAYLOAD_FIELDS if k in r} for r in fused]
 

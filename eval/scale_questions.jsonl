@@ -1,0 +1,50 @@
+{"qid": "SQ-ID-01", "class": "identifier", "question": "What is the total amount of invoice INV-77341?", "matter": "scale-planted-00", "gold_filename": "planted_sq-id-01.txt", "gold_page": 1}
+{"qid": "SQ-ID-02", "class": "identifier", "question": "What amount in controversy is stated in case number 5:26-cv-04417?", "matter": "scale-planted-01", "gold_filename": "planted_sq-id-02.txt", "gold_page": 1}
+{"qid": "SQ-ID-03", "class": "identifier", "question": "Which attorney holds bar number 662104?", "matter": "scale-planted-02", "gold_filename": "planted_sq-id-03.txt", "gold_page": 1}
+{"qid": "SQ-ID-04", "class": "identifier", "question": "What is the value of purchase order PO-90218?", "matter": "scale-planted-03", "gold_filename": "planted_sq-id-04.txt", "gold_page": 1}
+{"qid": "SQ-ID-05", "class": "identifier", "question": "What amount was paid by check number 004471?", "matter": "scale-planted-04", "gold_filename": "planted_sq-id-05.txt", "gold_page": 1}
+{"qid": "SQ-ID-06", "class": "identifier", "question": "What is the claimed amount under claim number CLM-2026-8817?", "matter": "scale-planted-05", "gold_filename": "planted_sq-id-06.txt", "gold_page": 1}
+{"qid": "SQ-ID-07", "class": "identifier", "question": "What was filed at docket entry 47?", "matter": "scale-planted-06", "gold_filename": "planted_sq-id-07.txt", "gold_page": 1}
+{"qid": "SQ-ID-08", "class": "identifier", "question": "What is the assessed value of tax parcel 118-22-407?", "matter": "scale-planted-07", "gold_filename": "planted_sq-id-08.txt", "gold_page": 1}
+{"qid": "SQ-ST-01", "class": "statute-cite", "question": "Which Ohio statute section is cited on consumer sales practices?", "matter": "scale-planted-08", "gold_filename": "planted_sq-st-01.txt", "gold_page": 1}
+{"qid": "SQ-ST-02", "class": "statute-cite", "question": "Which federal statute is cited for the debt validation notice requirement?", "matter": "scale-planted-09", "gold_filename": "planted_sq-st-02.txt", "gold_page": 1}
+{"qid": "SQ-ST-03", "class": "statute-cite", "question": "Which California statute is cited about collecting rent on an untenantable dwelling?", "matter": "scale-planted-10", "gold_filename": "planted_sq-st-03.txt", "gold_page": 1}
+{"qid": "SQ-ST-04", "class": "statute-cite", "question": "Which Delaware statute is cited for LLC member inspection rights?", "matter": "scale-planted-11", "gold_filename": "planted_sq-st-04.txt", "gold_page": 1}
+{"qid": "SQ-ST-05", "class": "statute-cite", "question": "Which New York statute is cited regarding deceptive acts and practices?", "matter": "scale-planted-12", "gold_filename": "planted_sq-st-05.txt", "gold_page": 1}
+{"qid": "SQ-PN-01", "class": "party-name", "question": "What role does Thaddeus Okonkwo-Beaumont hold?", "matter": "scale-planted-13", "gold_filename": "planted_sq-pn-01.txt", "gold_page": 1}
+{"qid": "SQ-PN-02", "class": "party-name", "question": "Who is Wilhelmina Szczepanska in this matter?", "matter": "scale-planted-14", "gold_filename": "planted_sq-pn-02.txt", "gold_page": 1}
+{"qid": "SQ-PN-03", "class": "party-name", "question": "What is Barnaby Featherstonhaugh's role?", "matter": "scale-planted-15", "gold_filename": "planted_sq-pn-03.txt", "gold_page": 1}
+{"qid": "SQ-PN-04", "class": "party-name", "question": "What was Xiomara Quispe-Larrain's role at the hearing?", "matter": "scale-planted-16", "gold_filename": "planted_sq-pn-04.txt", "gold_page": 1}
+{"qid": "SQ-PN-05", "class": "party-name", "question": "Who was appointed receiver?", "matter": "scale-planted-17", "gold_filename": "planted_sq-pn-05.txt", "gold_page": 1}
+{"qid": "SQ-PN-06", "class": "party-name", "question": "Who serves as the escrow agent?", "matter": "scale-planted-18", "gold_filename": "planted_sq-pn-06.txt", "gold_page": 1}
+{"qid": "SQ-PN-07", "class": "party-name", "question": "Who is the testifying damages expert?", "matter": "scale-planted-19", "gold_filename": "planted_sq-pn-07.txt", "gold_page": 1}
+{"qid": "SQ-DT-01", "class": "defined-term", "question": "How is the term Restricted Data defined?", "matter": "scale-planted-20", "gold_filename": "planted_sq-dt-01.txt", "gold_page": 1}
+{"qid": "SQ-DT-02", "class": "defined-term", "question": "What is a Qualified Overrun under the agreement?", "matter": "scale-planted-21", "gold_filename": "planted_sq-dt-02.txt", "gold_page": 1}
+{"qid": "SQ-DT-03", "class": "defined-term", "question": "What location is the Designated Facility?", "matter": "scale-planted-22", "gold_filename": "planted_sq-dt-03.txt", "gold_page": 1}
+{"qid": "SQ-DT-04", "class": "defined-term", "question": "What is the Holdback Amount?", "matter": "scale-planted-23", "gold_filename": "planted_sq-dt-04.txt", "gold_page": 1}
+{"qid": "SQ-DT-05", "class": "defined-term", "question": "How long is the Cure Window?", "matter": "scale-planted-24", "gold_filename": "planted_sq-dt-05.txt", "gold_page": 1}
+{"qid": "SQ-DT-06", "class": "defined-term", "question": "Who counts as Key Personnel?", "matter": "scale-planted-25", "gold_filename": "planted_sq-dt-06.txt", "gold_page": 1}
+{"qid": "SQ-PA-01", "class": "paraphrase", "question": "What happens if the tenant stops paying rent on time?", "matter": "scale-planted-26", "gold_filename": "planted_sq-pa-01.txt", "gold_page": 1}
+{"qid": "SQ-PA-02", "class": "paraphrase", "question": "How long after leaving is the employee barred from poaching clients?", "matter": "scale-planted-27", "gold_filename": "planted_sq-pa-02.txt", "gold_page": 1}
+{"qid": "SQ-PA-03", "class": "paraphrase", "question": "How much can you get back if the shipper loses your freight?", "matter": "scale-planted-28", "gold_filename": "planted_sq-pa-03.txt", "gold_page": 1}
+{"qid": "SQ-PA-04", "class": "paraphrase", "question": "Can they pause the deal if something out of their hands drags on?", "matter": "scale-planted-29", "gold_filename": "planted_sq-pa-04.txt", "gold_page": 1}
+{"qid": "SQ-PA-05", "class": "paraphrase", "question": "How long do you have to complain about defective work?", "matter": "scale-planted-30", "gold_filename": "planted_sq-pa-05.txt", "gold_page": 1}
+{"qid": "SQ-PA-06", "class": "paraphrase", "question": "Who is on the hook if the borrower does not pay?", "matter": "scale-planted-31", "gold_filename": "planted_sq-pa-06.txt", "gold_page": 1}
+{"qid": "SQ-PA-07", "class": "paraphrase", "question": "What do workers get paid for extra hours?", "matter": "scale-planted-32", "gold_filename": "planted_sq-pa-07.txt", "gold_page": 1}
+{"qid": "SQ-PA-08", "class": "paraphrase", "question": "How fast does the money go out once the release is signed?", "matter": "scale-planted-33", "gold_filename": "planted_sq-pa-08.txt", "gold_page": 1}
+{"qid": "SQ-XD-01", "class": "cross-doc", "question": "What hourly rate applies to principal time?", "matter": "scale-planted-34", "gold_filename": "planted_sq-xd-01_terms.txt", "gold_page": 1}
+{"qid": "SQ-XD-02", "class": "cross-doc", "question": "What hourly rate applies to principal time?", "matter": "scale-planted-35", "gold_filename": "planted_sq-xd-02_terms.txt", "gold_page": 1}
+{"qid": "SQ-XD-03", "class": "cross-doc", "question": "What hourly rate applies to principal time?", "matter": "scale-planted-36", "gold_filename": "planted_sq-xd-03_terms.txt", "gold_page": 1}
+{"qid": "SQ-XD-04", "class": "cross-doc", "question": "What hourly rate applies to principal time?", "matter": "scale-planted-37", "gold_filename": "planted_sq-xd-04_terms.txt", "gold_page": 1}
+{"qid": "SQ-XD-05", "class": "cross-doc", "question": "What hourly rate applies to principal time?", "matter": "scale-planted-38", "gold_filename": "planted_sq-xd-05_terms.txt", "gold_page": 1}
+{"qid": "SQ-XD-06", "class": "cross-doc", "question": "What hourly rate applies to principal time?", "matter": "scale-planted-39", "gold_filename": "planted_sq-xd-06_terms.txt", "gold_page": 1}
+{"qid": "SQ-HN-01", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-00", "gold_filename": "twin_sq-hn-01_amendment.txt", "gold_page": 1}
+{"qid": "SQ-HN-02", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-01", "gold_filename": "twin_sq-hn-02_amendment.txt", "gold_page": 1}
+{"qid": "SQ-HN-03", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-02", "gold_filename": "twin_sq-hn-03_amendment.txt", "gold_page": 1}
+{"qid": "SQ-HN-04", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-03", "gold_filename": "twin_sq-hn-04_amendment.txt", "gold_page": 1}
+{"qid": "SQ-HN-05", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-04", "gold_filename": "twin_sq-hn-05_amendment.txt", "gold_page": 1}
+{"qid": "SQ-HN-06", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-05", "gold_filename": "twin_sq-hn-06_amendment.txt", "gold_page": 1}
+{"qid": "SQ-HN-07", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-06", "gold_filename": "twin_sq-hn-07_amendment.txt", "gold_page": 1}
+{"qid": "SQ-HN-08", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-07", "gold_filename": "twin_sq-hn-08_amendment.txt", "gold_page": 1}
+{"qid": "SQ-HN-09", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-08", "gold_filename": "twin_sq-hn-09_amendment.txt", "gold_page": 1}
+{"qid": "SQ-HN-10", "class": "hard-negative", "question": "What is the current monthly fee under the amendment?", "matter": "scale-twins-09", "gold_filename": "twin_sq-hn-10_amendment.txt", "gold_page": 1}

@@ -8,6 +8,7 @@ Idempotent: a doc's existing chunks are removed before re-adding, so re-ingest n
 duplicates. Writes ONLY to .lancedb_kb — never an eval store.
 """
 
+import re
 from pathlib import Path
 
 import catalog
@@ -16,33 +17,71 @@ from extractors import extract
 
 _CHUNK_CHARS = 900  # target window size; cuts on a nearby newline to avoid mid-line splits
 
+# Section-heading heuristics for uploaded legal documents (Move 1d, D-69): markdown
+# headers, numbered clause headings ("4. TERMINATION", "12. Governing Law"),
+# ARTICLE/SECTION lines, and short ALL-CAPS heading lines. Deliberately conservative —
+# a missed heading only means a plainer breadcrumb; a false positive only adds noise to
+# the breadcrumb, never to chunk text/offsets (verification substrate untouched).
+_HEADING_RE = re.compile(
+    r"^(?:"
+    r"#{1,6}\s+(?P<md>.+?)\s*#*"                                   # markdown header
+    r"|(?P<num>\d{1,2}\.\s+[A-Z][A-Za-z0-9 ,&'/()-]{2,60})"        # numbered clause
+    r"|(?P<art>(?:ARTICLE|SECTION)\s+[\dIVXLC]+[.:]?\s*[A-Za-z0-9 ,&'/()-]{0,60})"
+    r"|(?P<caps>[A-Z][A-Z0-9 ,&'/():-]{5,60})"                     # ALL-CAPS line
+    r")\s*$", re.M)
 
-def _chunk_pages(pages, matter_slug, filename):
-    """Window each extracted page's text into chunks with PAGE-relative offsets, so
+
+def _heading_text(m):
+    return next(g for g in (m.group("md"), m.group("num"), m.group("art"),
+                            m.group("caps")) if g).strip()
+
+
+def _chunk_pages(pages, matter_slug, filename, document_type="document"):
+    """Section-aware windowing with PAGE-relative offsets, so
     ``page_text[char_start:char_end] == chunk.text`` (the substrate span verification
-    needs). Pages with no authoritative text (e.g. ocr_failed -> blanked) yield nothing."""
+    needs). Pages with no authoritative text (e.g. ocr_failed -> blanked) yield nothing.
+
+    Move 1d (D-69): chunks now cut at detected section headings (window boundaries never
+    cross a heading), carry the section breadcrumb + a real ``document_type`` in both the
+    payload and the SAC embedding line (matching the eval chunker's
+    ``[Matter | Type | Section]`` format — the scale eval measured the old blind window +
+    empty breadcrumb at 81% golden recall@5 vs the richer format's ~98% equivalent).
+    Extractor provenance (pymupdf/tesseract/txt) moves to its own ``provenance`` field
+    instead of squatting ``document_type``."""
     chunks = []
+    section = ""  # persists across pages until the next heading
     for p in pages:
         pt = p["page_text"]
         pno = p["page_number"]
         if not pt.strip():
             continue
-        i, n = 0, len(pt)
-        while i < n:
-            end = min(i + _CHUNK_CHARS, n)
-            if end < n:
-                nl = pt.find("\n", end)
-                if nl != -1 and nl - end < 200:
-                    end = nl
-            text = pt[i:end]
-            if text.strip():
-                chunks.append({
-                    "source_filename": filename, "matter": matter_slug,
-                    "document_type": p.get("source", "doc"), "page_number": pno,
-                    "section": "", "char_start": i, "char_end": end, "text": text,
-                    "embedding_text": f"[Matter: {matter_slug} | Section: ]\n{text}",
-                })
-            i = end
+        # heading starts on this page, in offset order (page-relative)
+        marks = [(m.start(), _heading_text(m)) for m in _HEADING_RE.finditer(pt)]
+        bounds = sorted({0, len(pt), *(s for s, _ in marks)})
+        head_at = dict(marks)
+        for bi in range(len(bounds) - 1):
+            seg_start, seg_end = bounds[bi], bounds[bi + 1]
+            if seg_start in head_at:
+                section = head_at[seg_start]
+            i = seg_start
+            while i < seg_end:
+                end = min(i + _CHUNK_CHARS, seg_end)
+                if end < seg_end:
+                    nl = pt.find("\n", end)
+                    if nl != -1 and nl < seg_end and nl - end < 200:
+                        end = nl
+                text = pt[i:end]
+                if text.strip():
+                    chunks.append({
+                        "source_filename": filename, "matter": matter_slug,
+                        "document_type": document_type,
+                        "provenance": p.get("source", "doc"),
+                        "page_number": pno, "section": section,
+                        "char_start": i, "char_end": end, "text": text,
+                        "embedding_text": (f"[Matter: {matter_slug} | Type: "
+                                           f"{document_type} | Section: {section}]\n{text}"),
+                    })
+                i = end
     return chunks
 
 
