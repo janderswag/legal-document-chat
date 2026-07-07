@@ -94,6 +94,10 @@ def chat_stream(body: ChatRequest):
                                     db_path=str(routes_kb.KB_DB)):
                 if ev["type"] == "token":
                     yield event("token", {"text": ev["text"]})
+                elif ev["type"] == "second_pass":
+                    # 1b: the first pass refused; a wider anchor-fed retrieval retry is
+                    # starting. The UI clears the streamed refusal and shows the state.
+                    yield event("second_pass", {})
                 elif ev["type"] == "sources":
                     # Retrieved (chunk-derived) passages, shown as "reading" while the
                     # answer generates — candidates only, NEVER presented as verified

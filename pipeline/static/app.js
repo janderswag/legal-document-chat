@@ -2,7 +2,7 @@
    per-view data fetches. Extended task-by-task (matters/hub/chat/history/settings). */
 (function () {
   "use strict";
-  var VIEWS = ["chat", "matters", "hub", "clauses", "grid", "history", "settings"];
+  var VIEWS = ["chat", "search", "matters", "hub", "clauses", "grid", "history", "settings"];
   // The active matter persists across launches (P1.4) — localStorage holds the slug
   // only (never document content); it is re-validated against /matters on every load.
   var MATTER_KEY = "docuchat.activeMatter";
@@ -418,12 +418,27 @@
           if (!msg) return;
           if (msg.event === "sources") { sourcesHtml = renderReadingSources(msg.data.sources || []); paint(); }
           else if (msg.event === "token") { streamed += msg.data.text; paint(); }
+          else if (msg.event === "second_pass") {
+            streamed = "";
+            sourcesHtml = "<p class='muted'><i>Not found in the closest passages — searching the matter more broadly…</i></p>";
+            paint();
+          }
           else if (msg.event === "done") done = msg.data;
         });
       }
       if (!done) throw new Error("stream ended unexpectedly");
       state.threadId = done.thread_id;
-      pending.innerHTML = window.renderAnswerHtml(done);
+      var isRefusal = (done.citations || []).length === 0 &&
+        /could not find this in the documents/i.test(done.answer_text || "");
+      if (isRefusal && sourcesHtml && sourcesHtml.indexOf("sources reading") !== -1) {
+        // Near-miss leads (1b): a refusal keeps the retrieved passages visible as
+        // explicitly-unverified leads instead of a dead end. Never styled as citations.
+        pending.innerHTML = window.renderAnswerHtml(done) +
+          sourcesHtml.replace("Reading these passages…",
+                              "Closest passages (not verified support — leads only):");
+      } else {
+        pending.innerHTML = window.renderAnswerHtml(done);
+      }
       box.scrollTop = box.scrollHeight;
     } catch (e) { pending.innerHTML = "<span style='color:var(--err)'>" + esc(e.message) + "</span>"; }
   }
@@ -460,6 +475,78 @@
     });
   }
   window.viewHooks.chat = renderChat;
+
+  // --- Search view (Move 1c) ---------------------------------------------------
+  // Retrieval-only: every result is a real chunk with filename + page. "Every mention"
+  // is exhaustive and paginated with the TRUE total - truncation is always labeled.
+  var searchState = { offset: 0, lastQ: "" };
+
+  async function runSearch(reset) {
+    var q = document.getElementById("search-input").value.trim();
+    var out = document.getElementById("search-results");
+    var err = document.getElementById("search-err");
+    if (err) err.textContent = "";
+    if (!q) return;
+    if (!state.matter) { if (err) err.textContent = "Create a matter first (Matters view)."; return; }
+    if (reset) { searchState.offset = 0; searchState.lastQ = q; out.innerHTML = "<p class='muted'>Searching…</p>"; }
+    try {
+      var mode = document.getElementById("search-mode").value;
+      var body = await api("/search?q=" + encodeURIComponent(q) +
+        "&matter=" + encodeURIComponent(state.matter) + "&mode=" + mode +
+        "&limit=25&offset=" + searchState.offset);
+      var rows = (body.results || []).map(function (r) {
+        var loc = esc(r.source_filename) + " — p." + esc(r.page_number) +
+          (r.section ? " · " + esc(r.section) : "");
+        var open = r.doc_id != null
+          ? "<a class='src-chip' target='_blank' href='/kb/highlight/" + r.doc_id +
+            "?page=" + r.page_number + "&span=" + encodeURIComponent((r.snippet || "").slice(0, 80)) +
+            "'>" + loc + "</a>"
+          : "<span class='src-chip'>" + loc + "</span>";
+        return "<div class='panel search-hit'>" + open +
+          "<div class='muted' style='margin-top:6px;font-size:13px'>…" + esc(r.snippet) + "…</div></div>";
+      }).join("");
+      var head = body.total != null
+        ? ("<p class='muted'>" + body.total + " mention" + (body.total === 1 ? "" : "s") +
+           (body.truncated ? " — showing " + (searchState.offset + body.results.length) + " so far" : "") + "</p>")
+        : "<p class='muted'>Ranked matches (best first).</p>";
+      var more = body.truncated
+        ? "<button class='btn secondary' id='search-more'>Show more</button>" : "";
+      if (reset) out.innerHTML = head + rows + more;
+      else {
+        var btn = document.getElementById("search-more");
+        if (btn) btn.remove();
+        out.insertAdjacentHTML("beforeend", rows + more);
+      }
+      var moreBtn = document.getElementById("search-more");
+      if (moreBtn) moreBtn.onclick = function () { searchState.offset += 25; runSearch(false); };
+    } catch (e) { out.innerHTML = "<span style='color:var(--err)'>" + esc(e.message) + "</span>"; }
+  }
+
+  function renderSearch() {
+    var inner = document.querySelector("#view-search .view-inner");
+    inner.innerHTML =
+      "<h1>Search</h1>" +
+      "<p class='muted'>Every mention is exhaustive: the full list of matching passages in the active matter, " +
+      "not a top-5. No AI answering here — just your documents.</p>" +
+      "<div class='panel' style='display:flex;gap:8px;align-items:center'>" +
+      "<select class='matter-picker' id='search-matter' style='max-width:280px'></select>" +
+      "<input id='search-input' type='text' placeholder='A name, amount, defined term, case number…' style='flex:1'>" +
+      "<select id='search-mode' style='max-width:170px'>" +
+      "<option value='mentions'>Every mention</option><option value='fts'>Best match</option></select>" +
+      "<button class='btn' id='search-go'>Search</button></div>" +
+      "<div id='search-err' style='color:var(--err);font-size:13px'></div>" +
+      "<div id='search-results'></div>";
+    fillMatterPickers().catch(function () {});
+    document.getElementById("search-matter").addEventListener("change", function (e) {
+      var opt = e.target.selectedOptions[0];
+      setActiveMatter(e.target.value, opt ? opt.textContent : null);
+    });
+    document.getElementById("search-go").addEventListener("click", function () { runSearch(true); });
+    document.getElementById("search-input").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); runSearch(true); }
+    });
+  }
+  window.viewHooks.search = renderSearch;
 
   // --- Chat History view -----------------------------------------------------
   async function openThread(id) {

@@ -257,10 +257,52 @@ def _parse_citations(answer_text, grounding):
     return citations
 
 
-def _assemble_context(question, matter, top_k, db_path):
-    """Retrieve the matter-filtered chunks and build (messages, grounding). Shared by
-    answer() and answer_stream() so the prompt + grounding are identical on both paths."""
-    chunks = retrieve(question, matter=matter, top_k=top_k, db_path=db_path, rerank=False)
+# Move 1b (D-69): anchors for the refusal second pass — exact terms attorneys query by
+# (quoted strings, $amounts, bare numbers with 3+ digits, section cites, multiword
+# proper nouns). Fed to the FTS arm instead of the raw question, whose stopwords drown
+# exact terms in BM25 (measured).
+_ANCHOR_RE = re.compile(
+    r'"([^"]{3,80})"'                                  # quoted phrases
+    r"|(\$[\d,]+(?:\.\d{2})?)"                         # dollar amounts
+    r"|(\b[A-Z]{2,6}-[\d-]{2,}\b)"                     # prefixed ids (INV-77341, CLM-2026-8817)
+    r"|(\b\d[\d,./:-]{2,}\b)"                          # bare identifiers/cites/dates
+    r"|(§\s*[\d.]+)"                              # section-symbol cites
+    r"|((?:[A-Z][a-z]+[.-]?\s+){1,3}[A-Z][a-z]+)"      # multiword proper nouns
+)
+
+# Second-pass retrieval knobs: wider pool + hybrid-with-anchors, still ending at the
+# SAME verifier. A refusal can only be replaced by a span-verified answer; it can never
+# get worse (D-19 never-false-accept is downstream and untouched).
+SECOND_PASS_TOP_K = 10
+SECOND_PASS_CANDIDATE_K = 100
+
+
+def extract_anchors(question):
+    """Exact-match anchor terms from the question, for the second-pass FTS arm."""
+    out = []
+    for m in _ANCHOR_RE.finditer(question or ""):
+        term = next(g for g in m.groups() if g)
+        term = term.strip()
+        if term and term not in out:
+            out.append(term)
+    return out
+
+
+def _is_refusal(answer_text):
+    return REFUSAL.lower() in (answer_text or "").lower()
+
+
+def _retrieve_wide(question, matter, db_path):
+    """The refusal second-pass retrieval: wider pool, hybrid, anchor-fed FTS arm."""
+    anchors = extract_anchors(question)
+    return retrieve(question, matter=matter, top_k=SECOND_PASS_TOP_K,
+                    candidate_k=SECOND_PASS_CANDIDATE_K, hybrid=True,
+                    fts_query=" ".join(anchors) if anchors else None, db_path=db_path)
+
+
+def _build_messages(chunks, question):
+    """Build (messages, grounding) from retrieved chunks. Shared by the base and
+    second-pass paths so prompt + grounding are always constructed identically."""
     grounding, context_blocks = [], []
     for i, c in enumerate(chunks, 1):
         cid = f"C{i}"
@@ -287,6 +329,13 @@ def _assemble_context(question, matter, top_k, db_path):
         {"role": "user", "content": user},
     ]
     return messages, grounding
+
+
+def _assemble_context(question, matter, top_k, db_path):
+    """Retrieve the matter-filtered chunks and build (messages, grounding). Shared by
+    answer() and answer_stream() so the prompt + grounding are identical on both paths."""
+    chunks = retrieve(question, matter=matter, top_k=top_k, db_path=db_path, rerank=False)
+    return _build_messages(chunks, question)
 
 
 def _stream_tokens(messages, host=None, model="qwen3:14b"):
@@ -338,11 +387,30 @@ def answer(question, matter=None, top_k=5, db_path=None, with_confidence=False):
     # NOTE: confidence is NOT consulted here — verification is purely mechanical.
     from verifier import verify_answer  # lazy: avoids an import cycle
     verdict = verify_answer(answer_text, grounding)
+
+    # Move 1b (D-69): refusal-triggered second pass — ONE retry with a wider,
+    # anchor-fed hybrid pool before a refusal is shown. The retry ends at the SAME
+    # verifier; it is adopted only if it produces a span-verified non-refusal, so a
+    # refusal can be upgraded to a verified answer but never to an unverified one.
+    second_pass = False
+    if _is_refusal(answer_text):
+        wide_chunks = _retrieve_wide(question, matter, db_path)
+        messages2, grounding2 = _build_messages(wide_chunks, question)
+        raw2 = _chat(messages2)
+        answer_text2 = _THINK_RE.sub("", raw2).strip()
+        verdict2 = verify_answer(answer_text2, grounding2)
+        if not _is_refusal(answer_text2) and verdict2["citations"]:
+            answer_text, verdict, grounding = answer_text2, verdict2, grounding2
+            second_pass = True
+        else:
+            grounding = grounding2  # richer near-miss leads for the refusal display
+
     result = {
         "answer_text": answer_text,
         "citations": verdict["citations"],
         "rejected_claims": verdict["rejected_claims"],
         "grounding_chunks": grounding,
+        "second_pass": second_pass,
     }
     if with_confidence:
         result["confidence"] = confidence  # display-only (B4)
@@ -368,6 +436,26 @@ def answer_stream(question, matter=None, top_k=5, db_path=None):
     answer_text = _THINK_RE.sub("", "".join(parts)).strip()
     from verifier import verify_answer  # lazy: avoids an import cycle
     verdict = verify_answer(answer_text, grounding)
+
+    # Move 1b (D-69): refusal-triggered second pass, streaming variant. The UI gets a
+    # 'second_pass' marker (clear the streamed refusal, show "searching wider"), fresh
+    # 'sources', and the retry's tokens. Adopted only if span-verified non-refusal —
+    # same rule as answer().
+    if _is_refusal(answer_text):
+        wide_chunks = _retrieve_wide(question, matter, db_path)
+        messages2, grounding2 = _build_messages(wide_chunks, question)
+        yield {"type": "second_pass"}
+        yield {"type": "sources", "grounding": grounding2}
+        parts2 = []
+        for tok in _stream_tokens(messages2):
+            parts2.append(tok)
+            yield {"type": "token", "text": tok}
+        answer_text2 = _THINK_RE.sub("", "".join(parts2)).strip()
+        verdict2 = verify_answer(answer_text2, grounding2)
+        if not _is_refusal(answer_text2) and verdict2["citations"]:
+            answer_text, verdict, grounding = answer_text2, verdict2, grounding2
+        else:
+            grounding = grounding2  # richer near-miss leads on the final refusal
     yield {
         "type": "result",
         "answer_text": answer_text,
