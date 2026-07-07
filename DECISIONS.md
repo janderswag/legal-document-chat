@@ -663,6 +663,30 @@
   owner's Windows box (PyInstaller does not cross-compile). Site claims stay honest until an
   artifact actually ships (D-62 accuracy ethos). (D-58, D-60, D-61)
 
+- **D-66 — Council held: scale/transcripts/trust; roadmap PROPOSED, adoption owner-gated
+  (2026-07-07).** Six independent agent reports (3 adversarial code audits with measured numbers,
+  3 cited market sweeps) synthesized in `docs/council/2026-07-07-council-scale-transcripts-trust.md`
+  (verbatim evidence in `docs/council/2026-07-07-reports/`). Headline findings: (a) **scale bomb**
+  — `retrieval.py:36` materializes the entire store per matter-scoped query (measured 15.6s +
+  4.7GB @100k chunks; unusable at ~90 docs; ~5-line fix, [GATE] re-run required); brute-force
+  vector search itself is FINE to 500k chunks (96ms p50 measured — no ANN needed at target);
+  (b) ingest shares the request thread pool (bulk upload starves /chat) and is uninstrumented;
+  (c) dense-only retrieval already fails exact-term attorney queries at 50 chunks (measured);
+  hybrid+rerank+/search endpoint gated on a new 1k-5k-doc per-query-class scale eval;
+  (d) transcripts effectively unsupported (no page:line, .txt = one page, .ptx rejected) while
+  the site claims "exact line" — copy fix owed; verifier substrate IS transcript-ready (derive
+  page:line from verified offsets); (e) security proof gaps: unauthenticated Ollama + no
+  TrustedHost/CSRF, plaintext at rest, no backup exclusions; at-rest encryption per matter →
+  crypto-shred → retention tier (Rules 1.15/1.16, NIST 800-88r2); (f) market: the
+  local+solo+legal+mechanically-verified cell is EMPTY; Heppner (S.D.N.Y. 2026) + 9th Cir.
+  sanctions opinion + NY Part 161 are the demand events; $20-50/mo legal slot empty; top threat
+  is free OSS, not incumbents; docuchat.io naming collision needs an owner call. Proposed
+  sequence: Move 0 scale bombs + honesty patch → Move 1 retrieval-at-scale gated on the scale
+  eval → Move 2 transcript engine → Move 3 trust pack → Move 4 retention product → Move 5 market
+  motion. Non-negotiables reaffirmed: verifier + matter isolation byte-identical; claim ladder
+  rungs 1-2 only ("verified" = quote fidelity + existence, never legal correctness). (D-63,
+  D-64, D-65)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

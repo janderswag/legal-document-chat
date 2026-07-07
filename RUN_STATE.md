@@ -26,6 +26,17 @@ platform claims (no "available today" for never-shipped artifacts; run-from-sour
 card) + privilege-safe wedge lede. 313 tests green. Next: owner approves site preview -> push;
 owner buys certs -> run `desktop/build_macos.sh` end-to-end and cut the first release.
 
+**2026-07-07 council (D-66).** Six-agent council (3 measured code audits + 3 cited market sweeps)
+synthesized in `docs/council/2026-07-07-council-scale-transcripts-trust.md`. Critical: the app is
+unusable at ~90 docs due to a full-store scan in the matter allowlist (`retrieval.py:36`,
+measured); dense-only retrieval already fails exact-term queries; transcripts are effectively
+unsupported while the site claims "exact line" (copy fix owed); security proof gaps enumerated
+(Ollama hardening, at-rest encryption, backup exclusions). Market: the
+local+solo+legal+verified-citations cell is empty; Heppner + sanctions wave are the demand
+events; docuchat.io naming collision needs an owner decision. Proposed roadmap Moves 0-5 in the
+council doc — **adoption + sequencing await owner sign-off; site copy fix and Move 0 scale bombs
+are the immediate candidates.**
+
 ---
 
 **🎉 MILESTONE 2-3 COMPLETE (2026-06-20, D-44).** All M2 build tasks done + independently
