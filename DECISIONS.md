@@ -701,6 +701,32 @@
   independent benchmark submission, Windows build execution (owner's box), cert purchases
   (owner). (D-66)
 
+- **D-68 — Move 0 executed: scale bombs closed + honesty patch (2026-07-07, gates PASSED).**
+  (a) **Allowlist bomb (0a):** the matter allowlist is now a matter-COLUMN-only scan cached by
+  LanceDB table version (any write invalidates) — replacing the full-store
+  ``to_arrow().to_pylist()`` materialization at retrieval.py:36/:28 that measured 15.6s + 4.7GB
+  per query @100k chunks. Validation semantics unchanged (allowlist = matters present in the
+  target store; D-18 ``prefilter=True`` untouched). **Acceptance: matter-scoped retrieve() warm
+  p95 = 191ms on a synthetic 150k-chunk store** (~130ms of it question embedding). **[GATE]:
+  full 72-question re-run grade-IDENTICAL to the same-day baseline** (61 strict + F-042 alt-page
+  + F-026 known false-refusal + NF 9/9, 0 fabrications, 0 rejected claims). (b) **Serialized
+  ingest (0b):** a single dedicated worker thread + queue (ingest_worker.py) replaces sync
+  BackgroundTasks on the request pool; uploads enqueue instantly (status "queued"); worker skips
+  docs deleted while queued; **interactive priority** — chat routes mark activity and the worker
+  defers jobs while a chat is recent, because bulk embedding measurably slows generation on
+  shared local compute. **Acceptance: 300-doc bulk ingest, all ready, /chat during ingest median
+  4038ms vs idle 4026ms, p95 5924ms (< 2x idle).** (c) **Instrumentation (0c):** per-stage ingest
+  timings logged (extract/embed_write/tables), queue depth + in-flight stage surfaced in the Hub
+  via GET /kb/ingest/status (allowlisted deliberately), ``table.optimize()`` every 50 ingests
+  (store previously never compacted). (d) **Honesty patch (0d, site, HELD for owner preview):**
+  "exact line" claims scoped to "exact page and passage" until transcript page:line ships (D-66
+  finding: untrue in every input format today); scanned-corpus "ingest overnight" expectation
+  added to the OCR FAQ (visible + JSON-LD kept byte-identical). **Process note (honest):** the
+  first gate run inherited run_m28.py's hardcoded output path and OVERWROTE the June 20 raw
+  results jsonl (git-ignored; graded conclusions preserved in tracked grades-2026-06-20-m2.md);
+  replaced the copy-and-sed pattern with parameterized ``run_golden.py`` that refuses to
+  overwrite existing results. (D-66, D-67)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

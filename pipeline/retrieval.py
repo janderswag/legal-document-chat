@@ -22,19 +22,47 @@ _PAYLOAD_FIELDS = (
 _RRF_K = 60  # Reciprocal Rank Fusion constant (standard default)
 
 
+# Matter-allowlist cache: db key -> (table_version, frozenset of matter values). Any
+# LanceDB write bumps the table version, so a version mismatch invalidates the entry —
+# no explicit invalidation hooks needed in the ingest path.
+_MATTERS_CACHE = {}
+
+
+def _store_matters(table, cache_key):
+    """Distinct matter values present in the store (the matter allowlist), via a
+    matter-COLUMN-ONLY scan cached by table version.
+
+    The previous implementation ran ``table.to_arrow().to_pylist()`` — materializing the
+    ENTIRE store (vectors + text) into Python on every matter-scoped query. Measured
+    (D-66 scale audit): 1.5s at 10k chunks, 15.6s + 4.7GB RSS at 100k, projected swap
+    death at 500k — the app was unusable at ~90 documents. The column scan is O(rows) on
+    one short string column (measured ~10ms @100k, ~49ms @500k) and O(1) when the cached
+    version matches. Validation SEMANTICS are unchanged: the allowlist is exactly the
+    set of matters present in this store (works for eval and KB stores alike; the D-18
+    ``prefilter=True`` isolation downstream is untouched)."""
+    version = table.version
+    hit = _MATTERS_CACHE.get(cache_key)
+    if hit and hit[0] == version:
+        return hit[1]
+    n = table.count_rows()
+    col = table.search().select(["matter"]).limit(max(n, 1)).to_arrow()
+    matters = frozenset(col["matter"].to_pylist()) if n else frozenset()
+    _MATTERS_CACHE[cache_key] = (version, matters)
+    return matters
+
+
 def known_matters(db_path=None):
     """Distinct matter values present in the store (the matter allowlist)."""
-    table = open_table(str(db_path or _DEFAULT_DB))
-    return sorted({r["matter"] for r in table.to_arrow().to_pylist()})
+    key = str(db_path or _DEFAULT_DB)
+    return sorted(_store_matters(open_table(key), key))
 
 
-def _matter_filter(table, matter):
+def _matter_filter(table, matter, cache_key):
     """Validate ``matter`` against the store allowlist and return a safe filter string
     (or None for search-all). Never interpolates raw user text."""
     if matter is None:
         return None
-    allowed = {r["matter"] for r in table.to_arrow().to_pylist()}
-    if matter not in allowed:
+    if matter not in _store_matters(table, cache_key):
         raise ValueError(f"unknown matter (not in store): {matter!r}")
     return f"matter = '{matter.replace(chr(39), chr(39) * 2)}'"
 
@@ -82,8 +110,9 @@ def retrieve(question, matter=None, top_k=5, db_path=None, rerank=False, candida
     reranker only reorders the already-filtered set — it never reintroduces another
     matter (the D-18 hard pre-filter is upstream and intact).
     """
-    table = open_table(str(db_path or _DEFAULT_DB))
-    filt = _matter_filter(table, matter)
+    key = str(db_path or _DEFAULT_DB)
+    table = open_table(key)
+    filt = _matter_filter(table, matter, key)
 
     def _scoped(search):
         return search.where(filt, prefilter=True) if filt else search
