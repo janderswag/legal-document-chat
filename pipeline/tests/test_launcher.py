@@ -91,6 +91,7 @@ class TestEnsureOllama(unittest.TestCase):
         with patch.object(launcher, "port_in_use",
                           side_effect=lambda *a, **k: next(port_states, True)), \
              patch.object(launcher, "find_ollama", return_value="/fake/ollama"), \
+             patch.object(launcher, "ollama_version", return_value=(0, 18, 0)), \
              patch.object(launcher.subprocess, "Popen", side_effect=fake_popen):
             self.assertEqual(launcher.ensure_ollama(), "PROC")
         self.assertEqual(calls["cmd"], ["/fake/ollama", "serve"])

@@ -675,7 +675,15 @@
       "<tr><th>Bind</th><td>" + esc(s.bind) + "</td></tr>" +
       "<tr><th>KB documents</th><td>" + s.stores.kb_docs + "</td></tr>" +
       "<tr><th>KB chunks</th><td>" + s.stores.kb_chunks + "</td></tr>" +
-      "<tr><th>Egress</th><td>" + esc(s.egress) + "</td></tr></table></div>" +
+      "<tr><th>Egress</th><td>" + esc(s.egress) + "</td></tr>" +
+      (s.hardening ? (
+        "<tr><th>Web-page attack guard</th><td>" +
+        (s.hardening.trusted_host && s.hardening.origin_guard
+          ? "on (host + origin checks)" : "partial") + "</td></tr>" +
+        "<tr><th>Backup exclusions</th><td>" +
+        esc(Object.values(s.hardening.backup_exclusions || {}).join("; ") || "n/a") +
+        "</td></tr>") : "") +
+      "</table></div>" +
       "<p class='muted'>Synthetic/public documents only. Backup/restore via deploy/restore.sh (SC-7).</p>";
     var badge = document.getElementById("brand-badge");
     if (badge) badge.textContent = local ? "100% local" : "review";

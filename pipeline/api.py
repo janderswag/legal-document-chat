@@ -42,6 +42,35 @@ _STATIC_MEDIA = {".js": "application/javascript", ".css": "text/css", ".html": "
 app = FastAPI(title="Legal Document Intelligence (M2-7)", docs_url=None, redoc_url=None,
               openapi_url=None)
 
+# Move 3b (D-71): loopback is NOT a security boundary — a malicious web page can reach
+# 127.0.0.1 services via DNS rebinding (Host header = attacker's domain) and via plain
+# cross-origin fetch (Origin header = attacker's page). Two guards close both:
+#  1) TrustedHostMiddleware: only local host names are served (kills DNS rebinding).
+#  2) An Origin guard on state-changing methods: a browser-sent Origin must itself be
+#     local, else 403 (kills cross-site POST/DELETE). Requests without an Origin
+#     (the app's own same-origin GETs, curl, tests) are unaffected.
+from urllib.parse import urlparse  # noqa: E402
+
+from starlette.middleware.trustedhost import TrustedHostMiddleware  # noqa: E402
+from starlette.responses import JSONResponse  # noqa: E402
+
+_LOCAL_HOSTNAMES = {"127.0.0.1", "localhost", "::1", "testserver"}
+
+app.add_middleware(TrustedHostMiddleware,
+                   allowed_hosts=["127.0.0.1", "localhost", "testserver"])
+
+
+@app.middleware("http")
+async def _origin_guard(request, call_next):
+    if request.method in ("POST", "DELETE", "PUT", "PATCH"):
+        origin = request.headers.get("origin")
+        if origin:
+            host = urlparse(origin).hostname
+            if host not in _LOCAL_HOSTNAMES:
+                return JSONResponse({"detail": "cross-origin request rejected"},
+                                    status_code=403)
+    return await call_next(request)
+
 # App routers (the SAM-style UI surfaces). Loopback-only, cited-retrieval only.
 import routes_chat  # noqa: E402
 import routes_clauses  # noqa: E402
@@ -71,6 +100,16 @@ def _warm_chat_model():
     Ollama only; failure is silent — a down Ollama just means the first query loads, as
     before. No document data is involved (empty preload request)."""
     threading.Thread(target=preload_model, name="ollama-preload", daemon=True).start()
+
+
+@app.on_event("startup")
+def _protect_data_dirs():
+    """Move 3c (D-71): exclude the client-data stores from Time Machine/Spotlight so
+    plaintext client text never silently reaches a backup or search index. Idempotent;
+    non-macOS is a no-op; failures log, never block startup."""
+    import data_protection
+    app.state.data_protection = data_protection.protect_paths(
+        data_protection.default_protected_paths())
 
 
 @app.on_event("startup")

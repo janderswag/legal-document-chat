@@ -778,6 +778,24 @@
   ingest path only); the Move 1 gate (63/63) remains the standing baseline. (D-56, D-66, D-67,
   D-69)
 
+- **D-71 — Move 3 executed: trust pack v1 (2026-07-07).** Loopback is not a security boundary;
+  the app now proves it: (a) **API guards** — TrustedHostMiddleware (local hostnames only; kills
+  DNS rebinding, where the attacker's domain resolves to 127.0.0.1) + an Origin guard rejecting
+  state-changing requests whose browser Origin is non-local (kills cross-site POST/DELETE);
+  the app's own same-origin requests and non-browser clients are unaffected; both proven by
+  attack-shaped tests. (b) **Ollama hardening** — the launcher refuses to START an Ollama below
+  0.17.1 (CVE-2026-7482 "Bleeding Llama", CVSS 9.1) with a clear upgrade message (fail-open only
+  when the version is undeterminable), and sets OLLAMA_ORIGINS to the app origin (Ollama's
+  default allows 0.0.0.0 — the 0-0-0-0-day/rebinding surface); a user's own Ollama is never
+  touched. (c) **Supply chain** — the wizard's pull now verifies the D-11 pinned digests after
+  download (the Ollama registry has no publisher signing); a digest mismatch is an error event,
+  never a done. (d) **Backup/index leak reduction** — Time Machine exclusions + Spotlight
+  markers applied to the KB store, document copies, and catalog at startup (idempotent,
+  macOS-only, log-never-block), REPORTED in Settings by store name (the no-path status contract
+  caught and fixed a path leak in the first cut); honest scope: interim until Move 4 at-rest
+  encryption. (e) Settings surfaces the hardening posture from real state. Site trust page +
+  security.txt ride on the site-preview branch (owner preview). 358 tests green. (D-66, D-67)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

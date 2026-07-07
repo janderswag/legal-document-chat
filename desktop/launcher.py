@@ -26,6 +26,7 @@ The pywebview import is deferred into main() so the helpers are importable/testa
 
 import atexit
 import os
+import re
 import shutil
 import signal
 import socket
@@ -40,10 +41,18 @@ DEFAULT_PORT = 8000
 PIPELINE_DIR = Path(__file__).resolve().parent.parent / "pipeline"
 
 OLLAMA_PORT = 11434
-# Inference-speed env for an Ollama WE start (P0.2): flash attention + a server-side
-# keep_alive matching the app's request-side value (answering.KEEP_ALIVE). A user's own
+# Env for an Ollama WE start (P0.2 speed + Move 3a hardening, D-71). A user's own
 # already-running Ollama is never touched or restarted.
-OLLAMA_ENV = {"OLLAMA_FLASH_ATTENTION": "1", "OLLAMA_KEEP_ALIVE": "30m"}
+#  - OLLAMA_ORIGINS: an explicit browser-origin allowlist. Ollama's DEFAULT allows
+#    http://0.0.0.0 and any localhost origin — the exact surface of the DNS-rebinding /
+#    "0.0.0.0-day" attacks (CVE-2024-28224; Oligo 2024). The app itself talks to Ollama
+#    server-to-server (no Origin header), so the tightest browser allowlist costs the
+#    app nothing.
+OLLAMA_ENV = {"OLLAMA_FLASH_ATTENTION": "1", "OLLAMA_KEEP_ALIVE": "30m",
+              "OLLAMA_ORIGINS": "http://127.0.0.1:8000"}
+# Minimum safe Ollama (Move 3a): 0.17.1 fixes CVE-2026-7482 "Bleeding Llama" (CVSS 9.1
+# unauthenticated heap read leaking env/keys/conversation data on loopback).
+MIN_OLLAMA_VERSION = (0, 17, 1)
 # Common install locations when the binary isn't on PATH (macOS app bundle CLI,
 # Homebrew, Windows per-user install).
 _OLLAMA_FALLBACKS = (
@@ -192,16 +201,40 @@ def find_ollama():
     return None
 
 
+def ollama_version(exe):
+    """(major, minor, patch) from ``ollama --version``, or None if undeterminable."""
+    try:
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True,
+                             timeout=10).stdout
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return None
+    m = re.search(r"(\d+)\.(\d+)\.(\d+)", out or "")
+    return tuple(int(g) for g in m.groups()) if m else None
+
+
 def ensure_ollama():
     """Start ``ollama serve`` as a managed child when nothing is serving on the Ollama
-    port and the binary is installed, with the P0.2 speed env (flash attention +
-    keep_alive) and a FORCED loopback bind. Returns the Popen (caller reaps it on quit)
-    or None (already running, or not installed). A user's own running Ollama — where we
-    cannot set env — is left alone; the app's request-side keep_alive still applies."""
+    port and the binary is installed, with the speed + hardening env (flash attention,
+    keep_alive, browser-origin allowlist) and a FORCED loopback bind. Returns the Popen
+    (caller reaps it on quit) or None (already running, or not installed). A user's own
+    running Ollama — where we cannot set env — is left alone; the app's request-side
+    keep_alive still applies.
+
+    Move 3a (D-71): refuses to START an Ollama older than MIN_OLLAMA_VERSION (known
+    critical CVEs in the local API) with a clear upgrade message on stderr — the setup
+    wizard then guides the user. An undeterminable version starts anyway (fail-open on
+    detection, fail-closed on a KNOWN-bad version)."""
     if port_in_use(OLLAMA_PORT):
         return None
     exe = find_ollama()
     if exe is None:
+        return None
+    ver = ollama_version(exe)
+    if ver is not None and ver < MIN_OLLAMA_VERSION:
+        print(f"Ollama {'.'.join(map(str, ver))} has known security fixes in "
+              f"{'.'.join(map(str, MIN_OLLAMA_VERSION))}+ (CVE-2026-7482). Please update "
+              "Ollama (ollama.com/download); not starting the older version.",
+              file=sys.stderr)
         return None
     env = dict(os.environ)
     env.update(OLLAMA_ENV)
