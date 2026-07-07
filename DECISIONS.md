@@ -727,6 +727,31 @@
   replaced the copy-and-sed pattern with parameterized ``run_golden.py`` that refuses to
   overwrite existing results. (D-66, D-67)
 
+- **D-69 — Move 1 executed: retrieval at scale, measured; BEST-EVER gate 63/63
+  (2026-07-07).** (a) **Scale eval built and standing** (`build_scale_store.py` +
+  `run_scale_eval.py` + `eval/SCALE_EVAL.md`): 5,114 chunks through the PRODUCTION chunker, 50
+  large matters (~75 chunks) with same-genre distractors, 113 questions stratified by query
+  class. (b) **The data reversed two plan assumptions, adopted as measured:** hybrid stays OFF
+  by default (raw-question BM25 costs paraphrase 12pts for +2 golden) and the reranker stays
+  OFF (post-repair it can only demote: 98→95). The big lever was CHUNKING: (c) **1d schema
+  repair** — production `_chunk_pages` is now section-aware with the full
+  `[Matter | Type | Section]` SAC; `document_type`/`provenance`/`doc_date` added to the store
+  schema (provenance squatting ended); golden recall@5 under production chunking went 81%→98%
+  (pool 100%; ~93%→98% after netting out an eval matter-mapping bug found and fixed —
+  honest attribution in SCALE_EVAL.md). `add_chunks` fail-louds on pre-1d stores;
+  `reingest_kb.py` migrates (dev KB migrated). (d) **1b refusal second pass:** ONE retry on
+  refusal with top_k=10, candidate_k=100, hybrid + ANCHOR-fed FTS (numbers, quoted strings,
+  prefixed ids, proper nouns extracted from the question; `fts_query` param added to
+  retrieve()); adopted only if span-verified non-refusal — a refusal can upgrade to a verified
+  answer, never to an unverified one (verifier byte-identical). Streaming emits
+  `second_pass` + fresh `sources`; refusals keep near-miss passages visible as explicitly
+  unverified leads. (e) **1c GET /search:** retrieval-only search — exhaustive "every mention"
+  mode with TRUE totals and labeled truncation + BM25 mode with a version-fresh FTS index
+  (staleness footgun closed); matter allowlist validation identical to retrieval; new Search
+  view in the app; route allowlisted deliberately. **[GATE]: 63/63 (62 strict + F-042
+  alt-page) — the second pass RECOVERED F-026, the false refusal open since D-40; NF 9/9
+  still refuse; 0 fabrications; 0 rejected claims.** 331 tests green. (D-66, D-67, D-68)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal
