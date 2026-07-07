@@ -7,6 +7,23 @@ _Last updated: 2026-07-07_
 
 ## Status
 
+**2026-07-07 roadmap execution — ALL MOVES 0-5 COMPLETE (D-68..D-72).** Move 2 (D-70):
+transcript engine — user-designated transcripts get DERIVED page:line citations (verified
+offsets through a line map; ambiguous spans fall back to page-only; condensed 4-up sheets fail
+loud); deposition digest map-reduces ALL pages with per-bullet mechanical verification and
+exports a Word table; live e2e cites p.4:14 on a synthetic depo. Move 3 (D-71): trust pack —
+TrustedHost + Origin guards (rebinding/CSRF proven blocked live), Ollama version floor +
+OLLAMA_ORIGINS, digest-pinned model pulls, Time Machine/Spotlight exclusions reported in
+Settings. Move 4 (D-72): retention — legal holds (block disposal, 409), export-everything zip,
+disposition with an HONEST Clear certificate (NIST 800-88r2 App. C model; Purge only when
+crypto-shred ships), hash-chained audit log with tamper detection; per-matter ENCRYPTION
+deferred by design (docs/2026-07-07-retention-encryption-design.md — needs its own cycle).
+Move 5: verification-methodology page + pin-cite positioning. SITE: all customer-facing changes
+live on the pushed `site-preview` BRANCH (2e transcript claims, 3d security page + security.txt,
+5a/5b verification page + lede) — preview at 127.0.0.1:8090; merge to main only after owner
+approval. 359 tests green; standing gate 63/63. OWNER QUEUE: approve site-preview; buy certs
+(desktop/SIGNING.md) then build_macos.sh; Windows build on owner box; encryption cycle next.
+
 **2026-07-07 roadmap execution — Moves 0-1 COMPLETE (D-68, D-69).** Move 0: the ~90-doc
 allowlist bomb is fixed (matter-scoped retrieve p95 191ms @150k chunks, gate
 grade-identical); ingest is serialized + instrumented with interactive priority (/chat
