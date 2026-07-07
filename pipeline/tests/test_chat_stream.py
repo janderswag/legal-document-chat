@@ -83,6 +83,25 @@ class TestChatStream(unittest.TestCase):
         self.assertEqual(done["citations"][0]["filename"], "d.pdf")
         self.assertIsNotNone(done["thread_id"])
 
+    def test_sources_event_precedes_tokens(self):
+        # P0.1: the retrieved (chunk-derived) passages stream FIRST so the UI can show
+        # what the model is reading before the first token — candidates only, never
+        # presented as verified citations (those still come only from 'done').
+        full = ('The monthly fee is $1,234 '
+                '[document: d.pdf, page: 1, chunk: C1, span: "$1,234"].')
+        self._set_tokens(full)
+        r = client.post("/chat/stream", json={"question": "fee?", "matter": "stream-demo"})
+        events = _parse_sse(r.text)
+        kinds = [e for e, _ in events]
+        self.assertIn("sources", kinds)
+        self.assertLess(kinds.index("sources"), kinds.index("token"))
+        srcs = events[kinds.index("sources")][1]["sources"]
+        self.assertEqual(srcs[0]["filename"], "d.pdf")
+        self.assertEqual(srcs[0]["page"], 1)
+        self.assertIn("snippet", srcs[0])
+        self.assertNotIn("citations", events[kinds.index("sources")][1],
+                         "sources event must not carry citations")
+
     def test_streamed_fabrication_is_not_verified(self):
         full = ('The monthly fee is $9,999 '
                 '[document: d.pdf, page: 1, chunk: C1, span: "$9,999"].')

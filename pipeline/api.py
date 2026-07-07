@@ -9,13 +9,14 @@ of answer()'s result, so displayed citations stay chunk-derived (D-38) and mecha
 verified (D-19/M2-6); it never re-introduces a model-asserted page.
 """
 
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
-from answering import answer
+from answering import answer, preload_model
 from retrieval import known_matters
 
 HOST = "127.0.0.1"  # loopback only — never 0.0.0.0 (D-4/D-25)
@@ -57,6 +58,15 @@ app.include_router(routes_clauses.router)
 app.include_router(routes_grid.router)
 app.include_router(routes_settings.router)
 app.include_router(routes_setup.router)
+
+
+@app.on_event("startup")
+def _warm_chat_model():
+    """P0: pre-warm the chat model in a daemon thread so the FIRST question doesn't pay
+    the ~5.5s cold reload. Non-blocking (health/setup respond immediately); loopback
+    Ollama only; failure is silent — a down Ollama just means the first query loads, as
+    before. No document data is involved (empty preload request)."""
+    threading.Thread(target=preload_model, name="ollama-preload", daemon=True).start()
 
 
 @app.get("/", response_class=HTMLResponse)

@@ -609,6 +609,26 @@
   **Owner-side amplifiers:** connect Google Search Console (supply the verification meta token), optionally
   rename the Product Hunt listing to "docuchat" for the official badge. (D-57, D-59, D-60, D-61)
 
+- **D-63 — P0 speed: streaming is the DEFAULT answer path + warm, right-sized production
+  inference (2026-07-07, gated re-run PASSED).** (a) The app UI now answers via **POST
+  /chat/stream** (SSE): retrieved chunk-derived passages render FIRST (a dimmed, non-clickable
+  "Reading these passages" block — candidates, never presented as citations), tokens stream over
+  them, and the `done` event re-renders with citations from the UNCHANGED verifier run on the
+  COMPLETE text (never a partial; D-19/D-38 preserved). (b) Production Ollama calls
+  (`_post_chat`/`_stream_tokens`) send **`keep_alive=30m`** + **`options.num_ctx=8192`** (KV
+  sized to the real ~2.5k-token 5-chunk prompt; never truncates); FastAPI startup fires a
+  background **`preload_model()`** (empty request, zero document data); the launcher starts a
+  managed **`ollama serve`** (`OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KEEP_ALIVE=30m`,
+  loopback-forced) only when none is running — a user's own Ollama is never touched. **[GATE]
+  discipline:** `num_ctx`/`keep_alive` are model-affecting → full 72-question page+span re-run
+  (`eval/results/run-2026-07-07-p02-numctx.jsonl`): **62/63 = 98.4% (F-042 alt-page credited),
+  0 fabrications, 0 rejected claims, NF 9/9, DRM 2/2 — grade-identical to the M2-8a baseline.**
+  Cold-start cliff CLOSED: post-preload first query `load_duration` 0.141s (vs ~5.5s reload).
+  TTFT re-measured at production parity: median 3.45s under heavy external machine load
+  (June baseline 3.09s on a quiet box; same-day full-answer twin run ~20% slower with
+  identical grades → delta is load, not the knobs). <3s target still honestly NOT met;
+  floor 0.28s. Full numbers + caveats: `eval/LATENCY.md`. (D-19, D-38, D-40)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

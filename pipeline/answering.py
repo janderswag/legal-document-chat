@@ -25,6 +25,16 @@ from retrieval import retrieve
 
 REFUSAL = "I could not find this in the documents."
 
+# P0 speed levers (owner-approved 2026-07-06 session): keep the model warm across
+# queries and size the KV cache to the real 5-chunk grounded prompt instead of the
+# Ollama default. KEEP_ALIVE holds weights resident between questions so the first
+# query after a short idle doesn't eat a multi-second cold reload (~5.5s measured,
+# RUN_STATE M1-3); the app also preloads at startup (api.py). NUM_CTX=8192 bounds the
+# KV cache well under the model's 40960 max while never truncating the ~2.5k-token
+# prompt + a long cited answer. Neither knob touches the verifier or retrieval.
+KEEP_ALIVE = "30m"
+NUM_CTX = 8192
+
 # CE_PLAN §10 default system prompt (grounded-answer rules + the exact refusal
 # sentence + verbatim-citation format). The <context>/question go in the user turn.
 SYSTEM_PROMPT = """You are a private document assistant for an attorney. You help locate, summarize,
@@ -91,7 +101,8 @@ def _post_chat(messages, host=None, model="qwen3:14b", want_logprobs=False):
     body is identical to the original _chat call (parity preserved)."""
     host = host or ollama_url()
     payload = {"model": model, "stream": False, "think": False,
-               "messages": messages, "options": {"temperature": 0}}
+               "messages": messages, "keep_alive": KEEP_ALIVE,
+               "options": {"temperature": 0, "num_ctx": NUM_CTX}}
     if want_logprobs:
         payload["logprobs"] = True
     req = urllib.request.Request(
@@ -106,6 +117,27 @@ def _chat(messages, host=None, model="qwen3:14b"):
     return _post_chat(messages, host=host, model=model)["message"]["content"]
 
 
+def preload_model(host=None, model="qwen3:14b", timeout=120):
+    """Load the chat model's weights into Ollama WITHOUT generating (empty messages =
+    documented Ollama preload form), warm for KEEP_ALIVE. Called in a background thread
+    at app startup (api.py) so the FIRST question doesn't pay the cold reload; loopback
+    only, no document data leaves the machine. Returns True when the load succeeded —
+    never raises (a down Ollama just means the first query pays the load, as today)."""
+    host = host or ollama_url()
+    payload = {"model": model, "messages": [], "keep_alive": KEEP_ALIVE,
+               "options": {"num_ctx": NUM_CTX}}
+    req = urllib.request.Request(
+        f"{host}/api/chat", data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            json.load(resp)
+        return True
+    except Exception:
+        return False
+
+
 def confidence_from_logprobs(logprobs):
     """Non-gating answer confidence = exp(mean token logprob) (kotaemon qa_score), in
     (0, 1], or None when no logprobs are present. DISPLAY ONLY — never feeds the verifier,
@@ -118,13 +150,14 @@ def confidence_from_logprobs(logprobs):
 
 
 def _chat_stream_ttft(messages, host=None, model="qwen3:14b", think=False,
-                      num_predict=None, keep_alive=None):
+                      num_predict=None, keep_alive=None, num_ctx=None):
     """Streaming variant used ONLY by the latency harness (G-LAT) — a side channel that
     does NOT touch answer()/_chat (M2-7 parity). Streams the Ollama response and stamps
     the wall-clock from request-send to the FIRST non-empty content token (TTFT).
 
     Returns (text, ttft_s, total_s). Loopback Ollama only. Knobs: think=False (qwen3
-    no-think), bounded num_predict, warm keep_alive — documented latency levers."""
+    no-think), bounded num_predict, warm keep_alive, num_ctx (P0.2 production parity) —
+    documented latency levers."""
     host = host or ollama_url()
     body = {"model": model, "stream": True, "think": think,
             "messages": messages, "options": {"temperature": 0}}
@@ -132,6 +165,8 @@ def _chat_stream_ttft(messages, host=None, model="qwen3:14b", think=False,
         body["options"]["num_predict"] = num_predict
     if keep_alive is not None:
         body["keep_alive"] = keep_alive
+    if num_ctx is not None:
+        body["options"]["num_ctx"] = num_ctx
     req = urllib.request.Request(
         f"{host}/api/chat", data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json"},
@@ -260,7 +295,8 @@ def _stream_tokens(messages, host=None, model="qwen3:14b"):
     fully-assembled text, never on a partial."""
     host = host or ollama_url()
     body = {"model": model, "stream": True, "think": False,
-            "messages": messages, "options": {"temperature": 0}}
+            "messages": messages, "keep_alive": KEEP_ALIVE,
+            "options": {"temperature": 0, "num_ctx": NUM_CTX}}
     req = urllib.request.Request(
         f"{host}/api/chat", data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json"},
@@ -317,8 +353,14 @@ def answer_stream(question, matter=None, top_k=5, db_path=None):
     """Generator for the streaming chat path (B6). Yields ``{"type":"token","text":...}``
     deltas as the model generates, then a final ``{"type":"result", ...}`` whose citations
     come from running the EXACT verifier on the COMPLETE text (never a partial) — so
-    streaming changes perceived latency only and preserves never-false-accept (D-19/D-38)."""
+    streaming changes perceived latency only and preserves never-false-accept (D-19/D-38).
+
+    Before the first token it yields ``{"type":"sources", "grounding":[...]}`` — the
+    retrieved (chunk-derived) passages the model is about to read. These are candidate
+    context for display as "reading", NOT verified citations; the verified citations
+    still come only from the final verifier pass in the ``result`` event."""
     messages, grounding = _assemble_context(question, matter, top_k, db_path)
+    yield {"type": "sources", "grounding": grounding}
     parts = []
     for tok in _stream_tokens(messages):
         parts.append(tok)

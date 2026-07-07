@@ -91,6 +91,14 @@ def chat_stream(body: ChatRequest):
                                     db_path=str(routes_kb.KB_DB)):
                 if ev["type"] == "token":
                     yield event("token", {"text": ev["text"]})
+                elif ev["type"] == "sources":
+                    # Retrieved (chunk-derived) passages, shown as "reading" while the
+                    # answer generates — candidates only, NEVER presented as verified
+                    # citations (those come exclusively from the 'done' event below).
+                    srcs = [{"filename": g["source_filename"], "page": g["page_number"],
+                             "snippet": g["text"][:200]} for g in ev["grounding"]]
+                    _enrich_doc_ids(body.matter, srcs)
+                    yield event("sources", {"sources": srcs})
                 else:
                     result = ev
         except ValueError:
