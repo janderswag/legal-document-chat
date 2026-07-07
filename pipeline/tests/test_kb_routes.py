@@ -1,10 +1,13 @@
 """Task 3 proof: Document Hub routes. Upload (raw body, no python-multipart dep) ->
-catalog 'parsing' -> async ingest -> 'ready'; list; safe delete that is STRUCTURALLY
-incapable of touching anything outside documents/kb/ (hard rule #5); path-locked source.
-Writes only to a temp .lancedb_kb / temp kb dir — eval stores untouched."""
+catalog 'queued' -> serialized worker ingest (Move 0b) -> 'ready'; list; safe delete
+that is STRUCTURALLY incapable of touching anything outside documents/kb/ (hard rule
+#5); path-locked source. Writes only to a temp .lancedb_kb / temp kb dir — eval stores
+untouched. Ingest is now genuinely async (a real worker thread), so tests POLL for the
+terminal status instead of assuming TestClient ran a background task inline."""
 
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -36,21 +39,37 @@ class TestKbRoutes(unittest.TestCase):
     def _upload(self, name, content):
         return client.post(f"/kb/upload?matter={self.slug}&filename={name}", content=content)
 
+    def _wait_terminal(self, doc_id, timeout=90):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            row = catalog.get_document(doc_id)
+            if row and row["status"] in ("ready", "needs_review", "failed"):
+                return row["status"]
+            time.sleep(0.2)
+        return None
+
     def test_upload_then_ready_and_listed(self):
         r = self._upload("memo.txt", b"SYNTHETIC. The consulting fee is $5,000.")
         self.assertEqual(r.status_code, 200, r.text)
         doc = r.json()
-        self.assertEqual(doc["status"], "parsing")
-        # TestClient runs the BackgroundTask before returning -> status should be terminal
+        self.assertEqual(doc["status"], "queued")   # enqueue returns instantly (Move 0b)
+        self.assertIn(self._wait_terminal(doc["id"]), ("ready", "needs_review"))
         rows = client.get(f"/kb/documents?matter={self.slug}").json()["documents"]
-        self.assertTrue(any(d["id"] == doc["id"] and d["status"] in ("ready", "needs_review")
-                            for d in rows), rows)
+        self.assertTrue(any(d["id"] == doc["id"] for d in rows), rows)
+
+    def test_ingest_status_route(self):
+        s = client.get("/kb/ingest/status")
+        self.assertEqual(s.status_code, 200)
+        body = s.json()
+        self.assertIn("queue_depth", body)
+        self.assertIn("current", body)
 
     def test_unsupported_type_rejected(self):
         self.assertEqual(self._upload("evil.exe", b"\x00bad").status_code, 400)
 
     def test_delete_removes_copy_chunks_and_row(self):
         doc = self._upload("del_me.txt", b"SYNTHETIC. The retainer is $7,500.").json()
+        self.assertIsNotNone(self._wait_terminal(doc["id"]))  # settle before deleting
         stored = Path(catalog.get_document(doc["id"])["stored_path"])
         self.assertTrue(stored.exists())
         d = client.delete(f"/kb/documents/{doc['id']}")

@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+import activity
 import catalog
 import routes_kb  # for the shared KB_DB path (monkeypatchable in tests)
 from answering import answer, answer_stream, REFUSAL
@@ -42,6 +43,7 @@ def chat(body: ChatRequest):
         thread_id = catalog.create_thread(body.matter, body.question.strip())["id"]
     catalog.add_message(thread_id, "user", body.question)
 
+    activity.mark_chat()    # interactive priority: pause background ingest (Move 0b)
     try:
         res = answer(body.question, matter=body.matter, db_path=str(routes_kb.KB_DB),
                      with_confidence=True)  # B4: non-gating display signal
@@ -86,6 +88,7 @@ def chat_stream(body: ChatRequest):
 
     def gen():
         result = None
+        activity.mark_chat()    # interactive priority: pause background ingest (Move 0b)
         try:
             for ev in answer_stream(body.question, matter=body.matter,
                                     db_path=str(routes_kb.KB_DB)):
@@ -103,6 +106,7 @@ def chat_stream(body: ChatRequest):
                     result = ev
         except ValueError:
             result = {"answer_text": REFUSAL, "citations": [], "rejected_claims": []}
+        activity.mark_chat()    # re-mark at completion: quiet window starts now
         _enrich_doc_ids(body.matter, result["citations"])
         catalog.add_message(thread_id, "assistant", result["answer_text"],
                             json.dumps(result["citations"]))

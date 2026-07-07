@@ -113,7 +113,24 @@
   // --- Document Hub view -----------------------------------------------------
   var hubTimer = null;
 
+  // Ingest progress line (Move 0c): queue depth + in-flight stage, from the worker.
+  async function refreshIngestStatus() {
+    var el = document.getElementById("hub-ingest-status");
+    if (!el) return;
+    try {
+      var s = await api("/kb/ingest/status");
+      if (s.queue_depth > 0 || s.current) {
+        var cur = s.current ? ("processing #" + esc(s.current.doc_id) + " (" +
+          esc(s.current.stage) + ")") : "starting next";
+        el.textContent = "Ingest: " + s.queue_depth + " waiting, " + cur + ".";
+      } else {
+        el.textContent = "";
+      }
+    } catch (e) { el.textContent = ""; }
+  }
+
   async function refreshHubTable() {
+    refreshIngestStatus();
     var tbody = document.getElementById("hub-rows");
     if (!tbody) return;
     if (!state.matter) {
@@ -170,6 +187,7 @@
       "Drag &amp; drop files here, or click to choose. <span class='muted'>(.pdf .docx .txt .md)</span>" +
       "<input type='file' id='file-input' multiple style='display:none'></div>" +
       "<div id='hub-err' style='color:var(--err);font-size:13px'></div>" +
+      "<div id='hub-ingest-status' class='muted' style='font-size:13px'></div>" +
       "<div class='panel'><table><thead><tr><th>Name</th><th>Matter</th><th>Size</th>" +
       "<th>Status</th><th>Updated</th><th></th></tr></thead><tbody id='hub-rows'></tbody></table></div>";
 

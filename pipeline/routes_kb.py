@@ -9,11 +9,11 @@ structurally locked to documents/kb/ — it can never unlink a path outside that
 
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 
 import catalog
-import kb_ingest
+import ingest_worker
 import pdf_view
 from embed_store import delete_doc
 
@@ -50,7 +50,7 @@ def _within_kb(path):
 
 
 @router.post("/kb/upload")
-async def upload(request: Request, matter: str, filename: str, background: BackgroundTasks):
+async def upload(request: Request, matter: str, filename: str):
     if not catalog.get_matter(matter):
         raise HTTPException(status_code=400, detail=f"unknown matter: {matter!r}")
     name = _safe_name(filename)
@@ -74,10 +74,19 @@ async def upload(request: Request, matter: str, filename: str, background: Backg
         i += 1
     dest.write_bytes(body)
 
-    doc = catalog.add_document(matter, dest, filename=dest.name, status="parsing")
-    background.add_task(kb_ingest.ingest_document, doc["id"], str(dest), matter,
-                        str(KB_DB), catalog.DEFAULT_DB)
+    # Move 0b (D-68): enqueue to the single serialized ingest worker — uploads return
+    # instantly and NEVER occupy the request thread pool (a bulk upload previously ran
+    # up to 40 concurrent sync ingests there, starving /chat for hours).
+    doc = catalog.add_document(matter, dest, filename=dest.name, status="queued")
+    ingest_worker.enqueue(doc["id"], str(dest), matter, str(KB_DB), catalog.DEFAULT_DB)
     return doc
+
+
+@router.get("/kb/ingest/status")
+def ingest_status():
+    """Ingest progress for the Hub (Move 0c): queue depth, in-flight doc + stage,
+    lifetime processed count. Read-only; no document content."""
+    return ingest_worker.status()
 
 
 @router.get("/kb/documents")

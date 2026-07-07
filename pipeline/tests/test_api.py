@@ -108,6 +108,9 @@ class TestSafetyStructural(unittest.TestCase):
                           "/matters", "/eval/matters", "/source/{filename:path}",
                           "/kb/upload", "/kb/documents", "/kb/source/{doc_id}",
                           "/kb/documents/{doc_id}",
+                          # /kb/ingest/status (Move 0c): read-only ingest-queue progress
+                          # for the Hub; no document content.
+                          "/kb/ingest/status",
                           "/chat", "/chat/stream", "/chat/threads", "/chat/threads/{thread_id}",
                           "/kb/thumb/{doc_id}", "/kb/highlight/{doc_id}",
                           "/clauses/taxonomy", "/clauses/review",

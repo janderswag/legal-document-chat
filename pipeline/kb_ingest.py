@@ -46,10 +46,20 @@ def _chunk_pages(pages, matter_slug, filename):
     return chunks
 
 
-def ingest_document(doc_id, file_path, matter_slug, db_path, catalog_db=None):
-    """Extract -> chunk -> embed -> upsert into .lancedb_kb; update + return the status."""
+def ingest_document(doc_id, file_path, matter_slug, db_path, catalog_db=None,
+                    on_stage=None):
+    """Extract -> chunk -> embed -> upsert into .lancedb_kb; update + return the status.
+
+    ``on_stage`` (Move 0c): optional callback invoked with the stage name as each phase
+    begins ("extract", "embed_write", "tables") — the ingest worker uses it for the Hub
+    progress surface and per-stage timing logs. Purely observational; never alters flow."""
+    def stage(name):
+        if on_stage is not None:
+            on_stage(name)
+
     file_path = Path(file_path)
     filename = file_path.name
+    stage("extract")
     try:
         pages = extract(file_path)
     except Exception as e:  # unreadable / unsupported -> failed (fail loud)
@@ -60,6 +70,7 @@ def ingest_document(doc_id, file_path, matter_slug, db_path, catalog_db=None):
     chunks = _chunk_pages(pages, matter_slug, filename)
 
     # Idempotent: drop any prior chunks for this (filename, matter) before re-adding.
+    stage("embed_write")
     delete_doc(db_path, filename, matter_slug)
     add_chunks(chunks, db_path)
 
@@ -70,6 +81,7 @@ def ingest_document(doc_id, file_path, matter_slug, db_path, catalog_db=None):
     # cleared by delete_doc above, so re-ingest stays idempotent.
     table_chunks = []
     if file_path.suffix.lower() == ".pdf":
+        stage("tables")
         try:
             import table_ingest
             if table_ingest.has_tables(file_path):
