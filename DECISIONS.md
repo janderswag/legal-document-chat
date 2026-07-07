@@ -816,6 +816,23 @@
   migration rehearsal; the trust page states the honest current posture. Full lifecycle
   acceptance test green (design §5). 359 tests green. (D-66, D-67, D-71)
 
+- **D-73 — Encryption granularity MEASURED and decided: single encrypted volume + per-matter
+  file-layer DEKs (2026-07-07).** The design-doc §3 prototype ran (`pipeline/
+  bench_encrypted_volume.py`, writeup `eval/ENCVOL_PROTO.md`): encrypted APFS sparse bundle
+  hosting the 22MB scale store — attach median 443.8ms, first-query overhead vs plain +36.8ms,
+  total 480.6ms = within the 500ms budget but with only ~4% margin (worst round 536ms); write
+  overhead negligible (36.5ms vs 35.1ms for a 22MB copy); per-matter volumes measured at
+  ~369ms/volume attach = an N x 0.4s mount tax that would also split the LanceDB store and
+  touch the untouchable retrieval/matter-isolation path. DECIDED: one encrypted volume for the
+  whole KB store, mounted at app START concurrently with the model preload (absorbing the
+  ~0.5s; no lazy per-query mount), ejected on quit; per-matter DEKs (Keychain-wrapped,
+  AES-256-GCM envelope) encrypt each matter's natives/export tree at the file layer;
+  crypto-shred destroys the DEK -> natives = NIST "Purge (cryptographic erase)", derived
+  chunks = delete + compaction INSIDE the encrypted volume, stated separately on the
+  certificate — no blanket "Purge" claim. Time Machine: `tmutil addexclusion` sticks on the
+  bundle (D-71 pattern extends as-is); unexcluded bands would be ciphertext anyway (defense in
+  depth vs today's plaintext store). (D-71, D-72)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal
