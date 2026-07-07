@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How answers are verified, and how we measure it - docuchat.app</title>
+  <meta name="description" content="The published methodology behind docuchat's verified citations: what is checked mechanically, how accuracy is evaluated, the exact numbers, and what none of it guarantees.">
+  <link rel="canonical" href="https://docuchat.app/verification.html">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    .trust{max-width:760px;margin:0 auto;padding:48px 28px 80px}
+    .trust h1{font-family:"Fraunces",serif;font-size:34px;margin-bottom:6px}
+    .trust h2{font-family:"Fraunces",serif;font-size:22px;margin:34px 0 8px}
+    .trust p,.trust li{font-size:16.5px;line-height:1.65}
+    .trust table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+    .trust th,.trust td{border:1px solid var(--rule);padding:8px 10px;text-align:left;vertical-align:top}
+    .trust .honest{border-left:3px solid var(--gold,#b48a4a);padding:10px 14px;background:rgba(180,138,74,.07);border-radius:0 8px 8px 0;margin:14px 0}
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="/" aria-label="docuchat.app home">
+      <span class="wordmark-text">docuchat<span class="tld">.app</span></span>
+    </a>
+  </header>
+  <main class="trust">
+    <h1>How answers are verified, and how we measure it</h1>
+    <p class="muted">Legal AI tools have been publicly caught claiming accuracy they could not
+      substantiate. This page is the opposite approach: the exact mechanism, the exact test
+      method, the exact numbers with dates, and a plain statement of what none of it guarantees.
+      The evaluation harnesses ship in the
+      <a href="https://github.com/janderswag/legal-document-chat" target="_blank" rel="noopener noreferrer">open source repository</a>
+      so anyone can rerun them.</p>
+
+    <h2>The mechanism</h2>
+    <p>Before an answer is shown, code (not the AI) checks every quoted passage character for
+      character against the retrieved text of the cited document. A claim whose quote does not
+      match is rejected and counted, never displayed. Citations carry the exact page and passage
+      offsets; transcript line numbers are computed from the verified quote's position. If the
+      documents do not support an answer, the system says "I could not find this in the
+      documents" rather than guessing, after automatically retrying once with a wider search.</p>
+
+    <h2>The evaluation, as of July 7, 2026</h2>
+    <p>A golden set of 72 questions over a synthetic legal corpus: 63 questions whose answers
+      exist at a known page and passage, and 9 questions whose answers deliberately do not exist
+      anywhere in the corpus. Grading is strict: a present-fact question passes only if the
+      answer cites the right document and page with a mechanically verified quote; an absent-fact
+      question passes only if the system refuses.</p>
+    <table>
+      <tr><th>Measure</th><th>Result</th></tr>
+      <tr><td>Present-fact questions correctly answered with a verified page citation</td><td>63 of 63 (one credited on an alternate page where the same fact appears on two pages)</td></tr>
+      <tr><td>Fabricated citations displayed</td><td>0, across every recorded run since the harness was built</td></tr>
+      <tr><td>Absent-fact questions correctly refused</td><td>9 of 9</td></tr>
+      <tr><td>Cross-matter isolation checks (right client's document, never another client's)</td><td>2 of 2</td></tr>
+    </table>
+    <p>A second, larger evaluation tests retrieval at scale: 5,114 indexed passages across 50
+      synthetic client matters of realistic size, with 50 additional questions spanning the query
+      shapes attorneys actually use (invoice and case numbers, dollar amounts, statute citations,
+      rare names, defined terms, colloquial paraphrases, near-identical contract twins). In the
+      July 7, 2026 run, retrieval placed the correct passage in the top five for 100 percent of
+      those query classes, and 98 percent of the golden questions, under the exact configuration
+      the product ships.</p>
+
+    <h2>Error taxonomy we grade against</h2>
+    <ul>
+      <li><b>Incorrect:</b> the answer states something false. Caught by the strict grading above.</li>
+      <li><b>Misgrounded:</b> the statement is right but the cited source does not support it.
+        This is the failure mode the mechanical quote check exists to stop.</li>
+      <li><b>Unsupported:</b> the model asserted something it could not quote. Rejected before
+        display and counted in the run records.</li>
+      <li><b>False refusal:</b> the answer existed but the system said it could not find it.
+        Tracked separately; the July 7 run recovered the one known false refusal via the wider
+        second-pass search. Refusal behavior is reported, never hidden inside an accuracy number.</li>
+    </ul>
+
+    <div class="honest">
+      <p><b>What these numbers do not mean.</b> They are measured on synthetic legal documents,
+      not your documents; hard cases in your files can behave differently. They measure whether
+      quotes and citations are faithful, not whether any statement is legally correct, current,
+      or complete. A verified answer can still miss context elsewhere in the record. docuchat
+      locates and summarizes; the attorney verifies and judges. It is not an AI lawyer.</p>
+    </div>
+
+    <p class="muted small" style="margin-top:34px">Run records and harnesses:
+      eval/SCALE_EVAL.md, eval/LATENCY.md, and eval/TEST_PLAN.md in the repository. Product
+      version: run-from-source, July 7, 2026. This page changes only when a new recorded run
+      changes the numbers.</p>
+  </main>
+</body>
+</html>
