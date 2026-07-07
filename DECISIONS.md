@@ -687,6 +687,20 @@
   rungs 1-2 only ("verified" = quote fidelity + existence, never legal correctness). (D-63,
   D-64, D-65)
 
+- **D-67 — Council roadmap ADOPTED as sequenced; name kept; product stays free (owner,
+  2026-07-07).** The D-66 Move 0-5 order is adopted for execution: scale bombs + honesty patch →
+  retrieval-at-scale gated on the new scale eval → transcript engine → trust pack → retention
+  build → market motion. **Name:** "docuchat" is kept for now despite the docuchat.io collision
+  (revisit before paid launch marketing). **Pricing:** free for now — no pricing page, no
+  paywall, no license-gating work this cycle; the Move 4 retention build ships as product
+  capability, monetization deferred. Explicitly DEFERRED from this cycle (from the council
+  evidence, not lost): record cite-checker for drafts, chronology extractor, contradiction-
+  candidate finder (transcript F5), medical-record/PI mode, privilege-log metadata tables,
+  Bates-aware exhibit search, signed auto-update channel, SBOM, third-party pen test +
+  attestation, SOC 2 / ISO 42001 roadmap, ethics-mapping page, small-model graceful tier,
+  independent benchmark submission, Windows build execution (owner's box), cert purchases
+  (owner). (D-66)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal
