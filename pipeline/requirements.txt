@@ -26,3 +26,8 @@ pytesseract==0.3.13
 # Already present in the venv at 1.2.0 (no install performed this task) — pinned here
 # for reproducibility since extractors.py now imports it.
 python-docx==1.2.0
+# Encryption cycle (D-73, design §3): AES-256-GCM DEK envelope + file-layer
+# encryption in keyvault.py. pyca/cryptography, local primitives only — no
+# network, no cloud KMS. The master key lives in the macOS Keychain via the
+# system `security` CLI (no python keyring dependency).
+cryptography==49.0.0
