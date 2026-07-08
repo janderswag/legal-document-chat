@@ -30,7 +30,9 @@ PINNED_MODELS = {"chat": "qwen3:14b", "embed": "bge-m3"}
 # content-addressed but has NO publisher signing — pinning digests is the supply-chain
 # guard (a poisoned model under a familiar name fails the post-pull check, fail loud).
 PINNED_DIGESTS = {"qwen3:14b": "bdbd181c33f2", "bge-m3": "790764642607"}
-_STATIC = Path(__file__).resolve().parent / "static"
+import apppaths
+
+_STATIC = apppaths.assets_root() / "static"  # bundled asset dir when frozen
 
 
 def _ollama_tags(host=None, timeout=2.0):

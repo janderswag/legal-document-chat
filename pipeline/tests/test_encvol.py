@@ -55,9 +55,19 @@ class TestVolumeLifecycle(unittest.TestCase):
             encvol.mount(self.bundle, self.mnt, "wrong-passphrase")
         self.assertFalse(encvol.is_mounted(self.mnt))
 
-    def test_mount_kb_volume_without_bundle_is_noop(self):
+    def test_mount_kb_volume_with_existing_plain_store_is_noop(self):
+        # a pre-existing plain store is never silently swallowed into a new volume
+        self.mnt.mkdir()
         self.assertEqual(encvol.mount_kb_volume(self.mnt, bundle=self.dir / "nope.sparsebundle"),
                          "no-encrypted-volume")
+
+    def test_mount_kb_volume_fresh_install_creates_encrypted_volume(self):
+        # no bundle AND no store yet = fresh install -> volume created + mounted
+        status = encvol.mount_kb_volume(self.mnt, bundle=self.bundle,
+                                        passphrase=self.passphrase)
+        self.assertEqual(status, "mounted")
+        self.assertTrue(self.bundle.exists())
+        self.assertTrue(encvol.is_mounted(self.mnt))
 
 
 @darwin_only

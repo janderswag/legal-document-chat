@@ -56,3 +56,7 @@ npm-debug.log*
 .agents/
 skills-lock.json
 .encvol_proto/
+# desktop build artifacts (P2.7): PyInstaller work dir, bundles/DMGs, vendored Ollama
+build/
+dist/
+desktop/vendor/

@@ -15,14 +15,16 @@ Migration to the volume is a separate rehearsed script
 import logging
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import keyvault
 
 log = logging.getLogger("docuchat.encvol")
 
-PIPELINE_DIR = Path(__file__).resolve().parent
-KB_BUNDLE = PIPELINE_DIR / ".lancedb_kb.sparsebundle"  # matches the .lancedb*/ gitignore
+import apppaths
+
+KB_BUNDLE = apppaths.data_root() / ".lancedb_kb.sparsebundle"  # matches the .lancedb*/ gitignore
 VOLUME_ACCOUNT = "kb-volume-key-v1"
 
 
@@ -73,14 +75,20 @@ def eject(mountpoint):
     return True
 
 
-def mount_kb_volume(kb_db, bundle=None):
-    """App-startup hook: if the encrypted bundle exists, mount it at the KB store
-    path. Returns a status string for the Settings surface (no filesystem paths)."""
+def mount_kb_volume(kb_db, bundle=None, passphrase=None):
+    """App-startup hook: mount the encrypted bundle at the KB store path. On a
+    truly FRESH install (no bundle AND no store yet, macOS) the volume is created
+    first, so new installs start encrypted instead of inheriting the plain-store
+    posture. Returns a status string for Settings (no filesystem paths).
+    ``passphrase`` is injectable for tests; production uses the Keychain secret."""
     bundle = Path(bundle) if bundle else KB_BUNDLE
-    if not bundle.exists():
-        return "no-encrypted-volume"
+    kb_db = Path(kb_db)
     try:
-        mount(bundle, kb_db, volume_passphrase())
+        if not bundle.exists():
+            if sys.platform != "darwin" or kb_db.exists():
+                return "no-encrypted-volume"  # non-mac, or a pre-existing plain store
+            create_volume(bundle, passphrase or volume_passphrase())
+        mount(bundle, kb_db, passphrase or volume_passphrase())
         return "mounted"
     except Exception as e:
         log.error("KB volume mount failed: %s", e)

@@ -21,10 +21,9 @@ from embed_store import delete_doc
 
 router = APIRouter()
 
-PIPELINE_DIR = Path(__file__).resolve().parent
-REPO_ROOT = PIPELINE_DIR.parent
-KB_DB = PIPELINE_DIR / ".lancedb_kb"          # dedicated KB store (git-ignored)
-KB_DOCS = REPO_ROOT / "documents" / "kb"       # managed copies (git-ignored)
+import apppaths
+KB_DB = apppaths.data_root() / ".lancedb_kb"   # dedicated KB store (git-ignored)
+KB_DOCS = apppaths.docs_root()                 # managed copies (git-ignored)
 
 _ALLOWED = {".pdf", ".docx", ".txt", ".md"}
 _MAX_BYTES = 25 * 1024 * 1024  # 25 MB upload cap

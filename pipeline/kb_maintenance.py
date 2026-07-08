@@ -13,9 +13,8 @@ from pathlib import Path
 import catalog
 from embed_store import delete_doc
 
-PIPELINE_DIR = Path(__file__).resolve().parent
-REPO_ROOT = PIPELINE_DIR.parent
-KB_DOCS = REPO_ROOT / "documents" / "kb"
+import apppaths
+KB_DOCS = apppaths.docs_root()
 
 
 def prune_matter(slug, kb_db, catalog_db=None, kb_docs=KB_DOCS):

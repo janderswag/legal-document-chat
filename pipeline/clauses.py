@@ -27,8 +27,9 @@ from pathlib import Path
 
 from answering import REFUSAL, answer  # answer() is monkeypatched in unit tests
 
-PIPELINE_DIR = Path(__file__).resolve().parent
-DEFAULT_TAXONOMY = PIPELINE_DIR / "data" / "clause_taxonomy.json"
+import apppaths
+
+DEFAULT_TAXONOMY = apppaths.assets_root() / "data" / "clause_taxonomy.json"
 
 # Advisory text for an absent clause. NOT a citation, NOT legal advice — a plain
 # statement that the standard clause was not located in the matter's documents.

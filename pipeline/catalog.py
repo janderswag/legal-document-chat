@@ -21,9 +21,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-PIPELINE_DIR = Path(__file__).resolve().parent
-DEFAULT_DB = PIPELINE_DIR / ".kb_catalog.db"
-_PRODUCTION_DB = PIPELINE_DIR / ".kb_catalog.db"  # frozen; DEFAULT_DB moves in tests
+import apppaths
+
+DEFAULT_DB = apppaths.data_root() / ".kb_catalog.db"
+_PRODUCTION_DB = apppaths.data_root() / ".kb_catalog.db"  # fixed; DEFAULT_DB moves in tests
 _SQLITE_HEADER = b"SQLite format 3\x00"
 
 # Tests inject a key provider (callable -> 32 bytes); None = keyvault.master_key.

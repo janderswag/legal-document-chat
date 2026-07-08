@@ -28,8 +28,9 @@ REPO_ROOT = PIPELINE_DIR.parent
 # page"). Synthetic docs only; the dir is git-ignored (D-28) and absent in the M2-9
 # image, so /source 404s there by design — the demo UI is a local-run surface.
 CORPUS_PDF_DIR = (REPO_ROOT / "documents" / "synthetic_corpus" / "pdf").resolve()
-UI_PAGE = PIPELINE_DIR / "static" / "index.html"
-STATIC_DIR = (PIPELINE_DIR / "static").resolve()
+import apppaths
+UI_PAGE = apppaths.assets_root() / "static" / "index.html"
+STATIC_DIR = (apppaths.assets_root() / "static").resolve()
 APP_PAGE = STATIC_DIR / "app.html"
 
 # Local-only asset media types (no CDN; assets are served from pipeline/static only).
