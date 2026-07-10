@@ -214,6 +214,26 @@ def read_matter_file(path, matter_slug, db_path=None):
     return AESGCM(dek).decrypt(body[:_NONCE_LEN], body[_NONCE_LEN:], _FILE_AAD)
 
 
+# --- connector credentials (v0.3.0, D-81) ---------------------------------------
+# API keys/tokens for user-created connections are sealed with the SAME Keychain
+# master key (never a file, never plaintext in the catalog). Distinct AAD so a
+# credential blob can never be confused with a wrapped DEK.
+
+_SECRET_AAD = b"docuchat-conn-v1"
+
+
+def encrypt_secret(data):
+    """Seal connector credential bytes: nonce(12) + AESGCM(master).encrypt."""
+    nonce = secrets.token_bytes(_NONCE_LEN)
+    return nonce + AESGCM(master_key()).encrypt(nonce, data, _SECRET_AAD)
+
+
+def decrypt_secret(blob):
+    """Unseal encrypt_secret() output. Raises InvalidTag on tamper/wrong key."""
+    return AESGCM(master_key()).decrypt(blob[:_NONCE_LEN], blob[_NONCE_LEN:],
+                                        _SECRET_AAD)
+
+
 # --- file-layer encryption (natives/export tree) -------------------------------
 
 def encrypt_file(src, dst, dek):

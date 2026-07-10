@@ -153,7 +153,14 @@ class TestSafetyStructural(unittest.TestCase):
                           "/kb/documents/move",
                           # UX-8: update status (the ONE deliberate non-loopback
                           # call, lazy + toggleable; see updates.py disclosure).
-                          "/updates/status"})
+                          "/updates/status",
+                          # v0.3.0 (D-81): user-keyed connections. Egress ONLY on
+                          # user-initiated connect/test/import/sync of a connection
+                          # the user created; credentials sealed by keyvault and
+                          # deleted on remove. GET/POST only — the lock holds.
+                          "/connections", "/connections/services",
+                          "/connections/test", "/connections/import",
+                          "/connections/import/status", "/connections/remove"})
 
     def test_only_the_locked_kb_delete_mutates(self):
         # No PUT/PATCH anywhere; DELETE is exposed ONLY on the structurally-locked KB

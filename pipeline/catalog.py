@@ -133,6 +133,23 @@ CREATE TABLE IF NOT EXISTS watch_folders (
     created TEXT NOT NULL,
     UNIQUE (matter_slug, path)
 );
+CREATE TABLE IF NOT EXISTS connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service TEXT NOT NULL,
+    label TEXT,
+    credential BLOB NOT NULL,
+    config TEXT,
+    last_sync TEXT,
+    last_error TEXT,
+    created TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS connection_items (
+    connection_id INTEGER NOT NULL,
+    source_id TEXT NOT NULL,
+    doc_id INTEGER,
+    imported TEXT NOT NULL,
+    PRIMARY KEY (connection_id, source_id)
+);
 """
 
 
@@ -156,13 +173,19 @@ def _connect(db_path=None):
     # Idempotent migrations for pre-existing databases (CREATE TABLE IF NOT EXISTS
     # doesn't alter existing tables). doc_type: 'document' | 'transcript' (T-TRANS/D-70,
     # user-designated at upload — never auto-detected).
-    try:
-        conn.execute("ALTER TABLE documents ADD COLUMN doc_type TEXT NOT NULL DEFAULT 'document'")
-        conn.commit()
-    except Exception as e:  # sqlite3 and sqlcipher3 raise distinct OperationalErrors
-        if type(e).__name__ != "OperationalError":
-            raise
-        pass  # column already present
+    for migration in (
+        "ALTER TABLE documents ADD COLUMN doc_type TEXT NOT NULL DEFAULT 'document'",
+        # v0.3.0 (D-81): provenance for cloud-imported documents — JSON with source
+        # service, source id, author, dates, meeting title, speakers. NULL = local.
+        "ALTER TABLE documents ADD COLUMN source_json TEXT",
+    ):
+        try:
+            conn.execute(migration)
+            conn.commit()
+        except Exception as e:  # sqlite3 and sqlcipher3 raise distinct OperationalErrors
+            if type(e).__name__ != "OperationalError":
+                raise
+            pass  # column already present
     return conn
 
 
@@ -253,6 +276,110 @@ def remove_watch_folder(folder_id, db_path=None):
         conn.close()
 
 
+# --- connections (v0.3.0 connectors, D-81) --------------------------------------
+# A connection = one user-created link to an external service. The credential
+# column holds keyvault.encrypt_secret() ciphertext ONLY — plaintext keys never
+# touch the catalog, and remove_connection() deletes the row outright (the D-80
+# disconnect-and-delete contract).
+
+def add_connection(service, credential_blob, label=None, config=None, db_path=None):
+    conn = _connect(db_path)
+    try:
+        cur = conn.execute(
+            "INSERT INTO connections (service, label, credential, config, created) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (service, label, credential_blob, json.dumps(config or {}), _now()),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM connections WHERE id = ?",
+                           (cur.lastrowid,)).fetchone()
+        return _connection_public(row)
+    finally:
+        conn.close()
+
+
+def _connection_public(row):
+    """A connection row with the credential ciphertext stripped (API/UI shape)."""
+    out = {k: row[k] for k in row.keys() if k != "credential"}
+    out["config"] = json.loads(out.get("config") or "{}")
+    return out
+
+
+def get_connection(conn_id, db_path=None):
+    """Full row INCLUDING the credential ciphertext — connsync/adapters only."""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute("SELECT * FROM connections WHERE id = ?",
+                           (conn_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_connections(db_path=None):
+    """Public rows (no credential), newest first, with per-connection import counts."""
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT c.*, (SELECT COUNT(*) FROM connection_items i "
+            "WHERE i.connection_id = c.id) AS item_count "
+            "FROM connections c ORDER BY c.id DESC").fetchall()
+        return [_connection_public(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def touch_connection_sync(conn_id, error=None, db_path=None):
+    """Stamp a sync attempt: last_sync on success, last_error on failure (kept
+    until the next successful pass so the UI can show what went wrong)."""
+    conn = _connect(db_path)
+    try:
+        if error is None:
+            conn.execute("UPDATE connections SET last_sync = ?, last_error = NULL "
+                         "WHERE id = ?", (_now(), conn_id))
+        else:
+            conn.execute("UPDATE connections SET last_error = ? WHERE id = ?",
+                         (str(error)[:500], conn_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def remove_connection(conn_id, db_path=None):
+    """Disconnect: delete the connection row (credential ciphertext gone) and its
+    item ledger. Imported DOCUMENTS stay — they are the user's copies now."""
+    conn = _connect(db_path)
+    try:
+        conn.execute("DELETE FROM connection_items WHERE connection_id = ?", (conn_id,))
+        conn.execute("DELETE FROM connections WHERE id = ?", (conn_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def connection_seen_ids(conn_id, db_path=None):
+    """Source ids already imported for a connection (dedupe set)."""
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute("SELECT source_id FROM connection_items "
+                            "WHERE connection_id = ?", (conn_id,)).fetchall()
+        return {r["source_id"] for r in rows}
+    finally:
+        conn.close()
+
+
+def record_connection_item(conn_id, source_id, doc_id, db_path=None):
+    conn = _connect(db_path)
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO connection_items (connection_id, source_id, "
+            "doc_id, imported) VALUES (?, ?, ?, ?)",
+            (conn_id, str(source_id), doc_id, _now()))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 # --- matters -----------------------------------------------------------------
 
 def create_matter(display_name, db_path=None):
@@ -334,22 +461,24 @@ def _sha256(path):
 
 
 def add_document(matter_slug, file_path, db_path=None, filename=None, status="parsing",
-                 doc_type="document", checksum=None, size_bytes=None):
+                 doc_type="document", checksum=None, size_bytes=None, source_json=None):
     """Insert a documents row (default status 'parsing'); returns the row dict.
     doc_type: 'document' or 'transcript' (user-designated at upload, D-70).
     checksum/size_bytes: callers whose on-disk file is DEK-encrypted (D-73) pass the
     PLAINTEXT sha256/size here — manifests and certificates always describe the
-    document, never the ciphertext. Default: hashed/stat'ed from disk, as before."""
+    document, never the ciphertext. Default: hashed/stat'ed from disk, as before.
+    source_json: provenance for cloud-imported documents (D-81); None = local."""
     file_path = Path(file_path)
     name = filename or file_path.name
     conn = _connect(db_path)
     try:
         cur = conn.execute(
             "INSERT INTO documents (matter_slug, filename, stored_path, checksum, size_bytes, "
-            "status, reason, updated, doc_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "status, reason, updated, doc_type, source_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (matter_slug, name, str(file_path), checksum or _sha256(file_path),
              size_bytes if size_bytes is not None else file_path.stat().st_size,
-             status, None, _now(), doc_type),
+             status, None, _now(), doc_type, source_json),
         )
         conn.commit()
         row = conn.execute("SELECT * FROM documents WHERE id = ?", (cur.lastrowid,)).fetchone()

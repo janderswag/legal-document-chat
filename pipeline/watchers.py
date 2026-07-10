@@ -120,6 +120,13 @@ def _loop():
             scan_once()
         except Exception:
             pass    # a bad pass never kills the watcher; next tick retries
+        try:
+            # v0.3.0 (D-81): sync-enabled connector connections ride the same tick;
+            # sync_due() rate-limits itself per connection and spawns its own thread.
+            import connsync
+            connsync.sync_due()
+        except Exception:
+            pass
         time.sleep(POLL_SECONDS)
 
 
