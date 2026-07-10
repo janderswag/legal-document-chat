@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 import os
+import queue
 import re
 import threading
 import time
@@ -23,6 +24,13 @@ import verifier
 from embed_store import ollama_url, open_table
 
 log = logging.getLogger("docuchat.digest")
+
+# Digest's own background queue (mirrors ingest_worker's pattern) — extraction runs
+# off the ingest worker's thread so doc N+1's time-to-searchable never waits behind
+# doc N's LLM extraction. One dedicated daemon thread; unbounded queue.
+_QUEUE = queue.Queue()
+_START_LOCK = threading.Lock()
+_started = False
 
 DIGEST_MODEL = os.environ.get("LDI_CHAT_MODEL", "qwen3:14b")
 EXTRACTOR_VERSION = "digest-v1 " + DIGEST_MODEL   # bump v1 on any prompt/schema change
@@ -137,9 +145,9 @@ def _groups(pages, max_chars=6000, max_pages=4):
 
 
 def _extract_call(group_text):
-    """One structured-output extraction call. Returns the raw facts list ([] on any
-    model/transport/JSON failure — extraction is best-effort; the doc just yields
-    fewer facts and the drop is visible in the audit counts)."""
+    """One structured-output extraction call. Returns the raw facts list, or None on
+    a transport/JSON failure — that outcome is NOT the same as the model genuinely
+    finding zero facts ([]), and callers must not stamp the doc digested on None."""
     payload = {"model": DIGEST_MODEL, "stream": False, "think": False,
                "keep_alive": KEEP_ALIVE, "format": _FORMAT,
                "options": {"temperature": 0, "num_ctx": NUM_CTX},
@@ -154,7 +162,7 @@ def _extract_call(group_text):
         return json.loads(content).get("facts", []) or []
     except Exception:
         log.exception("digest: extraction call failed")
-        return []
+        return None
 
 
 def gate_facts(raw_facts, group_pages, doc_id):
@@ -205,7 +213,8 @@ def _yield_to_chat():
 
 def extract_for_document(doc_id, db_path, catalog_db=None):
     """Extract, gate, and store one document's facts. Returns counts, or None when
-    disabled / the doc vanished. Never raises (callers must not fail ingest)."""
+    disabled / the doc vanished / an extraction call failed. Never raises (callers
+    must not fail ingest)."""
     if not enabled():
         return None
     row = catalog.get_document(doc_id, db_path=catalog_db)
@@ -220,12 +229,21 @@ def extract_for_document(doc_id, db_path, catalog_db=None):
         # the startup backfill retries it.
         log.exception("digest: chunk read failed, doc left unstamped: doc_id=%s", doc_id)
         return None
+    t0 = time.perf_counter()
     extracted, dropped, facts = 0, 0, []
     for group in _groups(pages):
         _yield_to_chat()
         text = "\n\n".join(f"=== page {p['page_number']} ===\n{p['page_text']}"
                            for p in group)
-        ok, bad = gate_facts(_extract_call(text), group, doc_id)
+        raw = _extract_call(text)
+        if raw is None:
+            # A genuine transport/JSON failure, not a genuine empty result — stamping
+            # the doc here would hide the loss forever. Leave it unstamped and let the
+            # backfill retry it.
+            log.warning("digest: extraction call failed, doc left unstamped: doc_id=%s",
+                        doc_id)
+            return None
+        ok, bad = gate_facts(raw, group, doc_id)
         facts.extend(ok)
         extracted += len(ok)
         dropped += bad
@@ -234,8 +252,40 @@ def extract_for_document(doc_id, db_path, catalog_db=None):
     catalog.audit_append("matter_digest", matter,
                          json.dumps({"doc_id": doc_id, "extracted": extracted,
                                      "dropped": dropped}), db_path=catalog_db)
-    log.info("digest doc=%s extracted=%d dropped=%d", doc_id, extracted, dropped)
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+    log.info("digest doc=%s extracted=%d dropped=%d elapsed_ms=%.0f",
+             doc_id, extracted, dropped, elapsed_ms)
     return {"extracted": extracted, "dropped": dropped}
+
+
+def _ensure_worker():
+    global _started
+    with _START_LOCK:
+        if _started:
+            return
+        threading.Thread(target=_loop, name="matter-digest-worker", daemon=True).start()
+        _started = True
+
+
+def _loop():
+    while True:
+        doc_id, db_path, catalog_db = _QUEUE.get()
+        try:
+            _yield_to_chat()
+            extract_for_document(doc_id, db_path, catalog_db=catalog_db)
+        except Exception:
+            # extract_for_document already catches its own failures; this guard is
+            # for the unexpected — fail loud in the log, keep the worker alive.
+            log.exception("digest: queued extraction crashed: doc_id=%s", doc_id)
+        finally:
+            _QUEUE.task_done()
+
+
+def enqueue(doc_id, db_path, catalog_db=None):
+    """Queue one document's digest extraction. Returns immediately; never blocks
+    the caller (ingest) on the LLM call."""
+    _ensure_worker()
+    _QUEUE.put((doc_id, str(db_path), catalog_db))
 
 
 def _stale_doc_ids(catalog_db=None):
@@ -252,18 +302,18 @@ def _stale_doc_ids(catalog_db=None):
 
 
 def backfill_async(db_path, catalog_db=None, initial_delay=20.0):
-    """One-shot startup backfill: digest every already-ingested doc that predates
-    the current extractor version. Daemon thread; yields to chat between docs."""
-    def _loop():
+    """One-shot startup backfill: enqueue every already-ingested doc that predates
+    the current extractor version. Daemon thread; the digest worker itself yields
+    to chat and runs the jobs, so this loop just needs to enqueue them."""
+    def _backfill_loop():
         time.sleep(initial_delay)   # let startup (model preload etc.) finish first
         if not enabled():
             return
         for doc_id in _stale_doc_ids(catalog_db):
-            _yield_to_chat()
             try:
-                extract_for_document(doc_id, db_path, catalog_db=catalog_db)
+                enqueue(doc_id, db_path, catalog_db=catalog_db)
             except Exception:
-                log.exception("digest backfill failed: doc_id=%s", doc_id)
-    t = threading.Thread(target=_loop, name="matter-digest-backfill", daemon=True)
+                log.exception("digest backfill enqueue failed: doc_id=%s", doc_id)
+    t = threading.Thread(target=_backfill_loop, name="matter-digest-backfill", daemon=True)
     t.start()
     return t
