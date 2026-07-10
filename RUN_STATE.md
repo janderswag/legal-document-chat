@@ -7,8 +7,30 @@ _Last updated: 2026-07-10 (overnight session)_
 
 ## Status
 
-**2026-07-10 overnight — v0.3.1 RELEASED (security patch on top of v0.3.0). ⚠️ TWO owner
-notes below: (a) NO Time Machine backup exists on this machine; (b) the keychain incident.**
+**2026-07-10 overnight — v0.3.2 RELEASED (uploads fix + self-healing startup). Keychain
+incident RESOLVED. Owner action list at the very bottom.** Owner's fresh v0.3.1 download
+would not launch ("docuchat could not start / port 8000" — a misleading message). ROOT
+CAUSE: the data dir at `~/Library/Application Support/docuchat/` SURVIVES an app reinstall,
+and its `.kb_catalog.db` was still encrypted with the master key overwritten in the D-81
+incident, so the fresh app crashed opening it (confirmed: current key → "file is not a
+database"). Delete-and-redownload cannot fix this because it never touches the data dir.
+IMMEDIATE FIX (owner's machine): detached the leftover KB volume + moved the poisoned dir
+aside to `~/Library/Application Support/docuchat.locked-20260710` (preserved, unrecoverable
+synthetic data) → app starts clean. PRODUCT FIX (v0.3.2): `startup_recovery.py` runs first
+at startup; if the catalog won't open with the current master key it moves the whole
+encrypted data set aside (never deletes) and starts fresh — guarded so healthy/plain/
+missing/empty/transient-keychain-lock states never touch data (7 tests). Also v0.3.2: the
+WKWebView upload bug is fixed — profile-photo AND document uploads threw "The string did
+not match the expected pattern" because fetch was handed a File object as body (WKWebView
+rejects File/Blob bodies; Chromium accepts them, so browser QA missed it); all three upload
+sites now send `await f.arrayBuffer()`. Landing demo re-skinned to the light-cream app
+design (was stale dark-navy), live on docuchat.app. v0.3.2 signed+notarized+stapled,
+Gatekeeper accepted, published as Latest — owner is on v0.3.1 so this is the FIRST real-
+world test of the one-click in-place updater (v0.3.1 app should show "Update available
+v0.3.2"). **⚠️ STILL NO Time Machine backup (`tmutil destinationinfo` = none) — owner
+should set one up; a solo attorney machine with zero backups is its own risk.**
+
+**2026-07-10 overnight — v0.3.1 RELEASED (security patch on top of v0.3.0).**
 Post-release security review (skill + adversarial subagent) of the v0.3.0 diff found ONE
 High: `connectors/gmail.py` opened `IMAP4_SSL(HOST)` with no ssl_context → CPython default
 is an UNVERIFIED context (CERT_NONE), so a network MITM could present any cert, capture the
