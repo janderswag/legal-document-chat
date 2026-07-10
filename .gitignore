@@ -60,3 +60,4 @@ skills-lock.json
 build/
 dist/
 desktop/vendor/
+.superpowers/
