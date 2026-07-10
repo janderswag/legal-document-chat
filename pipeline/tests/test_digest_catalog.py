@@ -93,6 +93,10 @@ class TestDigestCatalog(unittest.TestCase):
         p = catalog.digest_progress("nimbus-dispute", "v1")
         self.assertEqual(p, {"done": 1, "total": 1})
 
+    def test_replace_facts_requires_matter_slug(self):
+        with self.assertRaises(ValueError):
+            catalog.replace_facts(self.doc["id"], "", [_fact("a")], "v1")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
