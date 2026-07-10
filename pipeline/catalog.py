@@ -417,6 +417,22 @@ def list_documents(matter_slug=None, db_path=None):
         conn.close()
 
 
+def move_document_row(doc_id, matter_slug, filename, stored_path, db_path=None):
+    """Re-file a document under another matter (UX-7 Document Hub filing): update the
+    scope key + managed-copy location in one statement. Status resets to 'queued' —
+    the caller re-ingests so the KB chunks land under the new matter scope."""
+    conn = _connect(db_path)
+    try:
+        conn.execute(
+            "UPDATE documents SET matter_slug = ?, filename = ?, stored_path = ?, "
+            "status = 'queued', reason = NULL, updated = ? WHERE id = ?",
+            (matter_slug, filename, str(stored_path), _now(), doc_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def update_document(doc_id, status, reason=None, db_path=None):
     conn = _connect(db_path)
     try:

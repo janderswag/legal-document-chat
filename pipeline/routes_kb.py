@@ -12,6 +12,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, Response
+from pydantic import BaseModel
 
 import catalog
 import ingest_worker
@@ -90,6 +91,57 @@ async def upload(request: Request, matter: str, filename: str, doc_type: str = "
                                size_bytes=len(body))
     ingest_worker.enqueue(doc["id"], str(dest), matter, str(KB_DB), catalog.DEFAULT_DB)
     return doc
+
+
+class MoveRequest(BaseModel):
+    doc_id: int
+    matter: str
+
+
+@router.post("/kb/documents/move")
+def move_document(body: MoveRequest):
+    """UX-7 Document Hub filing: re-file a document into another matter. The managed
+    copy is decrypted with the source matter's key and re-encrypted under the
+    destination's (D-73 per-matter DEKs); old chunks are removed and the document is
+    re-ingested under the new scope. Blocked while the SOURCE matter is under an
+    active legal hold (moving out of a held matter would defeat preservation).
+    POST, not PUT/PATCH (structural lock)."""
+    row = catalog.get_document(body.doc_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="not found")
+    if not catalog.get_matter(body.matter):
+        raise HTTPException(status_code=400, detail=f"unknown matter: {body.matter!r}")
+    old_matter = row["matter_slug"]
+    if body.matter == old_matter:
+        return {"moved": body.doc_id, "matter": old_matter, "unchanged": True}
+    hold = catalog.active_hold(old_matter)
+    if hold:
+        raise HTTPException(status_code=409,
+                            detail=f"legal hold active on {old_matter!r} since "
+                                   f"{hold['created']}: {hold['reason']}")
+
+    stored = Path(row["stored_path"])
+    if not _within_kb(stored) or not stored.is_file():
+        raise HTTPException(status_code=409, detail="managed copy missing")
+    plain = keyvault.read_matter_file(stored, old_matter)
+
+    dest_dir = KB_DOCS / body.matter
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / row["filename"]
+    stem, suf, i = dest.stem, dest.suffix, 1
+    while dest.exists() and keyvault.read_matter_file(dest, body.matter) != plain:
+        dest = dest_dir / f"{stem}-{i}{suf}"
+        i += 1
+    keyvault.write_matter_file(dest, plain, body.matter)
+
+    delete_doc(KB_DB, row["filename"], old_matter)      # old-scope chunks out
+    catalog.move_document_row(body.doc_id, body.matter, dest.name, dest)
+    stored.unlink(missing_ok=True)                       # managed copy only, in-KB
+    catalog.audit_append("document_moved", matter_slug=body.matter,
+                         detail=f"doc {body.doc_id} ({dest.name}) from {old_matter}")
+    ingest_worker.enqueue(body.doc_id, str(dest), body.matter, str(KB_DB),
+                          catalog.DEFAULT_DB)
+    return {"moved": body.doc_id, "matter": body.matter, "filename": dest.name}
 
 
 @router.get("/kb/ingest/status")

@@ -147,7 +147,10 @@ class TestSafetyStructural(unittest.TestCase):
                           # an active legal hold).
                           "/profile/photo", "/profile/photo/delete",
                           "/connectors/folders", "/connectors/folders/remove",
-                          "/data/erase"})
+                          "/data/erase",
+                          # UX-7: Document Hub filing — re-file a document into
+                          # another matter (hold-blocked on the source; POST only).
+                          "/kb/documents/move"})
 
     def test_only_the_locked_kb_delete_mutates(self):
         # No PUT/PATCH anywhere; DELETE is exposed ONLY on the structurally-locked KB
