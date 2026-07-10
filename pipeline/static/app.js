@@ -210,7 +210,7 @@
 
   async function saveProfile(vals) {
     state.profile = await api("/profile", {
-      method: "PUT", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(vals),
     });
     updateGreeting();

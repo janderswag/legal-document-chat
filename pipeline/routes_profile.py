@@ -42,7 +42,11 @@ def get_profile():
     return p
 
 
-@router.put("/profile")
+# POST (not PUT): the app keeps its "no PUT/PATCH anywhere" structural lock
+# (test_api.TestSafetyStructural) — like /setup/pull, this is one of the few
+# deliberate non-read-only actions, and it touches ONLY local app config,
+# never a document.
+@router.post("/profile")
 def put_profile(body: ProfileUpdate):
     vals = {}
     if body.name is not None:

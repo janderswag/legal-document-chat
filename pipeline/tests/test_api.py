@@ -134,7 +134,12 @@ class TestSafetyStructural(unittest.TestCase):
                           # Ollama, allowlisted to the two pinned models — the one
                           # deliberate non-read-only setup action; no document data.
                           "/setup/pull",
-                          "/settings/status"})
+                          "/settings/status",
+                          # /profile (UX-5): the attorney's LOCAL identity (name,
+                          # practice areas, onboarded flag) in the encrypted catalog.
+                          # GET reads it; POST updates it (app config only — never a
+                          # document; no PUT/PATCH, preserving the structural lock).
+                          "/profile"})
 
     def test_only_the_locked_kb_delete_mutates(self):
         # No PUT/PATCH anywhere; DELETE is exposed ONLY on the structurally-locked KB

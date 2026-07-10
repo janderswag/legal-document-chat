@@ -62,7 +62,7 @@ class TestProfileRoutes(unittest.TestCase):
         self.assertIn("Litigation", p["available_practice_areas"])
 
     def test_put_then_get(self):
-        r = client.put("/profile", json={"name": "  David Chen  ",
+        r = client.post("/profile", json={"name": "  David Chen  ",
                                          "practice_areas": ["Business & Contracts", " "],
                                          "onboarded": True})
         self.assertEqual(r.status_code, 200, r.text)
@@ -72,7 +72,7 @@ class TestProfileRoutes(unittest.TestCase):
         self.assertIs(p["onboarded"], True)
 
     def test_bounds_enforced(self):
-        client.put("/profile", json={"name": "x" * 500,
+        client.post("/profile", json={"name": "x" * 500,
                                      "practice_areas": ["a"] * 50})
         p = client.get("/profile").json()
         self.assertLessEqual(len(p["name"]), routes_profile._MAX_NAME)
@@ -80,7 +80,7 @@ class TestProfileRoutes(unittest.TestCase):
 
     def test_no_contact_fields(self):
         # privacy promise: the API must not accept/store email or phone
-        client.put("/profile", json={"name": "A", "email": "a@b.c", "phone": "555"})
+        client.post("/profile", json={"name": "A", "email": "a@b.c", "phone": "555"})
         p = client.get("/profile").json()
         self.assertNotIn("email", p)
         self.assertNotIn("phone", p)
