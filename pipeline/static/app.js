@@ -147,8 +147,43 @@
       b.innerHTML = "<span class='nav-ico'><svg viewBox='0 0 24 24'><path d='M12 3v12'/>" +
         "<path d='m7 10 5 5 5-5'/><path d='M4 21h16'/></svg></span> Update available" +
         (u.latest ? " <span class='upd-ver'>" + esc(u.latest) + "</span>" : "");
-      b.addEventListener("click", function () {
-        window.open(u.download_page || "https://docuchat.app", "_blank");
+      // v0.3.0: one click installs in place — download, verify signature, swap,
+      // relaunch. Any failure leaves this version running and falls back to the
+      // download page (updater.py).
+      var installing = false;
+      function setLabel(text) {
+        b.innerHTML = "<span class='nav-ico'><svg viewBox='0 0 24 24'>" +
+          "<path d='M12 3v12'/><path d='m7 10 5 5 5-5'/><path d='M4 21h16'/>" +
+          "</svg></span> " + text;
+      }
+      async function pollInstall() {
+        try {
+          var s = (await api("/updates/install/status")) || {};
+          if (s.state === "downloading") setLabel("Downloading… " + (s.pct || 0) + "%");
+          else if (s.state === "verifying") setLabel("Verifying…");
+          else if (s.state === "installing") setLabel("Installing…");
+          else if (s.state === "restarting") { setLabel("Restarting…"); return; }
+          else if (s.state === "error") {
+            installing = false;
+            setLabel("Update available" + (u.latest ? " <span class='upd-ver'>" +
+              esc(u.latest) + "</span>" : ""));
+            b.title = s.detail || "update failed — opening the download page";
+            window.open(u.download_page || "https://docuchat.app", "_blank");
+            return;
+          }
+          setTimeout(pollInstall, 1000);
+        } catch (e) { /* server restarting mid-swap is expected */ }
+      }
+      b.addEventListener("click", async function () {
+        if (installing) return;
+        installing = true;
+        try {
+          await api("/updates/install", { method: "POST" });
+          pollInstall();
+        } catch (e) {
+          installing = false;
+          window.open(u.download_page || "https://docuchat.app", "_blank");
+        }
       });
       foot.insertBefore(b, foot.firstChild);
     } catch (e) { /* silent — updates are never a nag */ }
@@ -1416,125 +1451,205 @@
     });
   }
 
-  // --- Integration catalog (UX-11, owner-directed roadmap) --------------------
-  // Every entry has a documented API/webhook/partner platform. NOTHING here is
-  // claimed live: rows carry the access-type label + an honest status, and a
-  // connector only flips to available after its auth flow, permissions, import,
-  // sync, error handling, and local-deletion controls pass testing (owner rule).
-  // Logos are bundled local SVGs (air-gap — no runtime fetch); brands without a
-  // redistributable mark get a letter tile.
+  // --- Integration catalog (v0.3.0, D-81) -------------------------------------
+  // Every row was verified against the vendor's CURRENT API docs (2026-07-10
+  // research pass; see DECISIONS.md D-81). Rows are either LIVE (the user can
+  // create a credential in the vendor's own UI, paste it here, and documents
+  // flow into the Document Hub) or PLANNED (a real pull path exists but needs
+  // a docuchat-registered developer app — coming; synced folders cover cloud
+  // drives today). Vendors with NO user-reachable pull path were REMOVED —
+  // we never list a connector a user would discover they cannot connect.
+  // Row shape: [name, slug, credentialKind, description, live]
   var CONNECTOR_CATALOG = [
     { cat: "AI Meeting Notetakers", items: [
-      ["Read AI", null, "Public API", "Meeting notes, transcripts, and summaries", true],
-      ["Granola", null, "Enterprise API", "Meeting notes from your Granola workspace", true],
-      ["Fireflies.ai", null, "Public API", "Transcripts and meeting summaries", true],
-      ["Fathom", "fathom", "Public API", "Call recordings, notes, and summaries", true],
-      ["Otter.ai", null, "Enterprise API", "Meeting transcripts and notes", false],
-      ["tl;dv", null, "Paid-plan API", "Meeting recordings and highlights", false],
-      ["MeetGeek", null, "Public API", "Meeting summaries and transcripts", false],
-      ["Avoma", null, "Public API", "Conversation notes and transcripts", false],
-      ["Sembly AI", null, "Webhook-only", "Meeting notes pushed as they finish", false],
-      ["Circleback", null, "Webhook-only", "Notes and action items pushed per meeting", false],
-      ["Grain", null, "Public API", "Call clips and transcripts", false],
-      ["Gong", null, "Paid-plan API", "Call recordings and transcripts", false],
-      ["Clari Copilot", null, "Paid-plan API", "Call transcripts and summaries", false],
-      ["Jiminny", null, "Public API", "Conversation recordings and notes", false],
-      ["Rev", null, "Public API", "Human transcription orders and results", false],
-      ["Rev AI", null, "Public API", "Automated speech-to-text transcripts", false],
-      ["Sonix", null, "Paid-plan API", "Automated transcripts", false],
-      ["Trint", null, "Public API", "Transcripts and captions", false],
-      ["Happy Scribe", null, "Public API", "Transcripts and subtitles", false],
+      ["Fathom", "fathom", "API key", "Call transcripts and meeting summaries", true],
+      ["Fireflies.ai", "fireflies", "API key", "Transcripts and meeting summaries", true],
+      ["Granola", "granola", "API key", "Meeting notes and transcripts", true],
+      ["tl;dv", "tldv", "API key", "Meeting transcripts and notes", true],
+      ["MeetGeek", "meetgeek", "API key", "Meeting summaries and transcripts", true],
+      ["Avoma", "avoma", "API key", "Conversation notes and transcripts", true],
+      ["Grain", "grain", "Access token", "Call transcripts and highlights", true],
+      ["Jiminny", "jiminny", "API key", "Conversation transcripts", true],
+      ["Rev AI", "revai", "Access token", "Speech-to-text transcripts (API jobs)", true],
+      ["Sonix", "sonix", "API key", "Automated transcripts", true],
+      ["Trint", "trint", "API key", "Transcripts and captions", true],
+      ["Happy Scribe", "happyscribe", "API key", "Transcripts and subtitles", true],
+      ["Read AI", "readai", "Coming", "Meeting notes, transcripts, and summaries", false],
+      ["Rev", "rev", "Coming", "Human transcription orders and results", false],
+      ["Circleback", "circleback", "Coming", "Meeting notes and action items", false],
     ]},
     { cat: "Meeting Platforms", items: [
-      ["Zoom", "zoom", "OAuth connection", "Cloud recordings and meeting transcripts", true],
-      ["Microsoft Teams", null, "OAuth connection", "Meetings, chat files, and transcripts (Graph)", true],
-      ["Google Meet", "googlemeet", "OAuth connection", "Meeting recordings and transcripts", true],
-      ["Cisco Webex", "webex", "OAuth connection", "Meeting recordings and messaging files", false],
+      ["Zoom", "zoom", "Your Zoom app", "Cloud-recording transcripts", true],
+      ["Cisco Webex", "webex", "Access token", "Meeting recordings and transcripts", true],
+      ["Microsoft Teams", "msteams", "Coming", "Meeting recordings and transcripts", false],
+      ["Google Meet", "googlemeet", "Coming", "Meeting recordings and transcripts", false],
     ]},
     { cat: "Notes & Knowledge", items: [
-      ["Notion", "notion", "OAuth connection", "Pages and databases as documents", false],
-      ["Google Docs", "googledocs", "OAuth connection", "Docs pulled into their matter", true],
-      ["Microsoft OneNote", null, "OAuth connection", "Notebooks and sections (Graph)", true],
-      ["Microsoft Word", null, "OAuth connection", "Word files from Microsoft 365 (Graph)", false],
-      ["Microsoft Loop", null, "OAuth connection", "Loop pages where Graph supports them", false],
-      ["Confluence Cloud", "confluence", "Public API", "Spaces and pages", false],
-      ["Dropbox Paper", null, "OAuth connection", "Paper docs via the Dropbox API", false],
-      ["Airtable", "airtable", "Public API", "Tables exported as documents", false],
-      ["Coda", "coda", "Public API", "Docs and tables", false],
-      ["Evernote", "evernote", "Public API", "Notebooks and notes", false],
-      ["ClickUp", "clickup", "Public API", "Docs and task attachments", false],
-      ["monday.com", null, "Public API", "Boards and files (GraphQL)", false],
-      ["Asana", "asana", "Public API", "Project files and attachments", false],
+      ["Notion", "notion", "Integration token", "Pages and databases as documents", true],
+      ["Confluence Cloud", "confluence", "API token", "Spaces and pages", true],
+      ["Airtable", "airtable", "Personal token", "Tables exported as documents", true],
+      ["Coda", "coda", "API token", "Docs exported as Markdown", true],
+      ["ClickUp", "clickup", "API token", "Docs and pages", true],
+      ["monday.com", "monday", "API token", "Workdocs from your boards", true],
+      ["Asana", "asana", "Personal token", "Project files and attachments", true],
+      ["Google Docs", "googledocs", "Coming", "Docs pulled into their matter", false],
+      ["Microsoft OneNote", "onenote", "Coming", "Notebooks and sections", false],
+      ["Microsoft Word", "msword", "Coming", "Word files from Microsoft 365", false],
+      ["Dropbox Paper", "dropboxpaper", "Coming", "Paper docs via the Dropbox API", false],
     ]},
     { cat: "Email & Communications", items: [
-      ["Microsoft Outlook", null, "OAuth connection", "Mail and attachments by matter (Graph)", true],
-      ["Gmail", "gmail", "OAuth connection", "Mail and attachments by matter", true],
-      ["Slack", null, "OAuth connection", "Channel files and threads", false],
+      ["Gmail", "gmail", "App password", "Mail and attachments by label", true],
+      ["Slack", "slack", "Your Slack app", "Files shared in your channels", true],
+      ["Microsoft Outlook", "outlook", "Coming", "Mail and attachments by matter", false],
     ]},
     { cat: "Cloud File Storage", items: [
-      ["Microsoft OneDrive", null, "OAuth connection", "Folders synced into matters (Graph)", true],
-      ["Microsoft SharePoint", null, "OAuth connection", "Document libraries (Graph)", true],
-      ["Google Drive", "googledrive", "OAuth connection", "Folders synced into matters", true],
-      ["Dropbox", "dropbox", "OAuth connection", "Folders synced into matters", true],
-      ["Box", "box", "OAuth connection", "Folders synced into matters", true],
-      ["Egnyte", "egnyte", "Public API", "Folders and files", false],
-      ["Nextcloud", "nextcloud", "Public API", "Self-hosted files over WebDAV", false],
-      ["M-Files", null, "Public API", "Managed documents and metadata", false],
-      ["ShareFile", null, "Public API", "Client-shared files", false],
+      ["Nextcloud", "nextcloud", "App password", "Self-hosted files over WebDAV", true],
+      ["ShareFile", "sharefile", "API key", "Client-shared files", true],
+      ["Microsoft OneDrive", "onedrive", "Coming", "Folders synced into matters", false],
+      ["Microsoft SharePoint", "sharepoint", "Coming", "Document libraries", false],
+      ["Google Drive", "googledrive", "Coming", "Folders synced into matters", false],
+      ["Dropbox", "dropbox", "Coming", "Folders synced into matters", false],
+      ["Box", "box", "Coming", "Folders synced into matters", false],
     ]},
     { cat: "Legal Practice & Case Management", items: [
-      ["Clio Manage", null, "OAuth connection", "Matters, documents, and contacts", true],
-      ["Clio Grow", null, "Public API", "Intake records and documents", false],
-      ["Filevine", null, "Partner-gated API", "Projects and documents", false],
-      ["MyCase", null, "Paid-plan API", "Cases and documents", false],
-      ["Smokeball", null, "Partner-gated API", "Matters and documents", false],
-      ["Lawmatics", null, "Public API", "Intake and CRM records", false],
-      ["Actionstep", null, "Public API", "Matters and documents", false],
-      ["LEAP", null, "Partner-gated API", "Matters and documents", false],
-      ["Rocket Matter", null, "Partner-gated API", "Matters and documents", false],
-      ["CARET Legal", null, "Public API", "Matters and documents", false],
-      ["Litify", null, "Enterprise API", "Matters via the Salesforce platform", false],
+      ["Clio Manage", "clio", "Coming", "Matters, documents, and contacts", false],
+      ["MyCase", "mycase", "Coming", "Cases and documents", false],
+      ["Lawmatics", "lawmatics", "Coming", "Intake files and CRM records", false],
+      ["Actionstep", "actionstep", "Coming", "Matters and documents", false],
+      ["LEAP", "leap", "Coming", "Matters and documents", false],
+      ["Litify", "litify", "Coming", "Matters via the Salesforce platform", false],
     ]},
     { cat: "Legal Document Management", items: [
-      ["iManage Work", null, "Partner-gated API", "Workspaces and documents", false],
-      ["NetDocuments", null, "Partner-gated API", "Cabinets and documents", false],
+      ["NetDocuments", "netdocuments", "Coming", "Cabinets and documents", false],
     ]},
     { cat: "CRM & Intake", items: [
-      ["Salesforce", null, "Public API", "Records and files", false],
-      ["HubSpot", "hubspot", "Public API", "Contacts, notes, and attachments", false],
-      ["Zoho CRM", "zoho", "Public API", "Records and attachments", false],
-      ["Pipedrive", null, "Public API", "Deals, notes, and files", false],
+      ["HubSpot", "hubspot", "Private app token", "Notes and file attachments", true],
+      ["Zoho CRM", "zoho", "Self Client", "Records and attachments", true],
+      ["Pipedrive", "pipedrive", "API token", "Notes and files from your deals", true],
+      ["Salesforce", "salesforce", "Coming", "Records and files", false],
     ]},
   ];
 
-  var _TILE_COLORS = ["#b48a4a", "#7d9471", "#8a7ba8", "#a8756b", "#6b8aa8", "#a89a5b"];
-
-  function connectorLogo(name, logo) {
-    if (logo) {
-      return "<img class='conn-logo' src='/static/logos/" + logo + ".svg' alt='' " +
-        "onerror=\"this.outerHTML='<span class=conn-tile>" + esc(name[0]) + "</span>'\">";
-    }
-    var hue = _TILE_COLORS[name.charCodeAt(0) % _TILE_COLORS.length];
-    return "<span class='conn-tile' style='background:" + hue + "'>" +
-      esc(name[0].toUpperCase()) + "</span>";
+  // Logos are bundled local files (air-gap — no runtime fetch): <slug>.svg with a
+  // .png sibling fallback; the letter tile survives only as a safety net.
+  function connectorLogo(name, slug) {
+    return "<img class='conn-logo' src='/static/logos/" + slug + ".svg' alt='' " +
+      "onerror=\"if(!this.dataset.png){this.dataset.png=1;this.src='/static/logos/" +
+      slug + ".png'}else{this.outerHTML='<span class=conn-tile>" + esc(name[0]) +
+      "</span>'}\">";
   }
 
-  var _catalogHtml = null;
+  // Live-connection state for the pane: services metadata (key steps, credential
+  // fields) from /connections/services, the user's connections, open drawer slug.
+  var connState = { services: {}, connections: [], open: null, pollTimer: null };
+
+  function connectionFor(slug) {
+    for (var i = 0; i < connState.connections.length; i++)
+      if (connState.connections[i].service === slug) return connState.connections[i];
+    return null;
+  }
+
+  function connectorRowHtml(it) {
+    var name = it[0], slug = it[1], kind = it[2], desc = it[3], live = it[4];
+    var svc = connState.services[slug];
+    var right;
+    if (live && svc) {
+      var existing = connectionFor(slug);
+      right = existing
+        ? "<span class='conn-status live'>Connected</span>"
+        : "<span class='conn-access'>" + esc(kind) + "</span>" +
+          "<button class='btn secondary conn-connect' data-connect='" + slug +
+          "'>Connect</button>";
+    } else if (live) {
+      // adapter registered as live in the catalog but missing from the backend
+      // registry — never show a Connect button that cannot work
+      right = "<span class='conn-status'>Unavailable</span>";
+    } else {
+      right = "<span class='conn-access'>" + esc(kind === "Coming" ? "Connection" : kind) +
+        "</span><span class='conn-status'>Coming</span>";
+    }
+    var open = connState.open === slug && live && svc;
+    return "<div class='conn-row" + (open ? " open" : "") + "' data-row='" + slug + "'>" +
+      connectorLogo(name, slug) +
+      "<div class='conn-text'><span class='conn-name'>" + esc(name) + "</span>" +
+      "<span class='conn-desc'>" + esc(desc) + "</span></div>" + right + "</div>" +
+      (open ? connectDrawerHtml(svc) : "");
+  }
+
+  function connectDrawerHtml(svc) {
+    var steps = (svc.key_steps || []).map(function (s) {
+      return "<li>" + esc(s) + "</li>";
+    }).join("");
+    var fields = (svc.fields || []).map(function (f) {
+      return "<label class='conn-field'>" + esc(f.label) +
+        "<input type='" + (f.secret ? "password" : "text") + "' data-cred='" +
+        esc(f.key) + "' autocomplete='off' spellcheck='false'" +
+        (f.placeholder ? " placeholder='" + esc(f.placeholder) + "'" : "") + "></label>";
+    }).join("");
+    return "<div class='conn-drawer'>" +
+      "<div class='conn-drawer-cols'><div class='conn-steps'>" +
+      "<b>Where to get it</b><ol>" + steps + "</ol>" +
+      (svc.plan_note ? "<p class='muted' style='font-size:12.5px'>" +
+        esc(svc.plan_note) + "</p>" : "") +
+      "<a href='" + esc(svc.docs_url) + "' target='_blank' rel='noreferrer' " +
+      "style='font-size:12.5px'>API documentation</a></div>" +
+      "<div class='conn-form'>" + fields +
+      "<label class='conn-field'>Import into" +
+      "<select class='matter-picker' id='conn-matter'></select></label>" +
+      "<label style='display:flex;gap:8px;align-items:center;font-size:13px'>" +
+      "<input type='checkbox' id='conn-sync'> Keep in sync (checks every 30 minutes)</label>" +
+      "<div style='display:flex;gap:8px;align-items:center'>" +
+      "<button class='btn' id='conn-save' data-service='" + esc(svc.slug) + "'>" +
+      "Test &amp; connect</button>" +
+      "<span class='muted' id='conn-busy' style='font-size:12.5px;display:none'>" +
+      "testing the key…</span></div>" +
+      "<div id='conn-err' style='color:var(--err);font-size:13px'></div>" +
+      "<p class='muted' style='font-size:12px'>The key is tested first, then stored " +
+      "encrypted on this Mac (never in a file, never sent anywhere but " +
+      esc(svc.name) + "). Disconnect deletes it.</p></div></div></div>";
+  }
+
+  function jobLabel(c) {
+    var j = c.job || {};
+    if (j.state === "listing") return "checking " + esc(c.service_name) + "…";
+    if (j.state === "importing")
+      return "importing " + (j.done || 0) + (j.total ? " of " + j.total : "") + "…";
+    if (j.state === "error" || c.last_error)
+      return "<span style='color:var(--err)'>" + esc(j.error || c.last_error) + "</span>";
+    if (j.state === "done")
+      return "imported " + (j.imported || 0) +
+        (j.skipped ? " (" + j.skipped + " unsupported skipped)" : "");
+    if (c.last_sync) return "last import " + esc(c.last_sync.replace("T", " ").slice(0, 16));
+    return "not imported yet";
+  }
+
+  function connectedHtml() {
+    if (!connState.connections.length) return "";
+    var rows = connState.connections.map(function (c) {
+      var busy = c.job && (c.job.state === "listing" || c.job.state === "importing");
+      return "<div class='conn-row'>" + connectorLogo(c.service_name, c.service) +
+        "<div class='conn-text'><span class='conn-name'>" + esc(c.service_name) +
+        (c.label ? " <span class='muted' style='font-weight:400'>· " + esc(c.label) +
+          "</span>" : "") + "</span>" +
+        "<span class='conn-desc'>into " +
+        esc((c.config && c.config.matter) || "unfiled") +
+        (c.config && c.config.sync ? " · syncing" : "") + " · " + jobLabel(c) +
+        "</span></div>" +
+        "<span style='display:flex;gap:8px;flex:0 0 auto'>" +
+        "<button class='btn secondary' data-import='" + c.id + "'" +
+        (busy ? " disabled" : "") + ">" + (busy ? "Importing…" : "Import now") +
+        "</button>" +
+        "<button class='btn secondary' data-disconnect='" + c.id +
+        "'>Disconnect</button></span></div>";
+    }).join("");
+    return "<div class='panel conn-group'><b>Connected</b>" + rows + "</div>";
+  }
+
   function connectorCatalogHtml() {
-    if (_catalogHtml) return _catalogHtml;
-    _catalogHtml = CONNECTOR_CATALOG.map(function (group) {
-      var rows = group.items.map(function (it) {
-        var name = it[0], logo = it[1], access = it[2], desc = it[3], first = it[4];
-        return "<div class='conn-row'>" + connectorLogo(name, logo) +
-          "<div class='conn-text'><span class='conn-name'>" + esc(name) + "</span>" +
-          "<span class='conn-desc'>" + esc(desc) + "</span></div>" +
-          "<span class='conn-access'>" + esc(access) + "</span>" +
-          "<span class='conn-status" + (first ? " first'>Building first" : "'>Planned") +
-          "</span></div>";
-      }).join("");
+    return CONNECTOR_CATALOG.map(function (group) {
+      var rows = group.items.map(connectorRowHtml).join("");
       return "<div class='panel conn-group'><b>" + esc(group.cat) + "</b>" + rows + "</div>";
     }).join("");
-    return _catalogHtml;
   }
 
   async function renderConnectorsPane() {
@@ -1542,6 +1657,12 @@
     if (!pane) return;
     var data = null;
     try { data = await api("/connectors/folders"); } catch (e) { data = { folders: [] }; }
+    try {
+      var svc = await api("/connections/services");
+      connState.services = {};
+      (svc.services || []).forEach(function (s) { connState.services[s.slug] = s; });
+      connState.connections = (await api("/connections")).connections || [];
+    } catch (e) { /* pane still renders; live rows show Unavailable */ }
     var rows = (data.folders || []).map(function (f) {
       return "<tr><td style='word-break:break-all'>" + esc(f.path) + "</td><td class='muted'>" +
         esc(f.matter_slug) + "</td><td><span class='folder-status " +
@@ -1575,15 +1696,17 @@
       "<p class='muted' style='font-size:13px'>Coming formats: Outlook .msg, .mbox mailboxes, " +
       "RTF, XLSX, and audio/video with local transcription.</p>" +
       "</div>" +
+      connectedHtml() +
       "<h2 class='conn-catalog-head'>Integration catalog</h2>" +
-      "<p class='muted' style='font-size:13.5px;max-width:72ch'>Every connection on this roadmap " +
-      "pulls documents IN to this computer; nothing about your documents goes out, tokens are " +
-      "stored encrypted on this machine, every imported item keeps its source, author, dates, " +
-      "and matter, and you can disconnect and delete credentials at any time. None of these are " +
-      "live yet: each one turns on only after its sign-in flow, permissions, import, sync, error " +
-      "handling, and local-deletion controls pass testing.</p>" +
+      "<p class='muted' style='font-size:13.5px;max-width:72ch'>Every connection pulls documents " +
+      "IN to this computer; nothing about your documents goes out. You create the key in the " +
+      "service's own settings and paste it here — it is tested first, stored encrypted on this " +
+      "Mac, and deleted the moment you disconnect. Every imported item keeps its source, author, " +
+      "and dates. Rows marked Coming need a docuchat-registered app with that vendor and are on " +
+      "the way; for cloud drives, a synced folder above covers the gap today.</p>" +
       connectorCatalogHtml();
     fillMatterPickers().catch(function () {});
+    wireConnectionEvents(pane);
     document.getElementById("folder-add").addEventListener("click", async function () {
       var err = document.getElementById("folder-err");
       err.textContent = "";
@@ -1607,6 +1730,83 @@
         renderConnectorsPane();
       });
     });
+  }
+
+  function wireConnectionEvents(pane) {
+    pane.querySelectorAll("[data-connect]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        connState.open = connState.open === b.dataset.connect ? null : b.dataset.connect;
+        renderConnectorsPane();
+      });
+    });
+    var save = document.getElementById("conn-save");
+    if (save) save.addEventListener("click", async function () {
+      var err = document.getElementById("conn-err");
+      var busy = document.getElementById("conn-busy");
+      err.textContent = "";
+      var creds = {};
+      var missing = false;
+      pane.querySelectorAll("[data-cred]").forEach(function (i) {
+        if (!i.value.trim()) missing = true;
+        creds[i.dataset.cred] = i.value.trim();
+      });
+      if (missing) { err.textContent = "Fill in every field first."; return; }
+      save.disabled = true;
+      busy.style.display = "";
+      try {
+        var row = await api("/connections", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            service: save.dataset.service, credentials: creds,
+            matter: document.getElementById("conn-matter").value || "unfiled",
+            sync: document.getElementById("conn-sync").checked,
+          }),
+        });
+        connState.open = null;
+        await api("/connections/import", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: row.id }),
+        });
+        renderConnectorsPane();
+      } catch (e) {
+        save.disabled = false;
+        busy.style.display = "none";
+        err.textContent = friendlyError(e);
+      }
+    });
+    pane.querySelectorAll("[data-import]").forEach(function (b) {
+      b.addEventListener("click", async function () {
+        await api("/connections/import", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: parseInt(b.dataset.import, 10) }),
+        });
+        renderConnectorsPane();
+      });
+    });
+    pane.querySelectorAll("[data-disconnect]").forEach(function (b) {
+      b.addEventListener("click", async function () {
+        if (b.dataset.armed !== "1") {          // two-click confirm, no browser dialog
+          b.dataset.armed = "1";
+          b.textContent = "Delete key?";
+          setTimeout(function () { b.dataset.armed = ""; b.textContent = "Disconnect"; },
+                     4000);
+          return;
+        }
+        await api("/connections/remove", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: parseInt(b.dataset.disconnect, 10) }),
+        });
+        renderConnectorsPane();
+      });
+    });
+    // live progress: refresh while any import is running (and the pane is visible)
+    var busyNow = connState.connections.some(function (c) {
+      return c.job && (c.job.state === "listing" || c.job.state === "importing");
+    });
+    if (connState.pollTimer) clearTimeout(connState.pollTimer);
+    if (busyNow) connState.pollTimer = setTimeout(function () {
+      if (document.getElementById("spane-connectors")) renderConnectorsPane();
+    }, 2000);
   }
 
   function renderMemoryPane() {

@@ -160,7 +160,10 @@ class TestSafetyStructural(unittest.TestCase):
                           # deleted on remove. GET/POST only — the lock holds.
                           "/connections", "/connections/services",
                           "/connections/test", "/connections/import",
-                          "/connections/import/status", "/connections/remove"})
+                          "/connections/import/status", "/connections/remove",
+                          # v0.3.0: one-click in-place update (user-clicked;
+                          # download+verify+swap in updater.py, team-id pinned).
+                          "/updates/install", "/updates/install/status"})
 
     def test_only_the_locked_kb_delete_mutates(self):
         # No PUT/PATCH anywhere; DELETE is exposed ONLY on the structurally-locked KB
