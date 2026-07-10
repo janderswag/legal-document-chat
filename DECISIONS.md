@@ -897,6 +897,36 @@
   Deferred to next cycles: background job center; firm-name capture at first export;
   per-matter jurisdiction field; per-attorney profiles (shared machines); font-size setting.
 
+- **D-76 — UX-6 cycle: Granola-inspired shell, profile/memory/connectors; billing +
+  referrals + sign-out REJECTED as fake surfaces (2026-07-09).** Owner benchmarked the app
+  against Granola and asked for its billing page, referral program, sign-out button, rounded
+  light-cream shell, profile with photo, account deletion, connectors, and persistent memory
+  "with a great personality." Adopted with the owner's invited pushback applied: (a) **NO
+  billing page** — no payment rails exist; the business-model decision (license key vs
+  seats) comes first, and a local-first app points to license keys. (b) **NO referral
+  program** — needs a server for links/attribution/rewards; contradicts no-account; becomes
+  a WEBSITE feature when checkout exists. (c) **NO sign-out** — no account; the slot is the
+  profile block instead; a Lock-app action is the queued honest equivalent. (d) **NO
+  "personality"** — warm-but-terse only (greeting by name, practice-aware suggestions);
+  profile/memory context is FENCED out of the grounded answer path (tripwire test:
+  answering.py/verifier.py cannot reference the profile store; the gated SYSTEM_PROMPT is
+  untouched). SHIPPED on `ux-v2`: light Granola-style sidebar with rounded pill nav +
+  profile block (photo or initial); Settings sectioned Profile | Connectors | Memory |
+  System; profile photo (magic-byte-verified PNG/JPEG, local file); role/firm fields;
+  **Erase all data** as the honest "delete account" (typed ERASE EVERYTHING, refuses under
+  any active legal hold — never a spoliation tool; disposes via retention machinery incl.
+  crypto-shred, clears profile, audit event); **teachable memory** (user-written notes,
+  all visible, all deletable, feeds greeting/suggestions only — never learned silently,
+  same teachable-not-learned stance as the owner's other products); **watched-folder
+  connectors** (poll local dirs, ingest through the same serialized upload path, originals
+  read-only; pointing one at a Dropbox/Drive/OneDrive synced folder is the cloud-import
+  story with zero network code; cloud APIs stay out absent an egress decision); **.eml
+  email import** (stdlib parse, headers + best body, attachments listed); onboarding step
+  dots/back/autofocus. E2E-verified live: a file dropped into a watched folder auto-ingested
+  to ready and answered with a span-verified citation. Deferred: license-key billing (after
+  the business-model call), site referral program, Lock app, deadline-extraction tool,
+  privilege-log generator, Word export templates.
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

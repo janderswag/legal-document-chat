@@ -7,6 +7,18 @@ _Last updated: 2026-07-09_
 
 ## Status
 
+**2026-07-09 UX-6 cycle — Granola-inspired shell + profile/memory/connectors, SHIPPED on
+`ux-v2`, AWAITING OWNER PREVIEW (D-76).** Owner benchmark vs Granola; billing/referrals/
+sign-out/"personality" rejected as fake or off-brand surfaces (owner invited the pushback —
+see D-76 for the reasoning and the honest equivalents shipped instead). Live on the branch:
+light rounded sidebar with profile block (photo upload works), Settings sectioned
+Profile | Connectors | Memory | System, Erase-all-data (typed confirm, hold-blocked),
+teachable memory (fenced out of cited answers, tripwire-tested), watched-folder connectors
+(e2e-verified: dropped file -> auto-ingest -> ready -> span-cited answer), .eml import,
+onboarding polish. OWNER QUEUE: preview at 127.0.0.1:8001/app -> approve -> merge ux-v2;
+decide the business model (license key vs subscription) before any billing build. Next
+cycles queued: background job center; model tier benchmark; Lock app; deadline extraction.
+
 **2026-07-09 UX-2 cycle — first-real-user feedback + attorney board -> SHIPPED on branch
 `ux-v2`, AWAITING OWNER PREVIEW (D-75).** Owner filed the first real-user feedback batch
 (hello triggers retrieval; tab-switch loses work; 8-item nav confuses; no onboarding;
