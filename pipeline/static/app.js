@@ -374,9 +374,15 @@
       "<span class='field-label'>Add to</span>" +
       "<select id='hub-dest' style='max-width:280px'></select></div>" +
       "<div id='hub-dropzone' style='border:2px dashed var(--border);border-radius:12px;text-align:center;padding:28px;cursor:pointer'>" +
-      "Drag &amp; drop files here, or click to choose. <span class='muted'>(.pdf .docx .txt .md .eml)</span>" +
-      "<input type='file' id='hub-file-input' multiple style='display:none'></div>" +
-      "<label class='muted' style='display:block;font-size:13px;margin:8px 0 0'>" +
+      "Drag &amp; drop files or a whole folder here, or click to choose. " +
+      "<span class='muted'>(.pdf .docx .txt .md .eml)</span>" +
+      "<input type='file' id='hub-file-input' multiple style='display:none'>" +
+      "<input type='file' id='hub-folder-input' webkitdirectory style='display:none'></div>" +
+      "<div style='display:flex;align-items:center;gap:14px;margin:8px 0 0'>" +
+      "<a href='#' id='hub-pick-folder' style='font-size:13px;color:#6e5220;font-weight:600'>" +
+      "Upload an entire folder…</a>" +
+      "<span id='hub-upload-note' class='muted' style='font-size:13px'></span></div>" +
+      "<label class='muted' style='display:block;font-size:13px;margin:6px 0 0'>" +
       "<input type='checkbox' id='hub-upload-transcript'> These are deposition/hearing transcripts " +
       "(numbered lines — answers get page:line citations)</label>" +
       "<div id='hub-err' style='color:var(--err);font-size:13px'></div>" +
@@ -408,16 +414,22 @@
 
     var dz = document.getElementById("hub-dropzone");
     var fi = document.getElementById("hub-file-input");
+    var fdi = document.getElementById("hub-folder-input");
     dz.addEventListener("click", function () { fi.click(); });
     fi.addEventListener("change", function () { uploadToDest(fi.files); });
+    fdi.addEventListener("change", function () { uploadToDest(fdi.files); });
+    document.getElementById("hub-pick-folder").addEventListener("click", function (e) {
+      e.preventDefault(); fdi.click();
+    });
     dz.addEventListener("dragover", function (e) {
       // a file drag from the OS, not a row drag
       if (e.dataTransfer.types.indexOf("Files") !== -1) { e.preventDefault(); dz.style.background = "#eef3ff"; }
     });
     dz.addEventListener("dragleave", function () { dz.style.background = ""; });
-    dz.addEventListener("drop", function (e) {
+    dz.addEventListener("drop", async function (e) {
       e.preventDefault(); dz.style.background = "";
-      if (e.dataTransfer.files.length) uploadToDest(e.dataTransfer.files);
+      var files = await filesFromDataTransfer(e.dataTransfer);   // folders traversed
+      if (files.length) uploadToDest(files);
     });
     document.getElementById("new-matter-btn").addEventListener("click", async function () {
       var name = document.getElementById("new-matter-name").value;
@@ -490,21 +502,68 @@
     await fillMatterPickers();
   }
 
+  var UPLOAD_TYPES = [".pdf", ".docx", ".txt", ".md", ".eml"];
+
+  function isSupportedFile(name) {
+    var dot = name.lastIndexOf(".");
+    return dot > 0 && UPLOAD_TYPES.indexOf(name.slice(dot).toLowerCase()) !== -1;
+  }
+
+  // Folder upload (UX-9): a dropped folder is walked recursively via the entries
+  // API; a picked folder (webkitdirectory input) arrives pre-flattened. Entries
+  // must be captured synchronously during the drop event.
+  function filesFromDataTransfer(dt) {
+    var items = Array.prototype.slice.call(dt.items || []);
+    var entries = items.map(function (i) {
+      return i.webkitGetAsEntry ? i.webkitGetAsEntry() : null;
+    }).filter(Boolean);
+    if (!entries.length) return Promise.resolve(Array.prototype.slice.call(dt.files));
+    var out = [];
+    function walk(entry) {
+      return new Promise(function (resolve) {
+        if (entry.isFile) {
+          entry.file(function (f) { out.push(f); resolve(); }, function () { resolve(); });
+        } else if (entry.isDirectory) {
+          var reader = entry.createReader();
+          (function readBatch() {
+            reader.readEntries(function (batch) {
+              if (!batch.length) return resolve();
+              Promise.all(Array.prototype.map.call(batch, walk)).then(readBatch);
+            }, function () { resolve(); });
+          })();
+        } else resolve();
+      });
+    }
+    return Promise.all(entries.map(walk)).then(function () { return out; });
+  }
+
   async function uploadToDest(files) {
     var err = document.getElementById("hub-err");
+    var note = document.getElementById("hub-upload-note");
     if (err) err.textContent = "";
+    if (note) note.textContent = "";
     var dest = (document.getElementById("hub-dest") || {}).value || UNFILED_SLUG;
     if (dest === UNFILED_SLUG) await ensureUnfiled();
     var isTranscript = !!(document.getElementById("hub-upload-transcript") || {}).checked;
+    // Unsupported/hidden files are counted and skipped, never errors — a real
+    // client folder always has strays (.DS_Store, images, spreadsheets) in it.
+    var added = 0, skipped = 0;
     for (var i = 0; i < files.length; i++) {
       var f = files[i];
+      if (f.name.charAt(0) === "." || !isSupportedFile(f.name)) { skipped++; continue; }
       try {
         await fetch("/kb/upload?matter=" + encodeURIComponent(dest) +
                     "&filename=" + encodeURIComponent(f.name) +
                     (isTranscript ? "&doc_type=transcript" : ""), { method: "POST", body: f })
           .then(function (r) { if (!r.ok) return r.json().then(function (d) { throw new Error(d.detail); }); });
+        added++;
       } catch (e) { if (err) err.textContent = friendlyError(e); }
+      if (note && files.length > 3) note.textContent = "Adding " + added + " of " + files.length + "…";
     }
+    if (note) note.textContent = added
+      ? ("Added " + added + " document" + (added === 1 ? "" : "s") +
+         (skipped ? " (" + skipped + " unsupported skipped)" : "") + ".")
+      : (skipped ? "Nothing added — " + skipped + " unsupported file" + (skipped === 1 ? "" : "s") + " skipped." : "");
     refreshHubHome();
   }
 
