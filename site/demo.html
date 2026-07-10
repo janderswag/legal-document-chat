@@ -12,7 +12,7 @@
 <style>
   :root{
     --ink:#1b2433; --navy:#0e2240; --navy-deep:#0a1526; --gold:#b8902f; --gold-deep:#9a7727;
-    --paper:#eef1f5; --card:#fff; --rule:#dfe4ec; --muted:#7c8699;
+    --paper:#eef1f5; --card:#fff; --rule:#dfe4ec; --muted:#7c8699; --ok:#2f7d4c;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;overflow:hidden;background:#fff;font-family:"Newsreader",Georgia,serif}
@@ -32,22 +32,34 @@
     font-size:9.5px;letter-spacing:.12em;color:#e7cd8c;background:rgba(184,144,47,.18);padding:2px 7px;border-radius:20px}
   .pill-local::before{content:"";width:6px;height:6px;border-radius:50%;background:#e7cd8c;box-shadow:0 0 8px #e7cd8c}
   nav{margin-top:14px;display:flex;flex-direction:column;gap:3px}
-  .nav-i{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px;color:#aab4c6;font-size:15.5px}
+  .nav-i{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px;color:#aab4c6;font-size:15.5px;transition:background .3s,color .3s}
   .nav-i svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;opacity:.85}
   .nav-i.active{background:rgba(255,255,255,.08);color:#fff}
-  .side-foot{margin-top:auto;padding:14px 8px 4px;border-top:1px solid rgba(255,255,255,.12)}
+  .side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid rgba(255,255,255,.12)}
+  .upd{display:none;align-items:center;gap:9px;margin:0 -4px 10px;padding:9px 11px;border-radius:9px;
+    background:rgba(184,144,47,.22);color:#f0dda6;font-size:14px;border:1px solid rgba(231,205,140,.35)}
+  .upd svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .upd.show{display:flex;animation:fadein .45s ease}
+  .upd .v{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;color:#e7cd8c;margin-left:auto}
+  .upd.ok{background:rgba(47,125,76,.25);border-color:rgba(124,197,152,.4);color:#cdeeda}
+  .foot-links{display:flex;gap:14px;padding:0 8px 10px;font-size:13.5px;color:#8d97aa}
   .side-foot small{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.16em;color:#8d97aa;text-transform:uppercase}
-  .side-foot div{font-family:"Fraunces",serif;font-style:italic;font-size:15px;color:#cdd5e2;margin-top:3px}
+  .side-foot .am{font-family:"Fraunces",serif;font-style:italic;font-size:15px;color:#cdd5e2;margin-top:3px}
 
-  /* main */
+  /* main + views */
   .main{display:flex;flex-direction:column;min-width:0;position:relative}
+  .view{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .4s ease}
+  .view.on{opacity:1;pointer-events:auto}
   .topbar{display:flex;align-items:center;gap:14px;padding:18px 28px;border-bottom:1px solid var(--rule)}
   .topbar .lab{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
   .matter-sel{flex:1;max-width:560px;display:flex;align-items:center;justify-content:space-between;
     background:#fff;border:1px solid var(--rule);border-radius:11px;padding:11px 16px;font-size:16px;color:var(--ink);box-shadow:0 1px 0 rgba(0,0,0,.02)}
   .matter-sel .chev{color:var(--muted)}
   .newchat{margin-left:auto;border:1px solid var(--rule);background:#fff;border-radius:10px;padding:10px 16px;font-size:15px;color:var(--ink)}
+  .vtitle{font-family:"Fraunces",serif;font-weight:500;font-size:24px;padding:22px 30px 4px}
+  .vsub{color:var(--muted);font-size:14.5px;padding:0 30px 14px}
 
+  /* chat view */
   .chat{flex:1;overflow:hidden;padding:26px 30px 8px;display:flex;flex-direction:column;gap:20px}
   .row{display:flex}
   .row.user{justify-content:flex-end}
@@ -65,7 +77,6 @@
   .dots span{display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:#b7c1d2;animation:b 1s infinite}
   .dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
   @keyframes b{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
-
   .composer{margin:auto 30px 26px;display:flex;align-items:center;gap:0;background:#fff;border:1px solid var(--rule);
     border-radius:14px;padding:6px 6px 6px 20px;box-shadow:0 10px 30px -22px rgba(14,34,64,.4)}
   .field{flex:1;font-size:17px;color:var(--ink);padding:12px 0;min-height:24px}
@@ -76,6 +87,42 @@
   .ask.press{animation:press .25s ease}
   @keyframes press{50%{transform:scale(.95);filter:brightness(.95)}}
 
+  /* hub view */
+  .dropzone{margin:6px 30px 14px;border:2px dashed #cdd6e4;border-radius:14px;background:#fff;
+    padding:26px;display:flex;align-items:center;justify-content:center;gap:14px;color:var(--muted);font-size:15.5px;transition:all .3s}
+  .dropzone.hot{border-color:var(--gold);background:#fdf9ef;color:var(--gold-deep)}
+  .foldercard{display:none;align-items:center;gap:10px;background:var(--navy);color:#fff;border-radius:11px;
+    padding:12px 18px;font-size:15px;box-shadow:0 16px 34px -18px rgba(10,21,38,.65)}
+  .foldercard.fly{display:inline-flex;animation:fly 1.1s cubic-bezier(.2,.7,.3,1) forwards}
+  @keyframes fly{0%{transform:translateY(-130px) scale(.92);opacity:0}35%{opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
+  .foldercard svg{width:18px;height:18px;fill:none;stroke:#e7cd8c;stroke-width:1.7}
+  .hubrows{margin:0 30px;background:#fff;border:1px solid var(--rule);border-radius:14px;overflow:hidden;
+    box-shadow:0 10px 30px -22px rgba(14,34,64,.4)}
+  .hubrow{display:flex;align-items:center;gap:12px;padding:13px 18px;border-top:1px solid var(--rule);font-size:15px;opacity:0}
+  .hubrow:first-child{border-top:0}
+  .hubrow.in{animation:fadein .4s ease forwards}
+  .hubrow svg{width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:1.6;flex:0 0 16px}
+  .hubrow .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .st{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    border-radius:20px;padding:3px 10px;color:#8a6d1d;background:#f6ecd2}
+  .st.ok{color:var(--ok);background:#e2f0e6}
+
+  /* connectors view */
+  .connlist{margin:6px 30px;background:#fff;border:1px solid var(--rule);border-radius:14px;overflow:hidden;
+    box-shadow:0 10px 30px -22px rgba(14,34,64,.4)}
+  .connrow{display:flex;align-items:center;gap:14px;padding:15px 18px;border-top:1px solid var(--rule)}
+  .connrow:first-child{border-top:0}
+  .connrow img{width:26px;height:26px;object-fit:contain}
+  .connrow .cn{font-size:16px;font-weight:500}
+  .connrow .cd{color:var(--muted);font-size:13px}
+  .connrow .ct{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
+  .cbtn{border:1px solid var(--rule);background:#fff;border-radius:9px;padding:8px 16px;font-size:14px;color:var(--ink)}
+  .cbtn.gold{background:var(--gold);border-color:transparent;color:#2a2106}
+  .keyline{display:none;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);
+    background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:8px 12px;margin-top:8px}
+  .connmsg{font-size:13.5px;color:var(--ok)}
+  .connmsg.dim{color:var(--muted)}
+
   .reveal-w{opacity:0;animation:fadein .45s ease forwards}
   @keyframes fadein{to{opacity:1}}
   .fade-out{animation:fo .5s ease forwards}
@@ -85,7 +132,7 @@
 <body>
 <div id="stagewrap">
   <div class="stage" id="stage">
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR (current app IA: Chat / Chat History / Document Hub / Review & Compare / Settings) -->
     <aside class="side">
       <div class="brand">
         <div class="logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h7l4 4v8a2 2 0 0 1-2 2h-6l-4 4v-4H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M9.5 9h6M9.5 12h4"/></svg></div>
@@ -95,33 +142,76 @@
         </div>
       </div>
       <nav>
-        <div class="nav-i active"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 3z"/></svg>New Chat</div>
-        <div class="nav-i"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>Matters</div>
-        <div class="nav-i"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>Document Hub</div>
-        <div class="nav-i"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 12l2 2 4-4"/></svg>Contract Review</div>
-        <div class="nav-i"><svg viewBox="0 0 24 24"><path d="M4 5h7v14H4zM13 5h7v14h-7z"/></svg>Compare Documents</div>
+        <div class="nav-i active" id="nav-chat"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 3z"/></svg>Chat</div>
         <div class="nav-i"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Chat History</div>
-        <div class="nav-i"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Settings</div>
+        <div class="nav-i" id="nav-hub"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>Document Hub</div>
+        <div class="nav-i"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 12l2 2 4-4"/></svg>Review &amp; Compare</div>
+        <div class="nav-i" id="nav-set"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Settings</div>
       </nav>
       <div class="side-foot">
+        <div class="upd" id="upd"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg><span id="updtext">Update available</span><span class="v" id="updver">v0.3.0</span></div>
+        <div class="foot-links"><span>Billing</span><span>Referrals</span></div>
         <small>Active matter</small>
-        <div>Pemberton MSA</div>
+        <div class="am">Pemberton MSA</div>
       </div>
     </aside>
 
-    <!-- MAIN -->
+    <!-- MAIN: three views -->
     <div class="main">
-      <div class="topbar">
-        <span class="lab">Matter</span>
-        <div class="matter-sel"><span>Pemberton MSA (3 docs)</span><span class="chev">▾</span></div>
-        <button class="newchat">+ New chat</button>
+      <div class="view on" id="view-chat">
+        <div class="topbar">
+          <span class="lab">Matter</span>
+          <div class="matter-sel"><span>Pemberton MSA (3 docs)</span><span class="chev">▾</span></div>
+          <button class="newchat">+ New chat</button>
+        </div>
+        <div class="chat" id="chat"></div>
+        <div class="composer">
+          <div class="field" id="field"><span class="ph" id="ph">Ask a question about this matter…</span><span class="caret" id="caret" style="display:none"></span></div>
+          <button class="ask" id="ask">Ask&nbsp;→</button>
+        </div>
       </div>
 
-      <div class="chat" id="chat"></div>
+      <div class="view" id="view-hub">
+        <div class="vtitle">Document Hub</div>
+        <div class="vsub">Drop a whole folder. Everything inside files itself into the matter.</div>
+        <div class="dropzone" id="dz">
+          <span id="dzhint">Drag &amp; drop files or an entire folder</span>
+          <span class="foldercard" id="fcard"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg>Pemberton Case Files — 24 items</span>
+        </div>
+        <div class="hubrows" id="hubrows"></div>
+      </div>
 
-      <div class="composer">
-        <div class="field" id="field"><span class="ph" id="ph">Ask a question about this matter…</span><span class="caret" id="caret" style="display:none"></span></div>
-        <button class="ask" id="ask">Ask&nbsp;→</button>
+      <div class="view" id="view-conn">
+        <div class="vtitle">Connectors</div>
+        <div class="vsub">Paste a key from the service. Your documents flow in. Nothing flows out.</div>
+        <div class="connlist">
+          <div class="connrow">
+            <img src="assets/logos/gmail.svg" alt="">
+            <div class="ct"><span class="cn">Gmail</span><span class="cd" id="gm-cd">Mail and attachments by label</span>
+              <span class="keyline" id="gm-key"></span></div>
+            <span class="connmsg dim" id="gm-msg"></span>
+            <button class="cbtn gold" id="gm-btn">Connect</button>
+          </div>
+          <div class="connrow">
+            <img src="assets/logos/fathom.svg" alt="">
+            <div class="ct"><span class="cn">Fathom</span><span class="cd">Call transcripts and meeting summaries</span></div>
+            <span class="connmsg" id="fa-msg">Connected · 8 transcripts imported</span>
+            <button class="cbtn">Manage</button>
+          </div>
+          <div class="connrow">
+            <img src="assets/logos/notion.svg" alt="">
+            <div class="ct"><span class="cn">Notion</span><span class="cd">Pages and databases as documents</span></div>
+            <span class="connmsg dim"></span>
+            <button class="cbtn">Connect</button>
+          </div>
+          <div class="connrow">
+            <img src="assets/logos/zoom.svg" alt="">
+            <div class="ct"><span class="cn">Zoom</span><span class="cd">Cloud-recording transcripts</span></div>
+            <span class="connmsg dim"></span>
+            <button class="cbtn">Connect</button>
+          </div>
+        </div>
+        <div class="vsub" style="padding-top:14px">…and 24 more: Fireflies, Granola, Slack, Airtable, Confluence, HubSpot, Nextcloud, Webex, and the rest.</div>
       </div>
     </div>
   </div>

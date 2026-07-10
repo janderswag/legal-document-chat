@@ -36,7 +36,9 @@
     <table>
       <tr><th>When</th><th>What</th><th>Contains</th></tr>
       <tr><td>Setup, once, user-initiated</td><td>Model download through your local Ollama from the Ollama registry</td><td>No user data. The download is verified against pinned checksums.</td></tr>
-      <tr><td>At most once a day, optional</td><td>Update check: one GET to the GitHub releases API for the latest version number</td><td>No user data, no document data, no machine identifiers. Turn it off in Settings and docuchat makes zero outside calls. Updates are never downloaded or installed automatically.</td></tr>
+      <tr><td>At most once a day, optional</td><td>Update check: one GET to the GitHub releases API for the latest version number</td><td>No user data, no document data, no machine identifiers. Turn it off in Settings and docuchat makes no calls you did not click for. Updates are never downloaded or installed without your click.</td></tr>
+      <tr><td>Only when you click Update</td><td>Downloads the new signed app from the GitHub release</td><td>No user data. The download's code signature is verified against docuchat's developer identity before a single file is replaced; a failed check changes nothing.</td></tr>
+      <tr><td>Only for connections you create</td><td>Connectors you switch on (for example Gmail, Notion, Zoom, Fathom) call that service's API to pull YOUR documents IN when you connect, click Import, or leave sync on</td><td>Your API key travels only to the service it belongs to, and is stored encrypted on this Mac (deleted when you disconnect). Documents flow one way: in. Nothing about your questions, answers, or files goes out. No connections created = no calls, ever.</td></tr>
       <tr><td>Everything else</td><td>Nothing</td><td>The question-answering path, document storage, search, and OCR make no network calls. All services bind to 127.0.0.1 (this computer only). There is no telemetry, no crash reporting, and no account.</td></tr>
     </table>
     <p>Verify it yourself: after setup, turn networking off entirely (airplane mode or pull the

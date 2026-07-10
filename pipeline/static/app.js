@@ -410,7 +410,7 @@
       "<select id='hub-dest' style='max-width:280px'></select></div>" +
       "<div id='hub-dropzone' style='border:2px dashed var(--border);border-radius:12px;text-align:center;padding:28px;cursor:pointer'>" +
       "Drag &amp; drop files or a whole folder here, or click to choose. " +
-      "<span class='muted'>(.pdf .docx .txt .md .eml)</span>" +
+      "<span class='muted'>(.pdf .docx .txt .md .eml .html .vtt .srt .csv .json)</span>" +
       "<input type='file' id='hub-file-input' multiple style='display:none'>" +
       "<input type='file' id='hub-folder-input' webkitdirectory style='display:none'></div>" +
       "<div style='display:flex;align-items:center;gap:14px;margin:8px 0 0'>" +
@@ -736,7 +736,7 @@
         "<button class='btn secondary' id='matter-dispose'>dispose</button>" +
         "</div>" +
         "<div id='matter-dropzone' class='panel' style='border:2px dashed var(--border);text-align:center;padding:28px;cursor:pointer'>" +
-        "Drag &amp; drop files here, or click to choose. <span class='muted'>(.pdf .docx .txt .md .eml)</span>" +
+        "Drag &amp; drop files here, or click to choose. <span class='muted'>(.pdf .docx .txt .md .eml .html .vtt .srt .csv .json)</span>" +
         "<input type='file' id='matter-file-input' multiple style='display:none'></div>" +
         "<label class='muted' style='display:block;font-size:13px;margin:2px 0 8px'>" +
         "<input type='checkbox' id='upload-transcript'> These are deposition/hearing transcripts " +
@@ -1530,13 +1530,19 @@
     ]},
   ];
 
-  // Logos are bundled local files (air-gap — no runtime fetch): <slug>.svg with a
-  // .png sibling fallback; the letter tile survives only as a safety net.
+  // Logos are bundled local files (air-gap — no runtime fetch). Every catalog
+  // brand ships a real mark (D-81: no letter tiles); _PNG_LOGOS lists the ones
+  // whose official asset is a PNG. The tile remains only as a safety net.
+  var _PNG_LOGOS = {actionstep:1, avoma:1, circleback:1, clio:1, fireflies:1,
+    grain:1, happyscribe:1, jiminny:1, lawmatics:1, litify:1, meetgeek:1,
+    monday:1, mycase:1, pipedrive:1, readai:1, rev:1, revai:1, sharefile:1,
+    trint:1};
+
   function connectorLogo(name, slug) {
-    return "<img class='conn-logo' src='/static/logos/" + slug + ".svg' alt='' " +
-      "onerror=\"if(!this.dataset.png){this.dataset.png=1;this.src='/static/logos/" +
-      slug + ".png'}else{this.outerHTML='<span class=conn-tile>" + esc(name[0]) +
-      "</span>'}\">";
+    var ext = _PNG_LOGOS[slug] ? ".png" : ".svg";
+    return "<img class='conn-logo' src='/static/logos/" + slug + ext + "' alt='' " +
+      "onerror=\"this.outerHTML='<span class=conn-tile>" + esc(name[0]) +
+      "</span>'\">";
   }
 
   // Live-connection state for the pane: services metadata (key steps, credential

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600">
+  <defs>
+    <filter id="a" width="1.052" height="1.053" x="-.026" y="-.026" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="5.757"/>
+    </filter>
+  </defs>
+  <ellipse cx="300" cy="310.25" fill-opacity=".165" filter="url(#a)" rx="264" ry="262.3"/>
+  <circle cx="300" cy="300" r="263" fill="#fff"/>
+  <rect width="166" height="166" x="69.43" y="-593.16" fill="#64c8d6" ry="0" transform="matrix(-.84121 .5407 -.84121 -.5407 0 0)"/>
+  <rect width="166" height="166" x="-36.9" y="-486.42" ry="0" transform="matrix(-.84121 .5407 -.84121 -.5407 0 0)"/>
+</svg>
