@@ -1,8 +1,18 @@
 /* SAM-style local UI — vanilla JS, no framework, no CDN. Client-side view router +
-   per-view data fetches. Extended task-by-task (matters/hub/chat/history/settings). */
+   per-view data fetches.
+
+   UX-2 information architecture: five destinations — Matters (the case file: its
+   documents, uploads, chats, and tools live INSIDE a matter), Chat (with past
+   conversations in a rail), Search, Review & Compare (contract checklist + document
+   comparison as tabs, with an explicit document picker), Settings.
+
+   UX-3 state rule: views are built ONCE and then shown/hidden — switching views never
+   rebuilds a view's DOM, so an in-progress chat, a finished contract review, or a
+   streaming comparison grid survives navigation. Refresh functions update data
+   (pickers, tables, rails) without ever touching result containers. */
 (function () {
   "use strict";
-  var VIEWS = ["chat", "search", "matters", "hub", "clauses", "grid", "history", "settings"];
+  var VIEWS = ["matters", "chat", "search", "review", "settings"];
   // The active matter persists across launches (P1.4) — localStorage holds the slug
   // only (never document content); it is re-validated against /matters on every load.
   var MATTER_KEY = "docuchat.activeMatter";
@@ -28,6 +38,25 @@
   }
   window.api = api;
 
+  function parseSseBlock(block) {
+    var ev = null, data = null;
+    block.split("\n").forEach(function (line) {
+      if (line.indexOf("event:") === 0) ev = line.slice(6).trim();
+      else if (line.indexOf("data:") === 0) { try { data = JSON.parse(line.slice(5).trim()); } catch (e) {} }
+    });
+    return ev ? { event: ev, data: data } : null;
+  }
+
+  // Build-once guard (UX-3): the first call builds the view's skeleton; later calls
+  // are no-ops so results already rendered in the view are never destroyed.
+  function ensureBuilt(name, buildFn) {
+    var inner = document.querySelector("#view-" + name + " .view-inner");
+    if (!inner || inner.dataset.built) return false;
+    inner.dataset.built = "1";
+    buildFn(inner);
+    return true;
+  }
+
   function setActiveMatter(slug, label) {
     state.matter = slug || null;
     try {
@@ -43,8 +72,8 @@
   }
   window.setActiveMatter = setActiveMatter;
 
-  // A shared <select> matter picker (reused by Chat + Document Hub). Also enforces the
-  // P1.4 default: a stale stored matter is dropped, and when none is active the first
+  // A shared <select> matter picker (reused across views). Also enforces the P1.4
+  // default: a stale stored matter is dropped, and when none is active the first
   // matter (preferring the seeded sample) becomes active — so the app never presents a
   // "no matter selected" dead-end while matters exist.
   async function fillMatterPickers() {
@@ -72,51 +101,87 @@
   }
   window.fillMatterPickers = fillMatterPickers;
 
-  // --- Matters view ----------------------------------------------------------
-  async function renderMatters() {
-    var inner = document.querySelector("#view-matters .view-inner");
-    inner.innerHTML =
-      "<h1>Matters</h1><p class='muted'>Each matter is the scope for search — answers never cross matters.</p>" +
+  // Active-matter change dispatcher: refresh matter-scoped surfaces that are already
+  // built. Never calls fillMatterPickers (which calls setActiveMatter -> here).
+  window.onMatterChange = function () {
+    if (document.getElementById("chat-guide")) renderChatGuide();
+    if (document.getElementById("grid-docs")) refreshGridDocs();
+  };
+
+  // --- Matters view (the case file: list + detail) ----------------------------
+  // A matter holds its documents (upload lives HERE), its conversations, and its
+  // tools. The old global "Document Hub" is absorbed: documents always belong to a
+  // matter, the way a filing belongs to a case file.
+  var mattersState = { open: null, builtFor: null, timer: null };
+
+  function buildMatters(inner) {
+    inner.innerHTML = "<div id='matters-list'></div>" +
+      "<div id='matter-detail' style='display:none'></div>";
+  }
+
+  function refreshMattersView() {
+    var list = document.getElementById("matters-list");
+    var detail = document.getElementById("matter-detail");
+    if (!list || !detail) return;
+    var open = !!mattersState.open;
+    list.style.display = open ? "none" : "";
+    detail.style.display = open ? "" : "none";
+    if (open) showMatterDetail(mattersState.open);
+    else renderMattersList();
+  }
+
+  async function renderMattersList() {
+    var list = document.getElementById("matters-list");
+    list.innerHTML =
+      "<h1>Matters</h1><p class='muted'>A matter is the case file: its documents, chats, and reviews " +
+      "live inside it. Answers never cross matters.</p>" +
       "<div class='panel'><div style='display:flex;gap:8px'>" +
       "<input id='new-matter-name' type='text' placeholder='New matter name (e.g. Pemberton Logistics)'>" +
       "<button class='btn' id='new-matter-btn'>Create</button></div>" +
       "<div id='new-matter-err' style='color:var(--err);font-size:13px;margin-top:8px'></div></div>" +
-      "<div class='panel'><table><thead><tr><th>Matter</th><th>Slug</th><th>Docs</th><th>Retention</th></tr></thead>" +
+      "<div class='panel'><table><thead><tr><th>Matter</th><th>Docs</th><th>Retention</th></tr></thead>" +
       "<tbody id='matters-rows'></tbody></table></div>";
 
     var matters = [];
     try { var d = await api("/matters"); matters = (d && d.matters) || []; }
     catch (e) { matters = []; }
+    state.matters = matters;
     document.getElementById("matters-rows").innerHTML = matters.length
       ? matters.map(function (m) {
-          return "<tr><td><b>" + esc(m.display_name) + "</b></td><td class='muted'>" +
-            esc(m.slug) + "</td><td>" + m.doc_count + "</td><td>" +
+          return "<tr><td><a href='#' class='matter-open' data-open='" + esc(m.slug) + "'><b>" +
+            esc(m.display_name) + "</b></a>" +
+            (m.sample ? " <span class='muted'>(sample)</span>" : "") + "</td><td>" +
+            m.doc_count + "</td><td>" +
             "<button class='btn secondary' data-hold='" + esc(m.slug) + "'>hold</button> " +
             "<button class='btn secondary' data-export='" + esc(m.slug) + "'>export</button> " +
             "<button class='btn secondary' data-dispose='" + esc(m.slug) + "'>dispose</button>" +
             "</td></tr>";
         }).join("")
-      : "<tr><td colspan='4' class='muted'>No matters yet — create one above.</td></tr>";
+      : "<tr><td colspan='3' class='muted'>No matters yet — create one above.</td></tr>";
+
+    list.querySelectorAll(".matter-open").forEach(function (a) {
+      a.addEventListener("click", function (e) { e.preventDefault(); openMatter(a.dataset.open); });
+    });
 
     // Retention actions (Move 4, D-72): hold toggles (with reasons), export downloads
     // the complete matter file, dispose double-confirms and downloads the honest
     // Certificate of Disposition. Holds block dispose and document deletes (409s).
-    inner.querySelectorAll("[data-hold]").forEach(function (b) {
+    list.querySelectorAll("[data-hold]").forEach(function (b) {
       b.onclick = async function () {
         var st = await api("/retention/" + b.dataset.hold + "/status");
         if (st.hold) {
           var why = prompt("Active hold: " + st.hold.reason + "\nRelease reason (cancel to keep the hold):");
-          if (why) { await api("/retention/" + b.dataset.hold + "/release", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: why }) }); renderMatters(); }
+          if (why) { await api("/retention/" + b.dataset.hold + "/release", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: why }) }); renderMattersList(); }
         } else {
           var reason = prompt("Place a legal hold. Reason:");
-          if (reason) { await api("/retention/" + b.dataset.hold + "/hold", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: reason }) }); renderMatters(); }
+          if (reason) { await api("/retention/" + b.dataset.hold + "/hold", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: reason }) }); renderMattersList(); }
         }
       };
     });
-    inner.querySelectorAll("[data-export]").forEach(function (b) {
+    list.querySelectorAll("[data-export]").forEach(function (b) {
       b.onclick = function () { window.open("/retention/" + b.dataset.export + "/export", "_blank"); };
     });
-    inner.querySelectorAll("[data-dispose]").forEach(function (b) {
+    list.querySelectorAll("[data-dispose]").forEach(function (b) {
       b.onclick = async function () {
         var slug = b.dataset.dispose;
         if (!confirm("Dispose of this matter? Export the complete file FIRST if you have not. " +
@@ -132,7 +197,7 @@
           URL.revokeObjectURL(url);
           alert("Disposed. Certificate downloaded. Method: " + cert.method);
         } catch (e) { alert(e.message); }
-        renderMatters(); fillMatterPickers();
+        renderMattersList(); fillMatterPickers();
       };
     });
 
@@ -141,23 +206,86 @@
       var err = document.getElementById("new-matter-err");
       err.textContent = "";
       try {
-        await api("/matters", {
+        var m = await api("/matters", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ display_name: name }),
         });
-        await renderMatters();
         await fillMatterPickers();
+        openMatter(m.slug);   // straight into the new case file — upload is right there
       } catch (e) { err.textContent = e.message; }
     });
   }
-  window.viewHooks.matters = renderMatters;
 
-  // --- Document Hub view -----------------------------------------------------
-  var hubTimer = null;
+  function openMatter(slug) {
+    mattersState.open = slug;
+    var m = null;
+    state.matters.forEach(function (x) { if (x.slug === slug) m = x; });
+    setActiveMatter(slug, m ? m.display_name : slug);
+    showView("matters");   // the hook renders the detail
+  }
+  window.openMatter = openMatter;
+
+  function closeMatter() {
+    mattersState.open = null;
+    mattersState.builtFor = null;
+    refreshMattersView();
+  }
+
+  function showMatterDetail(slug) {
+    var detail = document.getElementById("matter-detail");
+    if (mattersState.builtFor !== slug) {
+      mattersState.builtFor = slug;
+      var m = null;
+      state.matters.forEach(function (x) { if (x.slug === slug) m = x; });
+      var name = m ? m.display_name : slug;
+      detail.innerHTML =
+        "<a href='#' class='back-link' id='matter-back'>&larr; All matters</a>" +
+        "<h1>" + esc(name) + "</h1>" +
+        "<div class='tool-row'>" +
+        "<button class='btn' data-tool='chat'>Ask about this matter</button>" +
+        "<button class='btn secondary' data-tool='clauses'>Contract review</button>" +
+        "<button class='btn secondary' data-tool='grid'>Compare documents</button>" +
+        "</div>" +
+        "<div id='matter-dropzone' class='panel' style='border:2px dashed var(--border);text-align:center;padding:28px;cursor:pointer'>" +
+        "Drag &amp; drop files here, or click to choose. <span class='muted'>(.pdf .docx .txt .md)</span>" +
+        "<input type='file' id='matter-file-input' multiple style='display:none'></div>" +
+        "<label class='muted' style='display:block;font-size:13px;margin:2px 0 8px'>" +
+        "<input type='checkbox' id='upload-transcript'> These are deposition/hearing transcripts " +
+        "(numbered lines — answers get page:line citations)</label>" +
+        "<div id='matter-upload-err' style='color:var(--err);font-size:13px'></div>" +
+        "<div id='matter-ingest-status' class='muted' style='font-size:13px'></div>" +
+        "<div class='panel'><table><thead><tr><th>Document</th><th>Size</th>" +
+        "<th>Status</th><th>Updated</th><th></th></tr></thead><tbody id='matter-doc-rows'></tbody></table></div>" +
+        "<div class='panel'><b>Conversations in this matter</b><div id='matter-threads' style='margin-top:8px'></div></div>" +
+        "<div id='matter-digest'></div>";
+
+      document.getElementById("matter-back").addEventListener("click", function (e) {
+        e.preventDefault(); closeMatter();
+      });
+      detail.querySelectorAll("[data-tool]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          if (b.dataset.tool === "chat") showView("chat");
+          else openReviewTab(b.dataset.tool);
+        });
+      });
+      var dz = document.getElementById("matter-dropzone");
+      var fi = document.getElementById("matter-file-input");
+      dz.addEventListener("click", function () { fi.click(); });
+      fi.addEventListener("change", function () { uploadFiles(fi.files); });
+      dz.addEventListener("dragover", function (e) { e.preventDefault(); dz.style.background = "#eef3ff"; });
+      dz.addEventListener("dragleave", function () { dz.style.background = ""; });
+      dz.addEventListener("drop", function (e) {
+        e.preventDefault(); dz.style.background = "";
+        uploadFiles(e.dataTransfer.files);
+      });
+    }
+    refreshMatterDocs();
+    refreshMatterThreads();
+  }
 
   // Ingest progress line (Move 0c): queue depth + in-flight stage, from the worker.
   async function refreshIngestStatus() {
-    var el = document.getElementById("hub-ingest-status");
+    var el = document.getElementById("matter-ingest-status");
     if (!el) return;
     try {
       var s = await api("/kb/ingest/status");
@@ -171,29 +299,25 @@
     } catch (e) { el.textContent = ""; }
   }
 
-  async function refreshHubTable() {
+  async function refreshMatterDocs() {
     refreshIngestStatus();
-    var tbody = document.getElementById("hub-rows");
-    if (!tbody) return;
-    if (!state.matter) {
-      tbody.innerHTML = "<tr><td colspan='6' class='muted'>Create a matter first (Matters view) — its documents will appear here.</td></tr>";
-      return;
-    }
+    var tbody = document.getElementById("matter-doc-rows");
+    if (!tbody || !mattersState.open) return;
     var docs = [];
-    try { docs = (await api("/kb/documents?matter=" + encodeURIComponent(state.matter))).documents || []; }
+    try { docs = (await api("/kb/documents?matter=" + encodeURIComponent(mattersState.open))).documents || []; }
     catch (e) { docs = []; }
     tbody.innerHTML = docs.length ? docs.map(function (d) {
       var size = d.size_bytes != null ? Math.max(1, Math.round(d.size_bytes / 1024)) + " KB" : "—";
       var digestBtn = (d.doc_type === "transcript" && d.status === "ready")
         ? "<button class='btn secondary' data-digest-doc='" + d.id + "'>digest</button> " : "";
       var kind = d.doc_type === "transcript" ? " <span class='muted'>(transcript)</span>" : "";
-      return "<tr><td>" + esc(d.filename) + kind + "</td><td class='muted'>" + esc(d.matter_slug) +
-        "</td><td>" + size + "</td><td><span class='status " + esc(d.status) + "'>" +
+      return "<tr><td>" + esc(d.filename) + kind + "</td><td>" + size +
+        "</td><td><span class='status " + esc(d.status) + "'>" +
         esc(d.status) + "</span></td><td class='muted'>" + esc((d.updated || "").replace("T", " ")) +
         "</td><td><button class='btn secondary' data-view-doc='" + d.id + "'>view</button> " +
         digestBtn +
         "<button class='btn secondary' data-del-doc='" + d.id + "'>delete</button></td></tr>";
-    }).join("") : "<tr><td colspan='6' class='muted'>No documents yet — drop files above.</td></tr>";
+    }).join("") : "<tr><td colspan='5' class='muted'>No documents yet — drop files above.</td></tr>";
 
     tbody.querySelectorAll("[data-view-doc]").forEach(function (b) {
       b.onclick = function () { window.open("/kb/source/" + b.dataset.viewDoc, "_blank"); };
@@ -202,7 +326,7 @@
       b.onclick = async function () {
         if (!confirm("Remove this document from the knowledge base?")) return;
         await api("/kb/documents/" + b.dataset.delDoc, { method: "DELETE" });
-        refreshHubTable();
+        refreshMatterDocs();
       };
     });
     tbody.querySelectorAll("[data-digest-doc]").forEach(function (b) {
@@ -210,10 +334,27 @@
     });
   }
 
+  async function refreshMatterThreads() {
+    var box = document.getElementById("matter-threads");
+    if (!box || !mattersState.open) return;
+    var threads = [];
+    try { threads = (await api("/chat/threads")).threads || []; } catch (e) { threads = []; }
+    threads = threads.filter(function (t) { return t.matter_slug === mattersState.open; });
+    box.innerHTML = threads.length
+      ? threads.slice(0, 12).map(function (t) {
+          return "<a href='#' class='matter-thread' data-thread='" + t.id + "'>" + esc(t.title) +
+            " <span class='muted'>" + esc((t.updated || "").replace("T", " ")) + "</span></a>";
+        }).join("")
+      : "<span class='muted'>No conversations yet. Use “Ask about this matter” above.</span>";
+    box.querySelectorAll(".matter-thread").forEach(function (a) {
+      a.addEventListener("click", function (e) { e.preventDefault(); openThread(a.dataset.thread); });
+    });
+  }
+
   // Deposition digest (Move 2d): every bullet shown was mechanically verified against
   // the transcript; unverified bullets are counted and dropped, never displayed.
   async function runDigest(docId) {
-    var out = document.getElementById("hub-digest");
+    var out = document.getElementById("matter-digest");
     if (!out) return;
     out.innerHTML = "<div class='panel'><b>Deposition digest</b> <span class='muted' id='digest-status'>starting…</span><div id='digest-body'></div></div>";
     var status = document.getElementById("digest-status");
@@ -265,74 +406,41 @@
       };
     } catch (e) { bodyEl.innerHTML = "<span style='color:var(--err)'>" + esc(e.message) + "</span>"; }
   }
-  window.onMatterChange = function () { refreshHubTable(); };
 
   async function uploadFiles(files) {
-    var err = document.getElementById("hub-err");
+    var err = document.getElementById("matter-upload-err");
     if (err) err.textContent = "";
-    if (!state.matter) { if (err) err.textContent = "Create a matter first (Matters view), then upload."; return; }
+    var slug = mattersState.open || state.matter;
+    if (!slug) { if (err) err.textContent = "Open a matter first, then upload."; return; }
     var isTranscript = !!(document.getElementById("upload-transcript") || {}).checked;
     for (var i = 0; i < files.length; i++) {
       var f = files[i];
       try {
-        await fetch("/kb/upload?matter=" + encodeURIComponent(state.matter) +
+        await fetch("/kb/upload?matter=" + encodeURIComponent(slug) +
                     "&filename=" + encodeURIComponent(f.name) +
                     (isTranscript ? "&doc_type=transcript" : ""), { method: "POST", body: f })
           .then(function (r) { if (!r.ok) return r.json().then(function (d) { throw new Error(d.detail); }); });
       } catch (e) { if (err) err.textContent = e.message; }
     }
-    refreshHubTable();
+    refreshMatterDocs();
   }
 
-  function renderHub() {
-    var inner = document.querySelector("#view-hub .view-inner");
-    inner.innerHTML =
-      "<h1>Document Hub</h1><p class='muted'>Upload synthetic documents for the active matter. Parsing → Ready.</p>" +
-      "<div class='panel'><label class='muted'>Matter:</label> " +
-      "<select class='matter-picker' id='hub-matter' style='max-width:340px;display:inline-block'></select></div>" +
-      "<div id='dropzone' class='panel' style='border:2px dashed var(--border);text-align:center;padding:28px;cursor:pointer'>" +
-      "Drag &amp; drop files here, or click to choose. <span class='muted'>(.pdf .docx .txt .md)</span>" +
-      "<input type='file' id='file-input' multiple style='display:none'></div>" +
-      "<label class='muted' style='display:block;font-size:13px;margin:2px 0 8px'>" +
-      "<input type='checkbox' id='upload-transcript'> These are deposition/hearing transcripts " +
-      "(numbered lines — answers get page:line citations)</label>" +
-      "<div id='hub-err' style='color:var(--err);font-size:13px'></div>" +
-      "<div id='hub-ingest-status' class='muted' style='font-size:13px'></div>" +
-      "<div class='panel'><table><thead><tr><th>Name</th><th>Matter</th><th>Size</th>" +
-      "<th>Status</th><th>Updated</th><th></th></tr></thead><tbody id='hub-rows'></tbody></table></div>" +
-      "<div id='hub-digest'></div>";
-
-    fillMatterPickers().catch(function () {});
-    document.getElementById("hub-matter").addEventListener("change", function (e) {
-      var opt = e.target.selectedOptions[0];
-      setActiveMatter(e.target.value, opt ? opt.textContent : null);
-    });
-
-    var dz = document.getElementById("dropzone");
-    var fi = document.getElementById("file-input");
-    dz.addEventListener("click", function () { fi.click(); });
-    fi.addEventListener("change", function () { uploadFiles(fi.files); });
-    dz.addEventListener("dragover", function (e) { e.preventDefault(); dz.style.background = "#eef3ff"; });
-    dz.addEventListener("dragleave", function () { dz.style.background = ""; });
-    dz.addEventListener("drop", function (e) {
-      e.preventDefault(); dz.style.background = "";
-      uploadFiles(e.dataTransfer.files);
-    });
-
-    refreshHubTable();
-    if (hubTimer) clearInterval(hubTimer);
-    hubTimer = setInterval(function () {
-      if (document.getElementById("view-hub").classList.contains("active")) refreshHubTable();
-      else { clearInterval(hubTimer); hubTimer = null; }
+  function mattersHook() {
+    ensureBuilt("matters", buildMatters);
+    refreshMattersView();
+    if (mattersState.timer) clearInterval(mattersState.timer);
+    mattersState.timer = setInterval(function () {
+      var active = document.getElementById("view-matters").classList.contains("active");
+      if (active && mattersState.open) refreshMatterDocs();
+      else if (!active) { clearInterval(mattersState.timer); mattersState.timer = null; }
     }, 2000);
   }
-  window.viewHooks.hub = renderHub;
+  window.viewHooks.matters = mattersHook;
 
-  // --- Chat view -------------------------------------------------------------
-  // renderAnswerHtml(body) -> HTML string for an assistant turn. Basic here; Task 6
-  // upgrades it to markdown + inline source chips. Always escapes model text first.
-  // Per verified citation, a card showing the cited PAGE with the exact span highlighted
-  // (Task 5). The image is /kb/highlight/<doc_id>?page=&span= — chunk-derived page+span,
+  // --- Chat view ---------------------------------------------------------------
+  // renderAnswerHtml(body) -> HTML string for an assistant turn. Always escapes model
+  // text first. Per verified citation, a card showing the cited PAGE with the exact
+  // span highlighted — /kb/highlight/<doc_id>?page=&span= is chunk-derived page+span,
   // never model-asserted. Non-PDF docs 404 -> the <img> hides itself (onerror).
   function citationThumb(c) {
     if (c.doc_id == null) return "";
@@ -447,9 +555,6 @@
     return "<div class='answer'>" + md(shown) + "</div>";
   }
 
-  // Default answer path = SSE streaming (/chat/stream): retrieved sources render first,
-  // tokens stream over them, and the 'done' event (verifier ran on the COMPLETE text)
-  // replaces everything with the standard verified-citation render.
   // First-run guidance under the greeting (P1.4): a 3-step path when no matters exist,
   // an "add documents" nudge for an empty matter, and one-click suggested questions for
   // the seeded sample matter. Never a bare dead-end.
@@ -461,15 +566,16 @@
     if (!state.matters.length) {
       box.innerHTML =
         "<div class='panel guide'><b>Get to your first cited answer</b><ol>" +
-        "<li><a href='#' data-goto='matters'>Create a matter</a> (the private scope for a client or case)</li>" +
-        "<li><a href='#' data-goto='hub'>Add a document</a> and wait for it to show Ready</li>" +
-        "<li>Come back here and ask a question about it</li></ol>" +
-        "<p class='muted'>A sample matter with demo documents is being prepared in the " +
+        "<li><a href='#' data-goto='matters'>Create a matter</a> (the private case file for a client or case)</li>" +
+        "<li>Drop its documents into the matter and wait for Ready</li>" +
+        "<li>Come back here and ask a question about them</li></ol>" +
+        "<p class='muted'>A sample matter with synthetic documents is being prepared in the " +
         "background and will appear here when ready.</p></div>";
     } else if (active && active.doc_count === 0) {
       box.innerHTML =
         "<div class='panel guide'><b>" + esc(active.display_name) + "</b> has no documents yet. " +
-        "<a href='#' data-goto='hub'>Add a document</a>, wait for Ready, then ask.</div>";
+        "<a href='#' data-goto='matters' data-open-matter='" + esc(active.slug) + "'>Add documents</a>, " +
+        "wait for Ready, then ask.</div>";
     } else if (active && active.sample && (active.suggested_questions || []).length) {
       box.innerHTML =
         "<div class='guide-chips'><span class='muted'>Try a question against the sample documents:</span> " +
@@ -480,7 +586,11 @@
       box.innerHTML = "";
     }
     box.querySelectorAll("[data-goto]").forEach(function (a) {
-      a.addEventListener("click", function (e) { e.preventDefault(); showView(a.dataset.goto); });
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (a.dataset.openMatter) openMatter(a.dataset.openMatter);
+        else showView(a.dataset.goto);
+      });
     });
     box.querySelectorAll(".guide-q").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -502,7 +612,7 @@
     }
     input.value = "";
     appendMsg("user", esc(q));
-    appendMsg("assistant", "<i class='muted'>Searching " + esc(state.matter) + " …</i>");
+    appendMsg("assistant", "<i class='muted'>Working…</i>");
     var box = document.getElementById("chat-messages");
     var pending = box.lastChild;
     var sourcesHtml = "", streamed = "";
@@ -555,41 +665,95 @@
         pending.innerHTML = window.renderAnswerHtml(done);
       }
       box.scrollTop = box.scrollHeight;
+      refreshThreadRail();
     } catch (e) { pending.innerHTML = "<span style='color:var(--err)'>" + esc(e.message) + "</span>"; }
   }
   window.sendChat = sendChat;
 
-  function renderChat() {
-    var inner = document.querySelector("#view-chat .view-inner");
+  // Past conversations rail (UX-2): history lives NEXT TO the chat, not two nav items
+  // away. Click any past conversation to reopen it and build on it.
+  async function refreshThreadRail() {
+    var listEl = document.getElementById("thread-list");
+    if (!listEl) return;
+    var threads = [];
+    try { threads = (await api("/chat/threads")).threads || []; } catch (e) { threads = []; }
+    listEl.innerHTML = threads.length
+      ? threads.slice(0, 30).map(function (t) {
+          var cls = "thread-item" + (String(t.id) === String(state.threadId) ? " active" : "");
+          return "<button class='" + cls + "' data-thread='" + t.id + "'>" +
+            "<span class='t-title'>" + esc(t.title) + "</span>" +
+            "<span class='t-meta'>" + esc(t.matter_slug) + " · " +
+            esc((t.updated || "").replace("T", " ").slice(0, 16)) + "</span></button>";
+        }).join("")
+      : "<span class='muted' style='font-size:12px'>No conversations yet.</span>";
+    listEl.querySelectorAll("[data-thread]").forEach(function (b) {
+      b.addEventListener("click", function () { openThread(b.dataset.thread); });
+    });
+  }
+
+  async function openThread(id) {
+    var msgs = (await api("/chat/threads/" + id)).messages || [];
+    state.threadId = id;
+    showView("chat");
+    var box = document.getElementById("chat-messages");
+    box.innerHTML = "";
+    msgs.forEach(function (m) {
+      if (m.role === "user") appendMsg("user", esc(m.content));
+      else appendMsg("assistant", window.renderAnswerHtml({
+        answer_text: m.content, citations: m.citations_json ? JSON.parse(m.citations_json) : [],
+      }));
+    });
+    refreshThreadRail();
+  }
+  window.openThread = openThread;
+
+  function newChat() {
+    state.threadId = null;
+    var box = document.getElementById("chat-messages");
+    if (box) box.innerHTML = "";
+    renderChatGuide();
+    refreshThreadRail();
+  }
+
+  function buildChat(inner) {
     inner.innerHTML =
+      "<div class='chat-layout'>" +
+      "<aside class='chat-rail'>" +
+      "<button class='btn secondary' id='chat-new'>＋ New chat</button>" +
+      "<span class='rail-label'>Past conversations</span>" +
+      "<div id='thread-list' class='thread-list'></div>" +
+      "</aside>" +
+      "<div class='chat-main'>" +
       "<div class='chat-head'>" +
       "<span class='field-label'>Matter</span>" +
       "<select class='matter-picker' id='chat-matter'></select>" +
-      "<button class='btn secondary' id='chat-new'>＋ New chat</button>" +
       "</div>" +
       "<div id='chat-messages' class='chat-messages'></div>" +
       "<div class='chat-composer-wrap'>" +
-      "<div class='chat-greeting'><h1>What would you like to ask?</h1>" +
+      "<div class='chat-greeting'><h1 id='chat-greet-title'>What would you like to ask?</h1>" +
       "<p class='greet-sub'>Answers are grounded in the selected matter&#39;s documents and cited to the exact page and span.</p></div>" +
       "<div id='chat-guide'></div>" +
       "<div class='chat-composer'>" +
       "<textarea id='chat-input' rows='1' placeholder='Ask anything about this matter&#39;s documents…'></textarea>" +
       "<button class='btn' id='chat-send'>Ask&nbsp;→</button>" +
-      "</div></div>";
-    fillMatterPickers().then(renderChatGuide).catch(function () {});
+      "</div></div></div>";
     document.getElementById("chat-matter").addEventListener("change", function (e) {
       var opt = e.target.selectedOptions[0];
       setActiveMatter(e.target.value, opt ? opt.textContent : null);
     });
-    document.getElementById("chat-new").addEventListener("click", function () {
-      state.threadId = null; renderChat();
-    });
+    document.getElementById("chat-new").addEventListener("click", newChat);
     document.getElementById("chat-send").addEventListener("click", sendChat);
     document.getElementById("chat-input").addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
     });
   }
-  window.viewHooks.chat = renderChat;
+
+  function chatHook() {
+    ensureBuilt("chat", buildChat);
+    fillMatterPickers().then(renderChatGuide).catch(function () {});
+    refreshThreadRail();
+  }
+  window.viewHooks.chat = chatHook;
 
   // --- Search view (Move 1c) ---------------------------------------------------
   // Retrieval-only: every result is a real chunk with filename + page. "Every mention"
@@ -637,8 +801,7 @@
     } catch (e) { out.innerHTML = "<span style='color:var(--err)'>" + esc(e.message) + "</span>"; }
   }
 
-  function renderSearch() {
-    var inner = document.querySelector("#view-search .view-inner");
+  function buildSearch(inner) {
     inner.innerHTML =
       "<h1>Search</h1>" +
       "<p class='muted'>Every mention is exhaustive: the full list of matching passages in the active matter, " +
@@ -651,7 +814,6 @@
       "<button class='btn' id='search-go'>Search</button></div>" +
       "<div id='search-err' style='color:var(--err);font-size:13px'></div>" +
       "<div id='search-results'></div>";
-    fillMatterPickers().catch(function () {});
     document.getElementById("search-matter").addEventListener("change", function (e) {
       var opt = e.target.selectedOptions[0];
       setActiveMatter(e.target.value, opt ? opt.textContent : null);
@@ -661,40 +823,12 @@
       if (e.key === "Enter") { e.preventDefault(); runSearch(true); }
     });
   }
-  window.viewHooks.search = renderSearch;
 
-  // --- Chat History view -----------------------------------------------------
-  async function openThread(id) {
-    var msgs = (await api("/chat/threads/" + id)).messages || [];
-    state.threadId = id;
-    showView("chat");
-    var box = document.getElementById("chat-messages");
-    box.innerHTML = "";
-    msgs.forEach(function (m) {
-      if (m.role === "user") appendMsg("user", esc(m.content));
-      else appendMsg("assistant", window.renderAnswerHtml({
-        answer_text: m.content, citations: m.citations_json ? JSON.parse(m.citations_json) : [],
-      }));
-    });
+  function searchHook() {
+    ensureBuilt("search", buildSearch);
+    fillMatterPickers().catch(function () {});
   }
-
-  async function renderHistory() {
-    var inner = document.querySelector("#view-history .view-inner");
-    var threads = [];
-    try { threads = (await api("/chat/threads")).threads || []; } catch (e) { threads = []; }
-    inner.innerHTML = "<h1>Chat History</h1>" + (threads.length
-      ? "<div class='panel'><table><thead><tr><th>Conversation</th><th>Matter</th><th>Updated</th></tr></thead><tbody>" +
-        threads.map(function (t) {
-          return "<tr style='cursor:pointer' data-thread='" + t.id + "'><td>" + esc(t.title) +
-            "</td><td class='muted'>" + esc(t.matter_slug) + "</td><td class='muted'>" +
-            esc((t.updated || "").replace("T", " ")) + "</td></tr>";
-        }).join("") + "</tbody></table></div>"
-      : "<p class='muted'>No conversations yet.</p>");
-    inner.querySelectorAll("[data-thread]").forEach(function (tr) {
-      tr.addEventListener("click", function () { openThread(tr.dataset.thread); });
-    });
-  }
-  window.viewHooks.history = renderHistory;
+  window.viewHooks.search = searchHook;
 
   // --- Settings view ---------------------------------------------------------
   async function renderSettings() {
@@ -732,7 +866,12 @@
   }
   window.viewHooks.settings = renderSettings;
 
-  // --- Contract Review view --------------------------------------------------
+  // --- Review & Compare view ---------------------------------------------------
+  // One workspace, two tabs (UX-2): Contract Review (the clause checklist) and
+  // Compare Documents (the document × clause matrix) are tools over a matter's
+  // documents, so they live together and are also launchable from inside a matter.
+  var reviewState = { tab: "clauses", docsFor: null };
+
   // One checklist row. A "found" row shows the located value with inline source chips
   // + a citation thumbnail wired to the EXISTING /kb/highlight surface (chunk-derived
   // page + cited-span highlight — never a new fuzzy highlighter). A "potentially_missing"
@@ -797,29 +936,7 @@
     }
   }
 
-  function renderClauses() {
-    var inner = document.querySelector("#view-clauses .view-inner");
-    inner.innerHTML =
-      "<h1>Contract Review</h1>" +
-      "<p class='muted'>Run a standard clause checklist over the active matter's documents. " +
-      "Each clause is located &amp; span-verified, or honestly flagged as potentially missing.</p>" +
-      "<div class='panel' style='display:flex;gap:8px;align-items:center'>" +
-      "<label class='muted'>Matter:</label>" +
-      "<select class='matter-picker' id='clause-matter' style='max-width:340px'></select>" +
-      "<button class='btn' id='clause-run'>Run review</button></div>" +
-      "<div id='clause-err' style='color:var(--err);font-size:13px'></div>" +
-      "<div id='clause-results'></div>";
-    fillMatterPickers().catch(function () {});
-    document.getElementById("clause-matter").addEventListener("change", function (e) {
-      var opt = e.target.selectedOptions[0];
-      setActiveMatter(e.target.value, opt ? opt.textContent : null);
-    });
-    document.getElementById("clause-run").addEventListener("click", runClauseReview);
-  }
-  window.viewHooks.clauses = renderClauses;
-
-  // --- Compare Documents view ------------------------------------------------
-  // A document x clause matrix streamed live over SSE (POST /grid). Each cell is a
+  // The comparison matrix streamed live over SSE (POST /grid). Each cell is a
   // span-verified finding ("found" + citation chip -> /kb/highlight), an advisory
   // "potentially missing", or "not confirmed" — reusing the SAME verifier as the rest of
   // the app (never a fuzzy highlight). Cells render as skeletons until their SSE event
@@ -896,26 +1013,52 @@
   }
   window.gridToCsv = gridToCsv;
 
-  function parseSseBlock(block) {
-    var ev = null, data = null;
-    block.split("\n").forEach(function (line) {
-      if (line.indexOf("event:") === 0) ev = line.slice(6).trim();
-      else if (line.indexOf("data:") === 0) { try { data = JSON.parse(line.slice(5).trim()); } catch (e) {} }
+  // Explicit document picker (UX-4): the user chooses WHICH documents to compare.
+  // Checkboxes default to all; a subset posts doc_ids, all-checked posts null (all).
+  async function refreshGridDocs() {
+    var box = document.getElementById("grid-docs");
+    if (!box) return;
+    if (!state.matter) { box.innerHTML = "<span class='muted'>Choose a matter first.</span>"; reviewState.docsFor = null; return; }
+    if (reviewState.docsFor === state.matter) return;   // keep the user's selection
+    var docs = [];
+    try { docs = (await api("/kb/documents?matter=" + encodeURIComponent(state.matter))).documents || []; }
+    catch (e) { docs = []; }
+    reviewState.docsFor = state.matter;
+    if (!docs.length) { box.innerHTML = "<span class='muted'>No documents in this matter yet — add them in Matters.</span>"; return; }
+    box.innerHTML =
+      "<label><input type='checkbox' id='grid-docs-all' checked> <b>All documents</b></label>" +
+      docs.map(function (d) {
+        return "<label><input type='checkbox' class='grid-doc' value='" + d.id + "' checked> " +
+          esc(d.filename) + " <span class='status " + esc(d.status) + "'>" + esc(d.status) + "</span></label>";
+      }).join("");
+    var all = document.getElementById("grid-docs-all");
+    all.addEventListener("change", function () {
+      box.querySelectorAll(".grid-doc").forEach(function (c) { c.checked = all.checked; });
     });
-    return ev ? { event: ev, data: data } : null;
+    box.querySelectorAll(".grid-doc").forEach(function (c) {
+      c.addEventListener("change", function () {
+        var boxes = Array.prototype.slice.call(box.querySelectorAll(".grid-doc"));
+        all.checked = boxes.every(function (x) { return x.checked; });
+      });
+    });
   }
 
   async function runGrid() {
     var err = document.getElementById("grid-err");
     if (err) err.textContent = "";
-    if (!state.matter) { if (err) err.textContent = "Create a matter first (Matters view), then run the grid."; return; }
+    if (!state.matter) { if (err) err.textContent = "Create a matter first (Matters view), then run the comparison."; return; }
+    var boxes = Array.prototype.slice.call(document.querySelectorAll("#grid-docs .grid-doc"));
+    var picked = boxes.filter(function (c) { return c.checked; })
+                      .map(function (c) { return parseInt(c.value, 10); });
+    if (boxes.length && !picked.length) { if (err) err.textContent = "Select at least one document to compare."; return; }
+    var docIds = (picked.length && picked.length < boxes.length) ? picked : null;   // null = all
     document.getElementById("grid-csv").disabled = true;
     document.getElementById("grid-results").innerHTML =
       "<p class='muted'>Evaluating the matrix over " + esc(state.matter) + " — cells stream in live…</p>";
     try {
       var resp = await fetch("/grid", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matter: state.matter }),
+        body: JSON.stringify({ matter: state.matter, doc_ids: docIds }),
       });
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       var reader = resp.body.getReader(), dec = new TextDecoder(), buf = "";
@@ -938,28 +1081,81 @@
     }
   }
 
-  function renderGrid() {
-    var inner = document.querySelector("#view-grid .view-inner");
+  function setReviewTab(tab) {
+    reviewState.tab = tab;
+    var view = document.getElementById("view-review");
+    if (!view) return;
+    view.querySelectorAll(".tab").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.tab === tab);
+    });
+    var pc = document.getElementById("pane-clauses");
+    var pg = document.getElementById("pane-grid");
+    if (pc) pc.style.display = tab === "clauses" ? "" : "none";
+    if (pg) pg.style.display = tab === "grid" ? "" : "none";
+  }
+
+  function openReviewTab(tab) {
+    showView("review");
+    setReviewTab(tab);
+  }
+  window.openReviewTab = openReviewTab;
+
+  function buildReview(inner) {
     inner.innerHTML =
-      "<h1>Compare Documents</h1>" +
-      "<p class='muted'>A document × clause matrix. Each cell is span-verified, advisory " +
-      "(potentially missing), or unverified — locate &amp; summarize only.</p>" +
+      "<h1>Review &amp; Compare</h1>" +
+      "<p class='muted'>Tools over one matter&#39;s documents: a standard clause checklist, or a side-by-side " +
+      "document comparison. Every finding is span-verified or honestly flagged — locate &amp; summarize only.</p>" +
+      "<div class='tab-row'>" +
+      "<button class='tab active' data-tab='clauses'>Contract Review</button>" +
+      "<button class='tab' data-tab='grid'>Compare Documents</button>" +
+      "</div>" +
+      "<div id='pane-clauses'>" +
       "<div class='panel' style='display:flex;gap:8px;align-items:center'>" +
       "<label class='muted'>Matter:</label>" +
+      "<select class='matter-picker' id='clause-matter' style='max-width:340px'></select>" +
+      "<button class='btn' id='clause-run'>Run review</button></div>" +
+      "<div id='clause-err' style='color:var(--err);font-size:13px'></div>" +
+      "<div id='clause-results'></div>" +
+      "</div>" +
+      "<div id='pane-grid' style='display:none'>" +
+      "<div class='panel'>" +
+      "<div style='display:flex;gap:8px;align-items:center'>" +
+      "<label class='muted'>Matter:</label>" +
       "<select class='matter-picker' id='grid-matter' style='max-width:340px'></select>" +
-      "<button class='btn' id='grid-run'>Run grid</button>" +
+      "<button class='btn' id='grid-run'>Run comparison</button>" +
       "<button class='btn secondary' id='grid-csv' disabled>Export CSV</button></div>" +
+      "<div id='grid-docs' class='doc-picker'></div>" +
+      "</div>" +
       "<div id='grid-err' style='color:var(--err);font-size:13px'></div>" +
-      "<div id='grid-results'></div>";
-    fillMatterPickers().catch(function () {});
+      "<div id='grid-results'></div>" +
+      "</div>";
+    inner.querySelectorAll(".tab").forEach(function (b) {
+      b.addEventListener("click", function () { setReviewTab(b.dataset.tab); });
+    });
+    document.getElementById("clause-matter").addEventListener("change", function (e) {
+      var opt = e.target.selectedOptions[0];
+      setActiveMatter(e.target.value, opt ? opt.textContent : null);
+    });
     document.getElementById("grid-matter").addEventListener("change", function (e) {
       var opt = e.target.selectedOptions[0];
       setActiveMatter(e.target.value, opt ? opt.textContent : null);
     });
+    document.getElementById("clause-run").addEventListener("click", runClauseReview);
     document.getElementById("grid-run").addEventListener("click", runGrid);
     document.getElementById("grid-csv").addEventListener("click", downloadCsv);
   }
-  window.viewHooks.grid = renderGrid;
+
+  function reviewHook() {
+    ensureBuilt("review", buildReview);
+    fillMatterPickers().catch(function () {});
+    refreshGridDocs();
+    setReviewTab(reviewState.tab);
+  }
+  window.viewHooks.review = reviewHook;
+  // Back-compat aliases: the clause checklist and comparison grid live in the
+  // review view now (viewHooks.clauses / viewHooks.grid callers land there).
+  window.viewHooks.clauses = function () { openReviewTab("clauses"); };
+  window.viewHooks.grid = function () { openReviewTab("grid"); };
 
   // --- router ----------------------------------------------------------------
   function showView(name) {

@@ -1,9 +1,10 @@
-"""A3/A4 — the Review Grid UI surface (served-asset assertions, test_api_ui style).
+"""A3/A4 — the comparison-grid UI surface (served-asset assertions, test_api_ui style).
 
-The SAM-style app exposes a "Review Grid" nav wired to a view that streams /grid over SSE
-(fetch + ReadableStream), renders a sticky document × clause matrix with live skeleton
-cells, a found cell's citation chip reusing /kb/highlight, CSV export, and esc()
-escape-before-render. No remote asset is referenced (air-gap).
+UX-2: Compare Documents is a TAB of the "Review & Compare" view, with an EXPLICIT
+document picker (UX-4): checkboxes default to all documents; a subset posts doc_ids.
+The view streams /grid over SSE (fetch + ReadableStream), renders a sticky document ×
+clause matrix with live skeleton cells, a found cell's citation chip reusing
+/kb/highlight, CSV export, and esc() escape-before-render. No remote asset (air-gap).
 """
 
 import re
@@ -22,11 +23,15 @@ _EXTERNAL = re.compile(r"""(?:src|href)\s*=\s*["']https?://""", re.IGNORECASE)
 
 
 class TestGridNav(unittest.TestCase):
-    def test_app_shell_has_review_grid_nav(self):
+    def test_app_shell_has_review_view(self):
         r = client.get("/app")
         self.assertEqual(r.status_code, 200)
-        self.assertIn("Compare Documents", r.text)
-        self.assertIn('data-view="grid"', r.text)
+        self.assertIn('data-view="review"', r.text)
+
+    def test_compare_documents_is_a_tab(self):
+        js = client.get("/static/app.js").text
+        self.assertIn("Compare Documents", js)         # tab label
+        self.assertIn("viewHooks.grid", js)            # back-compat alias
 
 
 class TestGridJs(unittest.TestCase):
@@ -34,8 +39,11 @@ class TestGridJs(unittest.TestCase):
     def setUpClass(cls):
         cls.js = client.get("/static/app.js").text
 
-    def test_registers_grid_view_hook(self):
-        self.assertIn("viewHooks.grid", self.js)
+    def test_has_explicit_document_picker(self):
+        # UX-4: the user chooses which documents to compare; a subset posts doc_ids
+        self.assertIn("grid-docs", self.js)
+        self.assertIn("doc_ids", self.js)
+        self.assertIn("refreshGridDocs", self.js)
 
     def test_streams_grid_over_sse(self):
         self.assertIn("/grid", self.js)
@@ -67,6 +75,10 @@ class TestGridCss(unittest.TestCase):
         self.assertIn("grid-table", css)
         self.assertIn("grid-corner", css)
         self.assertIn("position:sticky", css)
+
+    def test_doc_picker_styles(self):
+        css = client.get("/static/app.css").text
+        self.assertIn("doc-picker", css)
 
 
 if __name__ == "__main__":

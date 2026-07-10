@@ -17,7 +17,11 @@ import api  # noqa: E402
 
 client = TestClient(api.app)
 
-NAV_LABELS = ["New Chat", "Matters", "Document Hub", "Chat History", "Settings"]
+# UX-2 IA: five destinations. Documents live INSIDE matters (no Document Hub);
+# past conversations live in a rail inside Chat (no Chat History nav item);
+# Contract Review + Compare Documents are tabs of Review & Compare.
+NAV_LABELS = ["Matters", "Chat", "Search", "Review &amp; Compare", "Settings"]
+REMOVED_LABELS = ["New Chat", "Document Hub", "Chat History"]
 # Anything that would pull a remote asset at runtime (CDN, web font, remote script).
 _EXTERNAL = re.compile(r"""(?:src|href)\s*=\s*["']https?://|@import\s+url\(\s*["']?https?://""",
                        re.IGNORECASE)
@@ -30,6 +34,15 @@ class TestAppShell(unittest.TestCase):
         self.assertIn("text/html", r.headers["content-type"])
         for label in NAV_LABELS:
             self.assertIn(label, r.text, f"nav label missing: {label}")
+        for label in REMOVED_LABELS:
+            self.assertNotIn(f"> {label}<", r.text, f"retired nav label present: {label}")
+
+    def test_views_build_once_state_survives_navigation(self):
+        # UX-3: view hooks must be build-once (dataset.built guard) so switching views
+        # never destroys an in-progress chat, review, or comparison.
+        js = client.get("/static/app.js").text
+        self.assertIn("ensureBuilt", js)
+        self.assertIn("dataset.built", js)
 
     def test_static_js_served_locally(self):
         r = client.get("/static/app.js")
