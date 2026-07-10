@@ -8,6 +8,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import lancedb
+import pyarrow as pa
+
 PIPELINE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PIPELINE_DIR))
 import catalog  # noqa: E402
@@ -129,6 +132,42 @@ class TestPageGrouping(unittest.TestCase):
         self.assertTrue(all(sum(len(p["page_text"]) for p in g) <= 6000 or len(g) == 1
                             for g in groups))
         self.assertEqual(sum(len(g) for g in groups), 7)       # every page exactly once
+
+
+class TestPagesFromLegacyStore(unittest.TestCase):
+    def test_pre_d69_store_without_document_type(self):
+        tmp = Path(tempfile.mkdtemp())
+        schema = pa.schema([
+            pa.field("source_filename", pa.string()), pa.field("matter", pa.string()),
+            pa.field("page_number", pa.int64()), pa.field("char_start", pa.int64()),
+            pa.field("char_end", pa.int64()), pa.field("text", pa.string()),
+        ])
+        rows = [{"source_filename": "a.pdf", "matter": "m", "page_number": 1,
+                 "char_start": 0, "char_end": 5, "text": "hello"},
+                {"source_filename": "a.pdf", "matter": "m", "page_number": 1,
+                 "char_start": 5, "char_end": 11, "text": " world"}]
+        lancedb.connect(str(tmp / "db")).create_table("chunks", data=rows, schema=schema)
+        pages = digest.pages_from_store(tmp / "db", "a.pdf", "m")
+        self.assertEqual(pages, [{"page_number": 1, "page_text": "hello world"}])
+
+    def test_modern_store_with_document_type_excludes_table_chunks(self):
+        tmp = Path(tempfile.mkdtemp())
+        schema = pa.schema([
+            pa.field("source_filename", pa.string()), pa.field("matter", pa.string()),
+            pa.field("page_number", pa.int64()), pa.field("char_start", pa.int64()),
+            pa.field("char_end", pa.int64()), pa.field("text", pa.string()),
+            pa.field("document_type", pa.string()),
+        ])
+        rows = [{"source_filename": "a.pdf", "matter": "m", "page_number": 1,
+                 "char_start": 0, "char_end": 5, "text": "hello", "document_type": "prose"},
+                {"source_filename": "a.pdf", "matter": "m", "page_number": 1,
+                 "char_start": 5, "char_end": 11, "text": " world", "document_type": "prose"},
+                {"source_filename": "a.pdf", "matter": "m", "page_number": 1,
+                 "char_start": 0, "char_end": 20, "text": "| a | b |",
+                 "document_type": "table"}]
+        lancedb.connect(str(tmp / "db")).create_table("chunks", data=rows, schema=schema)
+        pages = digest.pages_from_store(tmp / "db", "a.pdf", "m")
+        self.assertEqual(pages, [{"page_number": 1, "page_text": "hello world"}])
 
 
 if __name__ == "__main__":

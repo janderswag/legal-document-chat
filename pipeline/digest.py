@@ -110,9 +110,15 @@ def pages_from_store(db_path, filename, matter):
     are excluded: their offsets index the table markdown, not the page."""
     fn = str(filename).replace("'", "''")
     mt = str(matter).replace("'", "''")
-    rows = (open_table(db_path).search()
-            .where(f"source_filename = '{fn}' AND matter = '{mt}' "
-                   f"AND document_type != 'table'")
+    tbl = open_table(db_path)
+    has_doctype = "document_type" in [f.name for f in tbl.schema]
+    where = f"source_filename = '{fn}' AND matter = '{mt}'"
+    if has_doctype:
+        # Pre-D-69 stores lack this column and, by construction, contain no
+        # table chunks — the filter is unnecessary (and unrunnable) there.
+        where += " AND document_type != 'table'"
+    rows = (tbl.search()
+            .where(where)
             .select(["page_number", "char_start", "char_end", "text"])
             .limit(100000).to_arrow().to_pylist())
     by_page = {}
