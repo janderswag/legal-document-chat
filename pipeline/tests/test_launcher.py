@@ -166,5 +166,39 @@ class TestLauncherSignalCleanup(unittest.TestCase):
                 pass
 
 
+class TestWindowFirstLaunch(unittest.TestCase):
+    """UX-10: the splash window appears before the engine exists; cleanup handlers
+    installed BEFORE the children spawn still reap children created later."""
+
+    def test_splash_and_fail_pages_are_inline(self):
+        # no server, no assets — pure inline HTML the window can show instantly
+        self.assertIn("docuchat", launcher.SPLASH_HTML)
+        self.assertIn("Starting the local engine", launcher.SPLASH_HTML)
+        self.assertNotIn("http", launcher.SPLASH_HTML.lower())
+        self.assertIn("could not start", launcher.FAIL_HTML)
+
+    def test_install_cleanup_live_reaps_children_created_after_registration(self):
+        import types
+        handles = {"proc": None, "ollama": None, "server": None}
+        stopped = []
+        captured = {}
+        orig_signal, orig_stop, orig_kill = signal.signal, launcher.stop_server, os.kill
+        try:
+            signal.signal = lambda s, h: captured.setdefault(s, h)
+            launcher.stop_server = lambda p, timeout=8.0: stopped.append(p)
+            handler = launcher.install_cleanup_live(handles)
+            # children arrive AFTER the handlers were installed (the whole point)
+            late_child = types.SimpleNamespace(poll=lambda: 0)   # a dead-safe fake Popen
+            fake_server = types.SimpleNamespace(should_exit=False)
+            handles["proc"] = late_child
+            handles["server"] = fake_server
+            os.kill = lambda pid, sig: None                      # swallow the re-raise
+            handler(signal.SIGTERM, None)
+            self.assertIn(late_child, stopped, "late child not reaped at fire time")
+            self.assertTrue(fake_server.should_exit, "in-process server not stopped")
+        finally:
+            signal.signal, launcher.stop_server, os.kill = orig_signal, orig_stop, orig_kill
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

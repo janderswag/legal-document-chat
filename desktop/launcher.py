@@ -25,6 +25,7 @@ The pywebview import is deferred into main() so the helpers are importable/testa
 """
 
 import atexit
+import json
 import os
 import re
 import shutil
@@ -343,38 +344,131 @@ def install_cleanup(*procs):
     return _handler
 
 
-def main(port=DEFAULT_PORT):
-    frozen = bool(getattr(sys, "frozen", False))
-    free_port(port)                       # pre-kill a stale server holding the port
-    ollama_proc = ensure_ollama()         # start Ollama (warm env) if it isn't running
-    server = proc = None
-    if frozen:                            # packaged app: in-process server (P2.7)
-        server = start_server_frozen(port=port)
-    else:
-        proc = start_server(port=port)
-    install_cleanup(proc, ollama_proc)    # reap the children on window-close, exit, OR kill
-    try:
-        if not wait_healthy(port=port):
-            if server is not None:
-                server.should_exit = True
-            stop_server(proc)
-            stop_server(ollama_proc)
-            print("Server did not become healthy on "
-                  f"http://{HOST}:{port}", file=sys.stderr)
-            return 1
-        import webview  # deferred: needs a display; keep the helpers headless-importable
-        webview.create_window(
-            "docuchat",
-            f"http://{HOST}:{port}/setup",   # wizard first; it redirects to /app when ready
-            width=1200, height=820, min_size=(900, 640),
-        )
-        webview.start()                   # blocks until the window is closed
-        return 0
-    finally:
-        if server is not None:            # in-process: graceful stop; thread is a daemon
+def install_cleanup_live(handles):
+    """install_cleanup for the window-first flow (UX-10): the children are created on
+    a WORKER thread after the handlers are installed, so the handlers read the shared
+    ``handles`` dict at FIRE time instead of binding a fixed list. Registered on the
+    main thread (signal.signal requires it); covers atexit + SIGTERM/SIGINT/SIGHUP."""
+    def _procs():
+        return [p for p in (handles.get("proc"), handles.get("ollama")) if p is not None]
+
+    atexit.register(lambda: [stop_server(p) for p in _procs()])
+
+    def _handler(signum, _frame):
+        server = handles.get("server")
+        if server is not None:
             server.should_exit = True
-        stop_server(proc)                 # kill the children on quit (no orphans)
-        stop_server(ollama_proc)
+        for p in _procs():
+            stop_server(p)
+        try:
+            signal.signal(signum, signal.SIG_DFL)
+            os.kill(os.getpid(), signum)
+        except (OSError, ValueError):
+            pass
+
+    sigs = [signal.SIGTERM, signal.SIGINT]
+    hup = getattr(signal, "SIGHUP", None)
+    if hup is not None:
+        sigs.append(hup)
+    for sig in sigs:
+        try:
+            signal.signal(sig, _handler)
+        except (ValueError, OSError):
+            pass
+    return _handler
+
+
+# UX-10: the splash the window shows INSTANTLY at launch, before the engine exists.
+# Inline HTML (no server yet, no assets) matching the app's Ledger look.
+SPLASH_HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
+  body{margin:0;height:100vh;display:grid;place-items:center;background:#f4f0e8;
+       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+       color:#1d1b16;-webkit-font-smoothing:antialiased}
+  .card{text-align:center}
+  .mark{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;
+        background:linear-gradient(150deg,#cda465,#b48a4a);color:#231a09;
+        font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:32px;
+        margin:0 auto 14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+  b{font-size:17px}
+  p{color:#6b6557;font-size:13.5px;margin:8px 0 0}
+  .spin{width:22px;height:22px;border:3px solid #e7e0d3;border-top-color:#b48a4a;
+        border-radius:50%;margin:20px auto 0;animation:r .9s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+</style></head><body><div class="card"><div class="mark">&sect;</div>
+<b>docuchat</b><p id="msg">Starting the local engine&hellip;</p>
+<div class="spin"></div></div></body></html>"""
+
+FAIL_HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
+  body{margin:0;height:100vh;display:grid;place-items:center;background:#f4f0e8;
+       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+       color:#1d1b16}
+  .card{text-align:center;max-width:46ch;padding:0 20px}
+  h2{font-family:Georgia,serif;font-weight:500;margin:0 0 8px}
+  p{color:#6b6557;font-size:14px;line-height:1.55}
+</style></head><body><div class="card"><h2>docuchat could not start</h2>
+<p>The local engine did not come up. Quit the app and open it again. If this keeps
+happening, another program may be using port 8000 on this computer.</p>
+</div></body></html>"""
+
+
+def _splash_msg(window, text):
+    """Best-effort progress line on the splash; never fatal."""
+    try:
+        window.evaluate_js(
+            "document.getElementById('msg').textContent=" + json.dumps(text))
+    except Exception:
+        pass
+
+
+def main(port=DEFAULT_PORT):
+    """UX-10 window-first launch: the branded splash appears IMMEDIATELY (was: ~20s of
+    Dock bouncing while Ollama spawned + the frozen server imported + health polling,
+    all before any window existed). The engine boots on a worker thread and the same
+    window then loads the app. Cleanup handlers are installed on the main thread
+    BEFORE anything spawns and read the live handles at fire time."""
+    handles = {"proc": None, "ollama": None, "server": None}
+    install_cleanup_live(handles)
+
+    import webview  # deferred: needs a display; keep the helpers headless-importable
+    window = webview.create_window(
+        "docuchat", html=SPLASH_HTML,
+        width=1200, height=820, min_size=(900, 640),
+    )
+
+    def boot():
+        try:
+            free_port(port)                   # pre-kill a stale server holding the port
+            _splash_msg(window, "Starting the local models…")
+            handles["ollama"] = ensure_ollama()
+            _splash_msg(window, "Starting the document engine…")
+            if getattr(sys, "frozen", False):     # packaged app: in-process (P2.7)
+                handles["server"] = start_server_frozen(port=port)
+            else:
+                handles["proc"] = start_server(port=port)
+            _splash_msg(window, "Almost ready…")
+            if wait_healthy(port=port):
+                # wizard first; it redirects to /app when ready
+                window.load_url(f"http://{HOST}:{port}/setup")
+            else:
+                print("Server did not become healthy on "
+                      f"http://{HOST}:{port}", file=sys.stderr)
+                window.load_html(FAIL_HTML)
+        except Exception as e:                # never a silent dead splash
+            print(f"launcher boot failed: {e}", file=sys.stderr)
+            try:
+                window.load_html(FAIL_HTML)
+            except Exception:
+                pass
+
+    try:
+        webview.start(boot)                   # boot runs on a worker thread; blocks
+        return 0                              # until the window is closed
+    finally:
+        server = handles.get("server")
+        if server is not None:                # in-process: graceful stop; daemon thread
+            server.should_exit = True
+        stop_server(handles.get("proc"))      # kill the children on quit (no orphans)
+        stop_server(handles.get("ollama"))
 
 
 if __name__ == "__main__":
