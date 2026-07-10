@@ -406,8 +406,10 @@ FAIL_HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
   h2{font-family:Georgia,serif;font-weight:500;margin:0 0 8px}
   p{color:#6b6557;font-size:14px;line-height:1.55}
 </style></head><body><div class="card"><h2>docuchat could not start</h2>
-<p>The local engine did not come up. Quit the app and open it again. If this keeps
-happening, another program may be using port 8000 on this computer.</p>
+<p>The local engine did not come up. Quit docuchat and open it again — that clears
+almost every case.</p>
+<p>If it keeps happening, another program may be using its port on this computer, or
+a background copy of docuchat may still be running (quit it from Activity Monitor).</p>
 </div></body></html>"""
 
 

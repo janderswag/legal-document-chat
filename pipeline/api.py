@@ -112,6 +112,16 @@ def _mount_encrypted_store():
     it BEFORE anything can touch the store path. Synchronous by design — the
     measured ~450ms (eval/ENCVOL_PROTO.md) is absorbed here, alongside the model
     preload, instead of on a user's first question. No bundle = plain-store no-op."""
+    # v0.3.2: FIRST, self-heal a poisoned encryption state (a changed Keychain
+    # master key would otherwise crash startup with a misleading error and brick
+    # the app — delete-and-redownload does NOT help because the data dir
+    # survives). Moves the undecryptable data set aside (never deletes) so the
+    # app starts fresh. No-op when the catalog is healthy or plain.
+    import startup_recovery
+    aside = startup_recovery.recover_if_unreadable()
+    if aside is not None:
+        print(f"[startup] local data could not be unlocked with the current "
+              f"Keychain key; moved aside to {aside} and starting fresh")
     import encvol
     import routes_kb
     app.state.encrypted_store = encvol.mount_kb_volume(routes_kb.KB_DB)
