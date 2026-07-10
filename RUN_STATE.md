@@ -7,6 +7,24 @@ _Last updated: 2026-07-09_
 
 ## Status
 
+**2026-07-10 — v0.2.0 RELEASED TO PRODUCTION (signed + notarized, Gatekeeper-accepted).**
+GitHub release live and marked Latest; docuchat.app download button serves it
+(releases/latest redirect verified); site deployed with the D-78 security caveat; in-app
+update checker verified against the live release (current 0.2.0 = latest v0.2.0, quiet —
+flips to "Update available" at v0.3.0). v0.2.0 contains everything from D-75..D-80 (IA v3
++ Document Hub filing, onboarding/profile/memory, watched folders + folder upload, .eml/
+.html/.vtt/.srt/.csv/.json import, connector catalog, billing/referrals pages, update
+notifier, window-first launcher) on the unchanged 63/63-gated engine (model swap rejected,
+D-79). Build recipe that worked: in ~/projects/legal-doc-intelligence (has corpus/eval/
+build venv): `APPLE_DEV_ID_APP='Developer ID Application: Jake Anderson (8W2KYM5Y4J)'
+NOTARY_PROFILE=docuchat-notary BUNDLE_OLLAMA=1 ./desktop/build_macos.sh`, then gh release
+create with dist/docuchat.dmg. NEXT-CYCLE QUEUE (owner picks): (1) first API connector —
+Clio Manage (blocked on owner registering a Clio developer app) or Read AI (no
+registration gate, can start now); (2) background job center; (3) business-model decision
+(license key vs seats) gates the real Billing build; (4) Windows build (owner box + Azure
+signing); (5) Lock app; (6) deadline extraction; (7) formats needing deps: .msg/.mbox/
+rtf/xlsx/zip + audio/video via local transcription; (8) Sparkle-style in-place updates.
+
 **2026-07-09 late session (D-79 + UX-9/10 + connector strategy).** Model benchmark DONE:
 qwen3.5:9b REJECTED (46/63 vs 63/63; abbreviates verbatim spans with `...` — verifier
 rightly rejects; speed win marginal, p90 worse). qwen3:14b stays pinned (D-79). Shipped to
