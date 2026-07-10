@@ -33,7 +33,7 @@ _START_LOCK = threading.Lock()
 _started = False
 
 DIGEST_MODEL = os.environ.get("LDI_CHAT_MODEL", "qwen3:14b")
-EXTRACTOR_VERSION = "digest-v1 " + DIGEST_MODEL   # bump v1 on any prompt/schema change
+EXTRACTOR_VERSION = "digest-v2 " + DIGEST_MODEL   # bump v1 on any prompt/schema change
 KEEP_ALIVE = "30m"
 NUM_CTX = 8192
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -134,9 +134,10 @@ def pages_from_store(db_path, filename, matter):
     return pages
 
 
-def _groups(pages, max_chars=6000, max_pages=4):
+def _groups(pages, max_chars=3000, max_pages=2):
     """Split pages into extraction groups: <= max_pages pages and (except for a
-    single oversized page) <= max_chars of text per group."""
+    single oversized page) <= max_chars of text per group. Constrained-decode time
+    scales with facts per group, not just chars — big groups blow the call timeout."""
     groups, cur, size = [], [], 0
     for p in pages:
         n = len(p["page_text"])
@@ -163,7 +164,7 @@ def _extract_call(group_text):
         f"{ollama_url()}/api/chat", data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
+        with urllib.request.urlopen(req, timeout=600) as resp:
             content = json.load(resp)["message"]["content"]
         return json.loads(content).get("facts", []) or []
     except Exception:

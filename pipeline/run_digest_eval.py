@@ -56,10 +56,17 @@ def main():
     for key in sorted({(e["doc"], e["matter"]) for e in inventory}):
         doc, matter = key
         pages = digest.pages_from_store(args.db, doc, matter)
-        for group in digest._groups(pages):
+        for i, group in enumerate(digest._groups(pages)):
             text = "\n\n".join(f"=== page {p['page_number']} ===\n{p['page_text']}"
                                for p in group)
-            ok, bad = digest.gate_facts(digest._extract_call(text), group, doc_id=0)
+            raw = digest._extract_call(text)
+            if raw is None:
+                raw = digest._extract_call(text)   # one retry
+            if raw is None:
+                print(f"G-DIG ABORT: extraction call failed twice for {doc} group {i} "
+                      "— recall would be understated")
+                sys.exit(2)
+            ok, bad = digest.gate_facts(raw, group, doc_id=0)
             drops += bad
             for f in ok:
                 extracted[(doc, f["fact_type"])].append(f["span"])
