@@ -140,6 +140,7 @@ def _seed_sample_matter():
     sample matter in the background once the local models are ready — so a brand-new
     user reaches a cited answer with no setup. No-ops when any matter exists."""
     import sample_matter
+    sample_matter.migrate_demo_label()   # UX-2: pre-rename installs drop "(Demo)"
     sample_matter.maybe_seed_async()
 
 

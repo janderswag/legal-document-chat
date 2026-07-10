@@ -50,6 +50,33 @@ class TestSeedGuards(unittest.TestCase):
         self.assertFalse((tmp / "docs").exists())
 
 
+class TestDemoLabelMigration(unittest.TestCase):
+    """UX-2: the sample matter is 'Sample Matter' — no '(Demo)' in a shipped app.
+    Pre-rename installs get their label migrated; user matters are never touched."""
+
+    def test_new_name_has_no_demo(self):
+        self.assertEqual(sample_matter.SAMPLE_MATTER_NAME, "Sample Matter")
+        self.assertNotIn("demo", sample_matter.SAMPLE_MATTER_NAME.lower())
+
+    def test_legacy_label_migrates_once_and_only_the_sample(self):
+        tmp = Path(tempfile.mkdtemp())
+        cat = tmp / "cat.db"
+        # simulate a pre-rename install: legacy slug + old label, plus a user matter
+        # whose name legitimately contains "(Demo)" and must survive untouched
+        catalog.create_matter("Sample Matter (Demo)", db_path=cat)   # -> legacy slug
+        catalog.create_matter("Acme (Demo) Litigation", db_path=cat)
+        self.assertTrue(sample_matter.migrate_demo_label(db_path=cat))
+        names = {m["slug"]: m["display_name"] for m in catalog.list_matters(db_path=cat)}
+        self.assertEqual(names[sample_matter.LEGACY_SAMPLE_SLUG], "Sample Matter")
+        self.assertEqual(names["acme-demo-litigation"], "Acme (Demo) Litigation")
+        # idempotent: second run is a no-op
+        self.assertFalse(sample_matter.migrate_demo_label(db_path=cat))
+
+    def test_both_slugs_flagged_sample(self):
+        self.assertIn(sample_matter.SAMPLE_MATTER_SLUG, sample_matter.SAMPLE_SLUGS)
+        self.assertIn(sample_matter.LEGACY_SAMPLE_SLUG, sample_matter.SAMPLE_SLUGS)
+
+
 class TestSeedEndToEnd(unittest.TestCase):
     def test_fresh_seed_answers_a_suggested_question_with_citation(self):
         tmp = Path(tempfile.mkdtemp())

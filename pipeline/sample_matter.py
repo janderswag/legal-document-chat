@@ -1,7 +1,7 @@
 """P1.3 — first-run sample matter: a brand-new user reaches a cited answer with ZERO setup.
 
 On a truly fresh install (no matters in the catalog at all), seed one clearly-synthetic
-"Sample Matter (Demo)" with three small generated PDFs and ingest them through the NORMAL
+"Sample Matter" with three small generated PDFs and ingest them through the NORMAL
 KB path (kb_ingest -> .lancedb_kb), so New Chat can answer a suggested question against
 real page+span citations immediately. Everything is generated locally with PyMuPDF at
 seed time (no binary fixtures in git, hard rule #1: synthetic only, each page banner-
@@ -23,8 +23,25 @@ import catalog
 import kb_ingest
 from routes_kb import KB_DB, KB_DOCS
 
-SAMPLE_MATTER_NAME = "Sample Matter (Demo)"
-SAMPLE_MATTER_SLUG = catalog.slugify(SAMPLE_MATTER_NAME)   # "sample-matter-demo"
+SAMPLE_MATTER_NAME = "Sample Matter"
+SAMPLE_MATTER_SLUG = catalog.slugify(SAMPLE_MATTER_NAME)   # "sample-matter"
+
+# Installs seeded before the UX-2 rename carry the old "(Demo)" display name and slug.
+# The slug stays (it is a path key for stored natives + KB rows — renaming it would
+# orphan data); only the visible label is migrated. Both slugs are flagged `sample`.
+LEGACY_SAMPLE_SLUG = "sample-matter-demo"
+SAMPLE_SLUGS = {SAMPLE_MATTER_SLUG, LEGACY_SAMPLE_SLUG}
+
+
+def migrate_demo_label(db_path=None):
+    """One-shot idempotent label fix for pre-UX-2 installs: 'Sample Matter (Demo)'
+    -> 'Sample Matter'. Touches ONLY the display_name of the known seeded slug;
+    user matters are never renamed. Returns True when a rename happened."""
+    m = catalog.get_matter(LEGACY_SAMPLE_SLUG, db_path=db_path)
+    if not m or "(Demo)" not in (m.get("display_name") or ""):
+        return False
+    catalog.rename_matter(LEGACY_SAMPLE_SLUG, SAMPLE_MATTER_NAME, db_path=db_path)
+    return True
 
 # Shown as one-click chips on the Chat empty state (P1.4). Each is answerable with a
 # page+span citation from the seeded documents below.

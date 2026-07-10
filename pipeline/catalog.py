@@ -204,6 +204,20 @@ def get_matter(slug, db_path=None):
         conn.close()
 
 
+def rename_matter(slug, display_name, db_path=None):
+    """Update a matter's display label only. The slug (the path/scope key for stored
+    natives, KB rows, threads, holds) is immutable — renaming it would orphan data."""
+    name = (display_name or "").strip()
+    if not name:
+        raise ValueError("display_name is required")
+    conn = _connect(db_path)
+    try:
+        conn.execute("UPDATE matters SET display_name = ? WHERE slug = ?", (name, slug))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def delete_matter(slug, db_path=None):
     """Remove a matter row (catalog only). Callers must remove its documents + chunks
     first; this never touches a vector store or any document file."""

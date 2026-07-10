@@ -21,7 +21,7 @@ def get_matters():
     import sample_matter
     matters = catalog.list_matters()
     for m in matters:
-        if m["slug"] == sample_matter.SAMPLE_MATTER_SLUG:
+        if m["slug"] in sample_matter.SAMPLE_SLUGS:
             m["sample"] = True
             m["suggested_questions"] = sample_matter.SUGGESTED_QUESTIONS
     return {"matters": matters}
