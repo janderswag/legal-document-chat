@@ -3,9 +3,47 @@
 > Single source of truth for "where are we right now." Update this after every working session.
 > Read at the start of each session alongside `CLAUDE.md`.
 
-_Last updated: 2026-07-09_
+_Last updated: 2026-07-10 (overnight session)_
 
 ## Status
+
+**2026-07-10 overnight — v0.3.0 BUILT: LIVE CONNECTORS (D-81) + in-place updates + new
+site demo. ⚠️ READ THE KEYCHAIN INCIDENT PARAGRAPH BELOW FIRST.**
+Owner-directed overnight cycle (design spec: docs/superpowers/specs/
+2026-07-10-connectors-v030-design.md). Shipped to main: (1) **connector platform** —
+every one of the 65 catalog entries re-verified against CURRENT vendor API docs by an
+11-agent research pass; 28 went LIVE with real adapters (paste a self-serve key ->
+tested -> sealed via the Keychain master key -> documents import through the upload
+path into the Document Hub with provenance + dedupe + optional 30-min sync; disconnect
+deletes the key), 20 stay honestly Planned (need docuchat-registered developer apps —
+owner action list in docs/2026-07-10-connector-registrations.md; Read AI turned out
+OAuth-only, REVERSING the old "no registration gate" note), 17 DELETED (no user-reachable
+pull path — incl. Evernote's suspended API and Filevine's zeroed downloads). 189 connector
+tests green; live-verified in the preview (bad key -> honest error, nothing stored).
+(2) **True one-click in-place update** (updater.py): download release DMG -> codesign
+verify with team id PINNED -> rename-aside swap + rollback -> relaunch; failure leaves
+the running app untouched. (3) **All 51 catalog brands have real bundled logos** (zero
+letter tiles). (4) **Site**: hero demo rebuilt as four beats (cited answer / folder drop
+/ connector import / one-click update) matching the current app IA; security copy now
+lists connector + update-download egress honestly. (5) **Speed quick wins** (research
+docs in docs/): bge-m3 pinned warm + preloaded, system-prompt KV warmed — no engine
+semantics change. Memory design draft awaiting owner review (docs/2026-07-10-memory-
+design-draft.md). Hub folder upload verified live (drag a folder OR "Upload an entire
+folder…" picker).
+
+**⚠️ KEYCHAIN INCIDENT (2026-07-10 04:59Z) — owner must read.** A pre-existing keyvault
+bug (found tonight, now FIXED + test-pinned): any failed Keychain READ was treated as
+"key missing" and add-generic-password **-U** then silently REPLACED the master key. A
+sandboxed dev-server launch tonight triggered exactly that, so the machine's docuchat
+master key was overwritten: the INSTALLED app's catalog and this checkout's dev catalog
+are now undecryptable ciphertext (all synthetic data per hard rule #1 — no client data
+exists on this machine). Nothing was deleted: the dev catalog is preserved at
+pipeline/.kb_catalog.db.locked-20260710 and the installed app's data is untouched at
+~/Library/Application Support/docuchat/. RECOVERY: restore ~/Library/Keychains/
+login.keychain-db from any Time Machine backup made 2026-07-07→07-09 (the drive wasn't
+mounted tonight), or accept a fresh start (the app self-seeds). The KB VOLUME key
+(kb-volume-key-v1) was NOT touched. The fix ships in v0.3.0 and matters for real users:
+without it, one locked-keychain moment = permanent data loss.
 
 **2026-07-10 — v0.2.0 RELEASED TO PRODUCTION (signed + notarized, Gatekeeper-accepted).**
 GitHub release live and marked Latest; docuchat.app download button serves it
