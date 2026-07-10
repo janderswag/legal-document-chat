@@ -1018,6 +1018,7 @@
           encodeURIComponent(key) + "/review",
           { method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body) });
+        if (document.activeElement && box.contains(document.activeElement)) document.activeElement.blur();
         renderMatterOverview(slug);
       });
     });
