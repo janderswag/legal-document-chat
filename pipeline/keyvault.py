@@ -56,17 +56,35 @@ def _security(commands):
 
 def keychain_secret(account, service=KEYCHAIN_SERVICE):
     """Fetch a 32-byte secret from the login Keychain by account name, creating it
-    on first use. Raises RuntimeError if the Keychain is unavailable (non-macOS /
-    locked). Used for the master key and the KB volume key — never for plaintext."""
+    on FIRST use only. Raises RuntimeError if the Keychain is unavailable
+    (non-macOS / locked / sandboxed / ACL-denied). Used for the master key and
+    the KB volume key — never for plaintext.
+
+    SAFETY (v0.3.0 post-mortem): a failed READ is NOT the same as "item does not
+    exist". The old code created a fresh key on ANY find failure and passed -U
+    (update), so a locked keychain or a denied ACL prompt silently REPLACED the
+    real master key — cryptographically destroying every DEK wrapped by it.
+    Now: create only when the keychain explicitly says the item was not found,
+    NEVER pass -U, and treat an "already exists" race as a re-read."""
     r = _security(f'find-generic-password -s "{service}" -a "{account}" -w\n')
     if r.returncode == 0:
         return bytes.fromhex(r.stdout.strip())
+    if "could not be found" not in (r.stderr or ""):
+        # locked / denied / sandboxed — the item may well EXIST; refuse loudly
+        raise RuntimeError(
+            f"Keychain read failed (NOT creating a key — the existing one may "
+            f"be intact): {r.stderr.strip() or f'status {r.returncode}'}")
     fresh = secrets.token_bytes(32)
     r = _security(
-        f'add-generic-password -s "{service}" -a "{account}" -w "{fresh.hex()}" -U\n')
-    if r.returncode != 0:
-        raise RuntimeError(f"Keychain unavailable: {r.stderr.strip()}")
-    return fresh
+        f'add-generic-password -s "{service}" -a "{account}" -w "{fresh.hex()}"\n')
+    if r.returncode == 0:
+        return fresh
+    if "already exists" in (r.stderr or ""):
+        # lost a create race — the winner's key is the real one
+        r = _security(f'find-generic-password -s "{service}" -a "{account}" -w\n')
+        if r.returncode == 0:
+            return bytes.fromhex(r.stdout.strip())
+    raise RuntimeError(f"Keychain unavailable: {r.stderr.strip()}")
 
 
 def master_key(service=KEYCHAIN_SERVICE, account=KEYCHAIN_ACCOUNT):
