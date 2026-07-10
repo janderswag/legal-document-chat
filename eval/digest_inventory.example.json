@@ -1,0 +1,12 @@
+{
+  "_comment": "Hand-labeled extraction ground truth. One entry per fact a competent reader would put in the digest. span_contains: a distinctive normalized substring of the source span (matching is via verifier normalization). Recall = fraction of entries matched by an extracted fact of the same type on the same doc.",
+  "targets": {"date_event": 0.85, "amount": 0.85, "party": 0.90},
+  "facts": [
+    {"doc": "nimbus_msa_v2.pdf", "matter": "nimbus-dispute",
+     "fact_type": "date_event", "span_contains": "within thirty (30) days after receipt"},
+    {"doc": "nimbus_msa_v2.pdf", "matter": "nimbus-dispute",
+     "fact_type": "party", "span_contains": "pemberton logistics"},
+    {"doc": "nimbus_msa_v2.pdf", "matter": "nimbus-dispute",
+     "fact_type": "amount", "span_contains": "$28,000"}
+  ]
+}
