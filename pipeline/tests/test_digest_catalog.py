@@ -73,6 +73,13 @@ class TestDigestCatalog(unittest.TestCase):
         catalog.delete_document(self.doc["id"])
         self.assertEqual(catalog.facts_for_matter("nimbus-dispute"), [])
 
+    def test_replace_facts_noop_after_doc_deleted(self):
+        # A digest in flight can finish after the doc (or matter, via disposition) was
+        # deleted; replace_facts must not resurrect facts for a doc that no longer exists.
+        catalog.delete_document(self.doc["id"])
+        catalog.replace_facts(self.doc["id"], "nimbus-dispute", [_fact("a")], "v1")
+        self.assertEqual(catalog.facts_for_matter("nimbus-dispute"), [])
+
     def test_delete_matter_cascades_facts_and_reviews(self):
         catalog.replace_facts(self.doc["id"], "nimbus-dispute", [_fact("a")], "v1")
         catalog.set_fact_review("nimbus-dispute", "a", "confirmed", "2026-07-24")

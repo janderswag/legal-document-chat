@@ -561,11 +561,15 @@ def delete_line_map(doc_id, db_path=None):
 
 def replace_facts(doc_id, matter_slug, facts, extractor_version, db_path=None):
     """Atomically replace one document's facts and stamp documents.digest_version.
-    Zero facts is a legitimate outcome (the stamp still records the doc as digested)."""
+    Zero facts is a legitimate outcome (the stamp still records the doc as digested).
+    A no-op if the document no longer exists: a digest in flight can finish after the
+    doc (or its matter, via disposition) was deleted, and must not resurrect facts."""
     if not matter_slug:
         raise ValueError("matter_slug is required")
     conn = _connect(db_path)
     try:
+        if conn.execute("SELECT 1 FROM documents WHERE id = ?", (doc_id,)).fetchone() is None:
+            return
         conn.execute("DELETE FROM matter_facts WHERE doc_id = ?", (doc_id,))
         for f in facts:
             conn.execute(
