@@ -876,22 +876,40 @@
   // dates are the attorney's — the UI shows source language and takes THEIR date;
   // it never computes one. Every row cites verbatim source with a highlight link.
   var overviewPoll = null;
+  // Keyed by slug so switching matters always re-renders (a stale key from another
+  // matter never matches); guards against the ~2s hub poll wiping an in-progress
+  // attorney edit (F2) by skipping a re-render that would change nothing, or that
+  // would land while focus is inside the overview box.
+  var overviewLastPayload = null;
   async function renderMatterOverview(slug) {
     var box = document.getElementById("matter-overview");
     if (!box) return;
-    var data;
-    try { data = await api("/matters/" + encodeURIComponent(slug) + "/overview"); }
-    catch (e) { box.innerHTML = ""; return; }
+    var data, payloadKey;
+    try {
+      data = await api("/matters/" + encodeURIComponent(slug) + "/overview");
+      payloadKey = slug + "|" + JSON.stringify(data);
+    } catch (e) {
+      if (!box.innerHTML)
+        box.innerHTML = "<div class='panel muted'>Couldn't load the matter overview.</div>";
+      return;   // never clobber existing content on a failed refresh
+    }
 
     if (overviewPoll) { clearTimeout(overviewPoll); overviewPoll = null; }
     var building = data.building.total > 0 && data.building.done < data.building.total;
     if (building) overviewPoll = setTimeout(function () { renderMatterOverview(slug); }, 5000);
 
-    function srcLine(i) {
-      var u = highlightUrl({ doc_id: i.doc_id, page: i.page, span: i.span })
+    if (box.contains(document.activeElement)) return;   // attorney is mid-interaction
+    if (payloadKey === overviewLastPayload && box.innerHTML) return;   // nothing changed
+    overviewLastPayload = payloadKey;
+
+    function ovHref(i) {
+      return highlightUrl({ doc_id: i.doc_id, page: i.page, span: i.span })
         .replace(/'/g, "%27"); // encodeURIComponent leaves ' raw; it would end the href='...'
+    }
+
+    function srcLine(i) {
       return "<div class='ov-src'>“" + esc(i.span) + "” — <a class='ov-cite' " +
-        "href='" + u + "' target='_blank'>" + esc(i.filename) + " p." + esc(String(i.page)) + "</a></div>";
+        "href='" + ovHref(i) + "' target='_blank'>" + esc(i.filename) + " p." + esc(String(i.page)) + "</a></div>";
     }
 
     function deadlineRow(i) {
@@ -921,7 +939,8 @@
     function tlRow(i) {
       var v = i.value;
       return "<div class='ov-tl'><span class='ov-tld'>" + esc(v.date_iso || v.date_text || "") +
-        "</span><span>" + esc(v.label || "") + "</span></div>";
+        "</span><span>" + esc(v.label || "") + "</span> <a class='ov-cite' href='" + ovHref(i) +
+        "' target='_blank'>p." + esc(String(i.page)) + "</a></div>";
     }
 
     function groupBy(items, keyFn) {
@@ -949,12 +968,16 @@
       var parties = groupBy(data.parties, function (i) {
         return (i.value.name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); });
       var pbits = Object.keys(parties).map(function (k) {
-        var v = parties[k][0].value;
-        return esc(v.name) + (v.role ? " <span class='muted'>(" + esc(v.role) + ")</span>" : "");
+        var first = parties[k][0], v = first.value;
+        return esc(v.name) + (v.role ? " <span class='muted'>(" + esc(v.role) + ")</span>" : "") +
+          " <a class='ov-cite' href='" + ovHref(first) + "' target='_blank'>p." +
+          esc(String(first.page)) + "</a>";
       });
       var abits = data.amounts.map(function (i) {
         return esc(i.value.value || "") + (i.value.purpose ? " <span class='muted'>" +
-          esc(i.value.purpose) + "</span>" : "");
+          esc(i.value.purpose) + "</span>" : "") +
+          " <a class='ov-cite' href='" + ovHref(i) + "' target='_blank'>p." +
+          esc(String(i.page)) + "</a>";
       });
       if (pbits.length || abits.length)
         html += "<div class='ov-tl'><span>" + pbits.concat(abits).join(" · ") + "</span></div>";

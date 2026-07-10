@@ -37,6 +37,14 @@ class TestOverviewUI(unittest.TestCase):
         # like "tenant's deposit" breaks out of the single-quoted href attribute
         self.assertIn('replace(/\'/g, "%27")', APP_JS)
 
+    def test_timeline_rows_cite_source(self):
+        # Spec: "every row cited to a verbatim source span and click-through" — the
+        # timeline rows must not be the one uncited exception (F5).
+        self.assertIn("function ovHref", APP_JS)
+        tl = APP_JS[APP_JS.index("function tlRow"):APP_JS.index("function groupBy")]
+        self.assertIn("ovHref", tl)
+        self.assertIn("ov-cite", tl)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
