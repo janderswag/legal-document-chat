@@ -69,5 +69,6 @@ def review_fact(matter: str, fact_key: str, body: ReviewBody):
         raise HTTPException(status_code=422, detail="confirmed_date must be YYYY-MM-DD")
     catalog.set_fact_review(matter, fact_key, body.status, body.confirmed_date)
     catalog.audit_append("fact_review", matter,
-                         json.dumps({"fact_key": fact_key, "status": body.status}))
+                         json.dumps({"fact_key": fact_key, "status": body.status,
+                                     "confirmed_date": body.confirmed_date}))
     return {"ok": True}

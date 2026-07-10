@@ -77,6 +77,26 @@ class TestOverviewRoutes(unittest.TestCase):
         self.assertEqual([i["fact_key"] for i in body["timeline"]], ["dl"])
         self.assertEqual(body["dismissed_count"], 1)
 
+    def test_deadline_sort_order(self):
+        # Comparator in routes_digest.overview: unconfirmed before confirmed; within
+        # unconfirmed, dated (by date) before dateless; confirmed last, by date.
+        catalog.replace_facts(self.doc["id"], "nimbus-dispute", [
+            _fact("confirmed_dated", value={"kind": "deadline", "label": "Confirmed",
+                                            "date_text": "March 1, 2026", "date_iso": "2026-03-01",
+                                            "date_kind": "explicit", "anchor": None}),
+            _fact("unconfirmed_dated", value={"kind": "deadline", "label": "Unconfirmed dated",
+                                              "date_text": "April 1, 2026", "date_iso": "2026-04-01",
+                                              "date_kind": "explicit", "anchor": None}),
+            _fact("unconfirmed_dateless", value={"kind": "deadline", "label": "Unconfirmed dateless",
+                                                 "date_text": "within 10 days", "date_iso": None,
+                                                 "date_kind": "relative", "anchor": "service"}),
+        ], "v1")
+        client.post("/matters/nimbus-dispute/facts/confirmed_dated/review",
+                    json={"status": "confirmed", "confirmed_date": "2026-03-01"})
+        body = client.get("/matters/nimbus-dispute/overview").json()
+        self.assertEqual([i["fact_key"] for i in body["deadlines"]],
+                         ["unconfirmed_dated", "unconfirmed_dateless", "confirmed_dated"])
+
     def test_bad_status_and_bad_date_rejected(self):
         r = client.post("/matters/nimbus-dispute/facts/dl/review",
                         json={"status": "approved"})
