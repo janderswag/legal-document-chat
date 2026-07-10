@@ -172,14 +172,18 @@ def _chat(messages, host=None, model=CHAT_MODEL):
 
 
 def preload_model(host=None, model=CHAT_MODEL, timeout=120):
-    """Load the chat model's weights into Ollama WITHOUT generating (empty messages =
-    documented Ollama preload form), warm for KEEP_ALIVE. Called in a background thread
-    at app startup (api.py) so the FIRST question doesn't pay the cold reload; loopback
-    only, no document data leaves the machine. Returns True when the load succeeded —
-    never raises (a down Ollama just means the first query pays the load, as today)."""
+    """Load the chat model's weights AND warm the system prompt's KV into Ollama's
+    prefix cache: a 1-token generation over the real SYSTEM_PROMPT (output discarded),
+    so the first question's prefill skips its stable ~450-token prefix (speed doc
+    2026-07-10, rank 2; answer-time prompt bytes are unchanged). Called in a
+    background thread at app startup (api.py) so the FIRST question doesn't pay the
+    cold reload; loopback only, no document data leaves the machine. Returns True
+    when the load succeeded — never raises (a down Ollama just means the first
+    query pays the load, as today)."""
     host = host or ollama_url()
-    payload = {"model": model, "messages": [], "keep_alive": KEEP_ALIVE,
-               "options": {"num_ctx": NUM_CTX}}
+    payload = {"model": model, "keep_alive": KEEP_ALIVE, "stream": False,
+               "messages": [{"role": "system", "content": SYSTEM_PROMPT}],
+               "options": {"num_ctx": NUM_CTX, "num_predict": 1}}
     req = urllib.request.Request(
         f"{host}/api/chat", data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},

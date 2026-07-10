@@ -52,16 +52,33 @@ _SCHEMA = pa.schema([
 ])
 
 
+EMBED_KEEP_ALIVE = "30m"   # pin bge-m3 warm like the chat model (P0.2 symmetry) —
+                           # without it Ollama's 5m default unloads the embedder and
+                           # every post-idle question pays a 1-3s cold reload
+
+
 def embed_texts(texts, model="bge-m3", host=None):
     """Embed a list of strings via the Ollama embed API -> list of vectors. ``host``
     defaults to ``ollama_url()`` (host loopback, or the container override)."""
     host = host or ollama_url()
-    payload = json.dumps({"model": model, "input": list(texts)}).encode("utf-8")
+    payload = json.dumps({"model": model, "input": list(texts),
+                          "keep_alive": EMBED_KEEP_ALIVE}).encode("utf-8")
     req = urllib.request.Request(
         f"{host}/api/embed", data=payload, headers={"Content-Type": "application/json"}
     )
     with urllib.request.urlopen(req) as resp:
         return json.load(resp)["embeddings"]
+
+
+def preload_embedder(host=None, model="bge-m3", timeout=120):
+    """Warm bge-m3 at startup (one tiny embed, discarded) so the first question's
+    retrieval never pays the cold reload (speed doc 2026-07-10, rank 1). Never
+    raises — a down Ollama just means the first query loads it, as before."""
+    try:
+        embed_texts(["warm"], model=model, host=host)
+        return True
+    except Exception:
+        return False
 
 
 def build_store(chunks_path, db_path, table_name="chunks"):

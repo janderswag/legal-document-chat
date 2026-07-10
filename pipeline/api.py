@@ -127,11 +127,16 @@ def _eject_encrypted_store():
 
 @app.on_event("startup")
 def _warm_chat_model():
-    """P0: pre-warm the chat model in a daemon thread so the FIRST question doesn't pay
-    the ~5.5s cold reload. Non-blocking (health/setup respond immediately); loopback
-    Ollama only; failure is silent — a down Ollama just means the first query loads, as
-    before. No document data is involved (empty preload request)."""
-    threading.Thread(target=preload_model, name="ollama-preload", daemon=True).start()
+    """P0: pre-warm the chat model (+ its system-prompt KV) AND the embedder in a
+    daemon thread so the FIRST question pays neither the ~5.5s chat reload nor the
+    1-3s bge-m3 reload (speed doc 2026-07-10, ranks 1-2). Non-blocking (health/setup
+    respond immediately); loopback Ollama only; failure is silent — a down Ollama
+    just means the first query loads, as before. No document data is involved."""
+    def _warm():
+        preload_model()
+        import embed_store
+        embed_store.preload_embedder()
+    threading.Thread(target=_warm, name="ollama-preload", daemon=True).start()
 
 
 @app.on_event("startup")
