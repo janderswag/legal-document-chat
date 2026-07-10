@@ -126,6 +126,13 @@ CREATE TABLE IF NOT EXISTS profile (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS watch_folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    matter_slug TEXT NOT NULL,
+    path TEXT NOT NULL,
+    created TEXT NOT NULL,
+    UNIQUE (matter_slug, path)
+);
 """
 
 
@@ -194,6 +201,53 @@ def set_profile(values, db_path=None):
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (str(k), json.dumps(v)),
             )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def clear_profile(db_path=None):
+    """Erase the whole profile (UX-6 erase-everything)."""
+    conn = _connect(db_path)
+    try:
+        conn.execute("DELETE FROM profile")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# --- watched folders (UX-6 connectors) -------------------------------------------
+
+def add_watch_folder(matter_slug, path, db_path=None):
+    conn = _connect(db_path)
+    try:
+        cur = conn.execute(
+            "INSERT INTO watch_folders (matter_slug, path, created) VALUES (?, ?, ?)",
+            (matter_slug, str(path), _now()),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM watch_folders WHERE id = ?",
+                           (cur.lastrowid,)).fetchone()
+        return dict(row)
+    except sqlite3.IntegrityError:
+        raise ValueError("that folder is already watched for this matter")
+    finally:
+        conn.close()
+
+
+def list_watch_folders(db_path=None):
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute("SELECT * FROM watch_folders ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def remove_watch_folder(folder_id, db_path=None):
+    conn = _connect(db_path)
+    try:
+        conn.execute("DELETE FROM watch_folders WHERE id = ?", (folder_id,))
         conn.commit()
     finally:
         conn.close()

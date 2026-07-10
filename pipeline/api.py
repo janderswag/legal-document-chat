@@ -75,6 +75,8 @@ async def _origin_guard(request, call_next):
 # App routers (the SAM-style UI surfaces). Loopback-only, cited-retrieval only.
 import routes_chat  # noqa: E402
 import routes_clauses  # noqa: E402
+import routes_connectors  # noqa: E402
+import routes_data  # noqa: E402
 import routes_grid  # noqa: E402
 import routes_kb  # noqa: E402
 import routes_matters  # noqa: E402
@@ -93,6 +95,8 @@ app.include_router(routes_clauses.router)
 app.include_router(routes_grid.router)
 app.include_router(routes_settings.router)
 app.include_router(routes_profile.router)
+app.include_router(routes_connectors.router)
+app.include_router(routes_data.router)
 app.include_router(routes_setup.router)
 app.include_router(routes_transcripts.router)
 app.include_router(routes_retention.router)
@@ -144,6 +148,14 @@ def _seed_sample_matter():
     import sample_matter
     sample_matter.migrate_demo_label()   # UX-2: pre-rename installs drop "(Demo)"
     sample_matter.maybe_seed_async()
+
+
+@app.on_event("startup")
+def _start_folder_watcher():
+    """UX-6 connectors: poll watched folders and ingest new files through the same
+    serialized path as manual uploads. Local directories only — no network."""
+    import watchers
+    watchers.start()
 
 
 @app.get("/", response_class=HTMLResponse)

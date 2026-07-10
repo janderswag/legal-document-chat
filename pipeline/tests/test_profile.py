@@ -86,6 +86,52 @@ class TestProfileRoutes(unittest.TestCase):
         self.assertNotIn("phone", p)
 
 
+class TestProfilePhoto(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self._cat, catalog.DEFAULT_DB = catalog.DEFAULT_DB, self.tmp / "cat.db"
+        self._photo = routes_profile._PHOTO_PATH
+        routes_profile._PHOTO_PATH = self.tmp / ".profile_photo"
+
+    def tearDown(self):
+        catalog.DEFAULT_DB = self._cat
+        routes_profile._PHOTO_PATH = self._photo
+
+    PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 32
+
+    def test_png_roundtrip_and_delete(self):
+        self.assertEqual(client.get("/profile/photo").status_code, 404)
+        r = client.post("/profile/photo", content=self.PNG)
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(client.get("/profile").json()["has_photo"])
+        got = client.get("/profile/photo")
+        self.assertEqual(got.status_code, 200)
+        self.assertEqual(got.content, self.PNG)
+        self.assertEqual(got.headers["content-type"], "image/png")
+        client.post("/profile/photo/delete")
+        self.assertFalse(client.get("/profile").json()["has_photo"])
+        self.assertEqual(client.get("/profile/photo").status_code, 404)
+
+    def test_magic_byte_sniff_rejects_non_images(self):
+        for bad in (b"", b"GIF89a....", b"<svg onload=alert(1)>", b"%PDF-1.4"):
+            r = client.post("/profile/photo", content=bad)
+            self.assertEqual(r.status_code, 400, bad[:10])
+
+    def test_role_and_firm_fields(self):
+        client.post("/profile", json={"role": "  Managing Partner ",
+                                      "firm": "Anderson Law "})
+        p = client.get("/profile").json()
+        self.assertEqual(p["role"], "Managing Partner")
+        self.assertEqual(p["firm"], "Anderson Law")
+
+    def test_memory_notes_bounds_and_blanks(self):
+        client.post("/profile", json={"memory_notes": ["prefers short answers", " ",
+                                                       "x" * 1000]})
+        p = client.get("/profile").json()
+        self.assertEqual(len(p["memory_notes"]), 2)          # blank dropped
+        self.assertLessEqual(len(p["memory_notes"][1]), routes_profile._MAX_NOTE_LEN)
+
+
 class TestOnboardingUi(unittest.TestCase):
     def test_js_has_onboarding_and_profile_wiring(self):
         js = client.get("/static/app.js").text

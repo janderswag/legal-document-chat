@@ -139,7 +139,15 @@ class TestSafetyStructural(unittest.TestCase):
                           # practice areas, onboarded flag) in the encrypted catalog.
                           # GET reads it; POST updates it (app config only — never a
                           # document; no PUT/PATCH, preserving the structural lock).
-                          "/profile"})
+                          "/profile",
+                          # UX-6: profile photo (local file, magic-byte-verified;
+                          # removal is a POST — DELETE stays locked to /kb/documents),
+                          # watched-folder connectors (local directories, no egress),
+                          # and erase-everything (typed confirmation; refuses under
+                          # an active legal hold).
+                          "/profile/photo", "/profile/photo/delete",
+                          "/connectors/folders", "/connectors/folders/remove",
+                          "/data/erase"})
 
     def test_only_the_locked_kb_delete_mutates(self):
         # No PUT/PATCH anywhere; DELETE is exposed ONLY on the structurally-locked KB

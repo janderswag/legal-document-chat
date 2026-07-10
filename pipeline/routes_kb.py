@@ -25,10 +25,11 @@ import apppaths
 KB_DB = apppaths.data_root() / ".lancedb_kb"   # dedicated KB store (git-ignored)
 KB_DOCS = apppaths.docs_root()                 # managed copies (git-ignored)
 
-_ALLOWED = {".pdf", ".docx", ".txt", ".md"}
+_ALLOWED = {".pdf", ".docx", ".txt", ".md", ".eml"}
 _MAX_BYTES = 25 * 1024 * 1024  # 25 MB upload cap
 _MEDIA = {".pdf": "application/pdf", ".txt": "text/plain", ".md": "text/markdown",
-          ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+          ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          ".eml": "message/rfc822"}
 
 
 def _safe_name(filename):
