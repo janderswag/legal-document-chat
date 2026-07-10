@@ -502,7 +502,8 @@
     await fillMatterPickers();
   }
 
-  var UPLOAD_TYPES = [".pdf", ".docx", ".txt", ".md", ".eml"];
+  var UPLOAD_TYPES = [".pdf", ".docx", ".txt", ".md", ".eml",
+                      ".html", ".htm", ".vtt", ".srt", ".csv", ".json"];   // UX-11
 
   function isSupportedFile(name) {
     var dot = name.lastIndexOf(".");
@@ -1415,6 +1416,127 @@
     });
   }
 
+  // --- Integration catalog (UX-11, owner-directed roadmap) --------------------
+  // Every entry has a documented API/webhook/partner platform. NOTHING here is
+  // claimed live: rows carry the access-type label + an honest status, and a
+  // connector only flips to available after its auth flow, permissions, import,
+  // sync, error handling, and local-deletion controls pass testing (owner rule).
+  // Logos are bundled local SVGs (air-gap — no runtime fetch); brands without a
+  // redistributable mark get a letter tile.
+  var CONNECTOR_CATALOG = [
+    { cat: "AI Meeting Notetakers", items: [
+      ["Read AI", null, "Public API", "Meeting notes, transcripts, and summaries", true],
+      ["Granola", null, "Enterprise API", "Meeting notes from your Granola workspace", true],
+      ["Fireflies.ai", null, "Public API", "Transcripts and meeting summaries", true],
+      ["Fathom", "fathom", "Public API", "Call recordings, notes, and summaries", true],
+      ["Otter.ai", null, "Enterprise API", "Meeting transcripts and notes", false],
+      ["tl;dv", null, "Paid-plan API", "Meeting recordings and highlights", false],
+      ["MeetGeek", null, "Public API", "Meeting summaries and transcripts", false],
+      ["Avoma", null, "Public API", "Conversation notes and transcripts", false],
+      ["Sembly AI", null, "Webhook-only", "Meeting notes pushed as they finish", false],
+      ["Circleback", null, "Webhook-only", "Notes and action items pushed per meeting", false],
+      ["Grain", null, "Public API", "Call clips and transcripts", false],
+      ["Gong", null, "Paid-plan API", "Call recordings and transcripts", false],
+      ["Clari Copilot", null, "Paid-plan API", "Call transcripts and summaries", false],
+      ["Jiminny", null, "Public API", "Conversation recordings and notes", false],
+      ["Rev", null, "Public API", "Human transcription orders and results", false],
+      ["Rev AI", null, "Public API", "Automated speech-to-text transcripts", false],
+      ["Sonix", null, "Paid-plan API", "Automated transcripts", false],
+      ["Trint", null, "Public API", "Transcripts and captions", false],
+      ["Happy Scribe", null, "Public API", "Transcripts and subtitles", false],
+    ]},
+    { cat: "Meeting Platforms", items: [
+      ["Zoom", "zoom", "OAuth connection", "Cloud recordings and meeting transcripts", true],
+      ["Microsoft Teams", null, "OAuth connection", "Meetings, chat files, and transcripts (Graph)", true],
+      ["Google Meet", "googlemeet", "OAuth connection", "Meeting recordings and transcripts", true],
+      ["Cisco Webex", "webex", "OAuth connection", "Meeting recordings and messaging files", false],
+    ]},
+    { cat: "Notes & Knowledge", items: [
+      ["Notion", "notion", "OAuth connection", "Pages and databases as documents", false],
+      ["Google Docs", "googledocs", "OAuth connection", "Docs pulled into their matter", true],
+      ["Microsoft OneNote", null, "OAuth connection", "Notebooks and sections (Graph)", true],
+      ["Microsoft Word", null, "OAuth connection", "Word files from Microsoft 365 (Graph)", false],
+      ["Microsoft Loop", null, "OAuth connection", "Loop pages where Graph supports them", false],
+      ["Confluence Cloud", "confluence", "Public API", "Spaces and pages", false],
+      ["Dropbox Paper", null, "OAuth connection", "Paper docs via the Dropbox API", false],
+      ["Airtable", "airtable", "Public API", "Tables exported as documents", false],
+      ["Coda", "coda", "Public API", "Docs and tables", false],
+      ["Evernote", "evernote", "Public API", "Notebooks and notes", false],
+      ["ClickUp", "clickup", "Public API", "Docs and task attachments", false],
+      ["monday.com", null, "Public API", "Boards and files (GraphQL)", false],
+      ["Asana", "asana", "Public API", "Project files and attachments", false],
+    ]},
+    { cat: "Email & Communications", items: [
+      ["Microsoft Outlook", null, "OAuth connection", "Mail and attachments by matter (Graph)", true],
+      ["Gmail", "gmail", "OAuth connection", "Mail and attachments by matter", true],
+      ["Slack", null, "OAuth connection", "Channel files and threads", false],
+    ]},
+    { cat: "Cloud File Storage", items: [
+      ["Microsoft OneDrive", null, "OAuth connection", "Folders synced into matters (Graph)", true],
+      ["Microsoft SharePoint", null, "OAuth connection", "Document libraries (Graph)", true],
+      ["Google Drive", "googledrive", "OAuth connection", "Folders synced into matters", true],
+      ["Dropbox", "dropbox", "OAuth connection", "Folders synced into matters", true],
+      ["Box", "box", "OAuth connection", "Folders synced into matters", true],
+      ["Egnyte", "egnyte", "Public API", "Folders and files", false],
+      ["Nextcloud", "nextcloud", "Public API", "Self-hosted files over WebDAV", false],
+      ["M-Files", null, "Public API", "Managed documents and metadata", false],
+      ["ShareFile", null, "Public API", "Client-shared files", false],
+    ]},
+    { cat: "Legal Practice & Case Management", items: [
+      ["Clio Manage", null, "OAuth connection", "Matters, documents, and contacts", true],
+      ["Clio Grow", null, "Public API", "Intake records and documents", false],
+      ["Filevine", null, "Partner-gated API", "Projects and documents", false],
+      ["MyCase", null, "Paid-plan API", "Cases and documents", false],
+      ["Smokeball", null, "Partner-gated API", "Matters and documents", false],
+      ["Lawmatics", null, "Public API", "Intake and CRM records", false],
+      ["Actionstep", null, "Public API", "Matters and documents", false],
+      ["LEAP", null, "Partner-gated API", "Matters and documents", false],
+      ["Rocket Matter", null, "Partner-gated API", "Matters and documents", false],
+      ["CARET Legal", null, "Public API", "Matters and documents", false],
+      ["Litify", null, "Enterprise API", "Matters via the Salesforce platform", false],
+    ]},
+    { cat: "Legal Document Management", items: [
+      ["iManage Work", null, "Partner-gated API", "Workspaces and documents", false],
+      ["NetDocuments", null, "Partner-gated API", "Cabinets and documents", false],
+    ]},
+    { cat: "CRM & Intake", items: [
+      ["Salesforce", null, "Public API", "Records and files", false],
+      ["HubSpot", "hubspot", "Public API", "Contacts, notes, and attachments", false],
+      ["Zoho CRM", "zoho", "Public API", "Records and attachments", false],
+      ["Pipedrive", null, "Public API", "Deals, notes, and files", false],
+    ]},
+  ];
+
+  var _TILE_COLORS = ["#b48a4a", "#7d9471", "#8a7ba8", "#a8756b", "#6b8aa8", "#a89a5b"];
+
+  function connectorLogo(name, logo) {
+    if (logo) {
+      return "<img class='conn-logo' src='/static/logos/" + logo + ".svg' alt='' " +
+        "onerror=\"this.outerHTML='<span class=conn-tile>" + esc(name[0]) + "</span>'\">";
+    }
+    var hue = _TILE_COLORS[name.charCodeAt(0) % _TILE_COLORS.length];
+    return "<span class='conn-tile' style='background:" + hue + "'>" +
+      esc(name[0].toUpperCase()) + "</span>";
+  }
+
+  var _catalogHtml = null;
+  function connectorCatalogHtml() {
+    if (_catalogHtml) return _catalogHtml;
+    _catalogHtml = CONNECTOR_CATALOG.map(function (group) {
+      var rows = group.items.map(function (it) {
+        var name = it[0], logo = it[1], access = it[2], desc = it[3], first = it[4];
+        return "<div class='conn-row'>" + connectorLogo(name, logo) +
+          "<div class='conn-text'><span class='conn-name'>" + esc(name) + "</span>" +
+          "<span class='conn-desc'>" + esc(desc) + "</span></div>" +
+          "<span class='conn-access'>" + esc(access) + "</span>" +
+          "<span class='conn-status" + (first ? " first'>Building first" : "'>Planned") +
+          "</span></div>";
+      }).join("");
+      return "<div class='panel conn-group'><b>" + esc(group.cat) + "</b>" + rows + "</div>";
+    }).join("");
+    return _catalogHtml;
+  }
+
   async function renderConnectorsPane() {
     var pane = document.getElementById("spane-connectors");
     if (!pane) return;
@@ -1446,13 +1568,21 @@
       "<div class='panel'>" +
       "<b>What can come in</b>" +
       "<p class='muted' style='font-size:13.5px'>PDF (born-digital and scanned), Word (.docx), " +
-      "text and Markdown, and email files (.eml — drag them straight from most mail apps). " +
-      "Deposition and hearing transcripts get page:line citations when marked as transcripts " +
-      "at upload.</p>" +
-      "<p class='muted' style='font-size:13px'>Cloud APIs (practice management, document management) " +
-      "are deliberately not built in: docuchat makes zero network calls. Anything those systems can " +
-      "export or sync to a folder on this computer can be watched.</p>" +
-      "</div>";
+      "text and Markdown, email files (.eml), web pages (.html), meeting and caption " +
+      "transcripts (.vtt/.srt — the format Zoom, Teams, and Meet export, with timestamps and " +
+      "speakers kept), spreadsheets as CSV, and JSON. Deposition and hearing transcripts get " +
+      "page:line citations when marked as transcripts at upload.</p>" +
+      "<p class='muted' style='font-size:13px'>Coming formats: Outlook .msg, .mbox mailboxes, " +
+      "RTF, XLSX, and audio/video with local transcription.</p>" +
+      "</div>" +
+      "<h2 class='conn-catalog-head'>Integration catalog</h2>" +
+      "<p class='muted' style='font-size:13.5px;max-width:72ch'>Every connection on this roadmap " +
+      "pulls documents IN to this computer; nothing about your documents goes out, tokens are " +
+      "stored encrypted on this machine, every imported item keeps its source, author, dates, " +
+      "and matter, and you can disconnect and delete credentials at any time. None of these are " +
+      "live yet: each one turns on only after its sign-in flow, permissions, import, sync, error " +
+      "handling, and local-deletion controls pass testing.</p>" +
+      connectorCatalogHtml();
     fillMatterPickers().catch(function () {});
     document.getElementById("folder-add").addEventListener("click", async function () {
       var err = document.getElementById("folder-err");

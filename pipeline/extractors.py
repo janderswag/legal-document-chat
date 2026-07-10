@@ -5,6 +5,11 @@ Dispatches on file suffix:
   .docx       -> python-docx paragraphs (single page_number=1; DOCX has no fixed pages)
   .txt / .md  -> read_text (single page_number=1)
   .eml        -> stdlib email parse: headers + best text body (UX-6 email import)
+  .html/.htm  -> script/style-stripped visible text (UX-11)
+  .vtt / .srt -> subtitle/transcript cues as "[HH:MM:SS] text" lines (UX-11 — the
+                 format Zoom/Teams/Meet hand out for meeting transcripts)
+  .csv        -> rows joined per line (UX-11)
+  .json       -> pretty-printed text (UX-11)
   anything else -> ValueError (the orchestrator quarantines it, fail-loud, §8)
 
 Every record is normalized to:
@@ -102,6 +107,76 @@ def _eml(path):
     }]
 
 
+def _one_page(path, text, source):
+    return [{
+        "source_filename": Path(path).name,
+        "page_number": 1,
+        "page_text": text,
+        "source": source,
+        "ocr_failed": False,
+    }]
+
+
+def _html(path):
+    """Visible text from an HTML file: script/style blocks dropped, tags stripped,
+    entities decoded. Stdlib only."""
+    import html as _h
+    import re as _re
+    raw = Path(path).read_text(encoding="utf-8", errors="replace")
+    raw = _re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", raw)
+    raw = _re.sub(r"(?i)<br\s*/?>|</p>|</div>|</h[1-6]>|</li>|</tr>", "\n", raw)
+    raw = _re.sub(r"<[^>]+>", " ", raw)
+    text = _h.unescape(raw)
+    text = "\n".join(_re.sub(r"[ \t]+", " ", ln).strip()
+                     for ln in text.splitlines())
+    return _one_page(path, _re.sub(r"\n{3,}", "\n\n", text).strip(), "html")
+
+
+def _subtitles(path):
+    """WebVTT/SRT meeting transcripts (UX-11): cue text with a searchable
+    "[HH:MM:SS]" start-time prefix per cue, speaker tags kept. This is the export
+    format of Zoom, Teams, and Meet transcripts."""
+    import re as _re
+    lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+    out, stamp = [], None
+    timing = _re.compile(
+        r"(\d{1,2}:)?(\d{1,2}):(\d{2})[.,]\d{3}\s*-->\s*")
+    for ln in lines:
+        t = ln.strip()
+        if not t or t.upper().startswith(("WEBVTT", "NOTE", "STYLE", "REGION")):
+            continue
+        m = timing.match(t)
+        if m:
+            h = (m.group(1) or "0:").rstrip(":")
+            stamp = f"[{int(h):02d}:{int(m.group(2)):02d}:{m.group(3)}]"
+            continue
+        if t.isdigit():                     # SRT cue counter
+            continue
+        t = _re.sub(r"<v(?:\.[^ >]*)?\s+([^>]+)>", r"\1: ", t)  # <v Speaker> -> Speaker:
+        t = _re.sub(r"</?[cibu][^>]*>|</v>", "", t)             # residual format tags
+        out.append(f"{stamp} {t}" if stamp else t)
+        stamp = None
+    return _one_page(path, "\n".join(out), Path(path).suffix.lstrip(".").lower())
+
+
+def _csv(path):
+    import csv as _csv
+    with open(path, newline="", encoding="utf-8", errors="replace") as f:
+        rows = [" | ".join(cell.strip() for cell in row)
+                for row in _csv.reader(f)]
+    return _one_page(path, "\n".join(rows), "csv")
+
+
+def _json(path):
+    import json as _json
+    raw = Path(path).read_text(encoding="utf-8", errors="replace")
+    try:
+        text = _json.dumps(_json.loads(raw), indent=2, ensure_ascii=False)
+    except ValueError:
+        text = raw                          # malformed JSON ingests as plain text
+    return _one_page(path, text, "json")
+
+
 def extract(path):
     """Extract normalized page records from a supported document. Raises ValueError on
     an unsupported suffix (so the orchestrator quarantines it)."""
@@ -115,4 +190,12 @@ def extract(path):
         return _text(path)
     if suffix == ".eml":
         return _eml(path)
+    if suffix in (".html", ".htm"):
+        return _html(path)
+    if suffix in (".vtt", ".srt"):
+        return _subtitles(path)
+    if suffix == ".csv":
+        return _csv(path)
+    if suffix == ".json":
+        return _json(path)
     raise ValueError(f"unsupported document type: {suffix!r} ({path.name})")

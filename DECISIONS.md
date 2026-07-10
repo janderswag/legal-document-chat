@@ -970,6 +970,31 @@
   or if a strong small model ships; any candidate must beat this same gate first.
   (D-10, D-11, D-75)
 
+- **D-80 — UX-11: integration catalog + universal file import + the connector build
+  contract (owner-directed, 2026-07-09).** The Connectors settings page now carries the
+  owner's full integration roadmap as a Granola-style catalog (8 categories, ~60 platforms,
+  each with a documented API/webhook/partner platform), rendered with bundled local logos
+  (Simple Icons SVGs committed into static/logos — NO runtime fetch, air-gap intact; brands
+  without a redistributable mark get letter tiles) and TWO honest chips per row: the
+  owner's access-type taxonomy (Public API / Enterprise API / Paid-plan API / Partner-gated
+  API / Webhook-only / OAuth connection) and status (Building first = the owner's priority
+  11; Planned). NOTHING is claimed live — per the owner's own rule, a connector flips to
+  available only after its auth flow, API permissions, import, sync, error handling, and
+  local-deletion controls are fully tested. **The connector build contract (binding on
+  every future connector):** all downloaded content stored locally; all parsing/OCR/
+  embedding/inference/search local; OAuth tokens encrypted locally; no docuchat servers;
+  one-time import + optional scheduled sync; disconnect + credential deletion controls;
+  source provenance tracked per item (original file, author, dates, meeting title,
+  timestamps, speakers, matter); imported-from-cloud clearly distinguished from captured-
+  locally; every answer still cites the original note/email/transcript/page/line. Matter
+  memory targets the owner's full source list (notes, transcripts, calls, emails +
+  attachments, texts, portal messages, contracts, pleadings, exhibits, depositions,
+  medical/financial records, recordings, work product, case-management records).
+  **Universal import shipped now (stdlib, tested):** .html/.htm, .vtt/.srt (Zoom/Teams/
+  Meet transcript exports — timestamps + speakers kept), .csv, .json, joining
+  .pdf/.docx/.txt/.md/.eml. Queued (need deps or models): .msg, .mbox, .rtf, .xlsx, .zip,
+  and audio/video via local transcription. (D-76, D-77, D-78)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

@@ -253,6 +253,25 @@ tr.doc-row:active{cursor:grabbing}
   letter-spacing:.4px;text-transform:uppercase;color:var(--ok);background:#e6f0e2;
   border:1px solid #b6d7bf;padding:3px 10px;border-radius:999px}
 
+/* Integration catalog (UX-11): Granola-style connector rows */
+.conn-catalog-head{font-family:var(--serif);font-weight:500;font-size:22px;margin:26px 0 6px}
+.conn-group{padding:14px 20px}
+.conn-group>b{display:block;padding:4px 0 6px}
+.conn-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px dashed var(--border)}
+.conn-row:first-of-type{border-top:0}
+.conn-logo{width:28px;height:28px;flex:0 0 28px;object-fit:contain}
+.conn-tile{display:inline-grid;place-items:center;width:28px;height:28px;flex:0 0 28px;
+  border-radius:8px;color:#fff;font-weight:700;font-size:14px;background:var(--accent)}
+.conn-text{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.conn-name{font-weight:600;font-size:14px}
+.conn-desc{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conn-access{flex:0 0 auto;font-size:11px;font-weight:600;color:var(--muted);
+  background:var(--panel-2);border:1px solid var(--border-2);border-radius:999px;padding:3px 9px}
+.conn-status{flex:0 0 auto;font-size:11px;font-weight:700;letter-spacing:.3px;
+  color:var(--faint);background:transparent;border:1px dashed var(--border-2);
+  border-radius:999px;padding:3px 9px}
+.conn-status.first{color:#6e5220;background:var(--accent-soft);border:1px solid var(--accent)}
+
 /* Onboarding (UX-5): three skippable screens over the app on first run */
 #onboard-overlay{position:fixed;inset:0;background:rgba(28,27,23,.55);z-index:50;
   display:grid;place-items:center;backdrop-filter:blur(3px)}
