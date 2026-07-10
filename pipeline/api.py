@@ -148,6 +148,9 @@ def _warm_chat_model():
         embed_store.preload_embedder()
     threading.Thread(target=_warm, name="ollama-preload", daemon=True).start()
 
+    import digest
+    digest.backfill_async(routes_kb.KB_DB)
+
 
 @app.on_event("startup")
 def _protect_data_dirs():

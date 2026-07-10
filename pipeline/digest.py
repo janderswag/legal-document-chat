@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 import urllib.request
 
@@ -235,3 +236,34 @@ def extract_for_document(doc_id, db_path, catalog_db=None):
                                      "dropped": dropped}), db_path=catalog_db)
     log.info("digest doc=%s extracted=%d dropped=%d", doc_id, extracted, dropped)
     return {"extracted": extracted, "dropped": dropped}
+
+
+def _stale_doc_ids(catalog_db=None):
+    """Ready docs not yet digested at the current extractor version, oldest first."""
+    conn = catalog._connect(catalog_db)
+    try:
+        rows = conn.execute(
+            "SELECT id FROM documents WHERE status IN ('ready', 'needs_review') "
+            "AND (digest_version IS NULL OR digest_version != ?) ORDER BY id",
+            (EXTRACTOR_VERSION,)).fetchall()
+        return [r["id"] for r in rows]
+    finally:
+        conn.close()
+
+
+def backfill_async(db_path, catalog_db=None, initial_delay=20.0):
+    """One-shot startup backfill: digest every already-ingested doc that predates
+    the current extractor version. Daemon thread; yields to chat between docs."""
+    def _loop():
+        time.sleep(initial_delay)   # let startup (model preload etc.) finish first
+        if not enabled():
+            return
+        for doc_id in _stale_doc_ids(catalog_db):
+            _yield_to_chat()
+            try:
+                extract_for_document(doc_id, db_path, catalog_db=catalog_db)
+            except Exception:
+                log.exception("digest backfill failed: doc_id=%s", doc_id)
+    t = threading.Thread(target=_loop, name="matter-digest-backfill", daemon=True)
+    t.start()
+    return t
