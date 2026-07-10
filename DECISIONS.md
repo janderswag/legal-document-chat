@@ -943,6 +943,18 @@
   license-key plan; docuchat.app share link) — no payment rails are faked; the D-76
   business-model gate still applies before any real billing build. (D-75, D-76)
 
+- **D-78 — UX-8: update check = the ONE deliberate non-loopback call (owner-directed,
+  2026-07-09).** The owner requires a one-click visible "Update available" above Billing.
+  This is the first crack in the absolute "0 outbound" posture, so it ships fenced: a plain
+  GET to the GitHub releases API for the latest version TAG only — no document data, no
+  profile data, no machine identifiers, no query params; at most once per 24h; LAZY (UI-
+  polled, never at startup, never in the answer path — SC-6 loopback posture untouched,
+  tested in test_updates); silent on failure; and toggleable off in Settings > System with
+  a plain-English disclosure ("turn it off and docuchat makes zero outside calls"). The
+  badge opens the docuchat.app download page — one-click download, not in-place auto-update
+  (Sparkle-style in-place update is a post-signing cycle). Site/security copy must say
+  "zero outbound except an optional daily version check" when this ships to main. (D-71)
+
 ## Stack — pilot (Milestone 1)
 
 - **D-8 — Model runtime: Ollama** (pilot and production). OpenAI-compatible local API, Metal

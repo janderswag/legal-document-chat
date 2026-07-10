@@ -7,7 +7,10 @@ _Last updated: 2026-07-09_
 
 ## Status
 
-**2026-07-09 UX-7 cycle — owner-directed nav v3, SHIPPED on `ux-v2` (D-77).** After viewing
+**2026-07-09 UX-7/UX-8 cycles — owner-directed nav v3 + update check, SHIPPED on `ux-v2`
+(D-77, D-78).** UX-8: one-click "Update available" above Billing — the ONE fenced
+non-loopback call (daily GitHub version tag; lazy, toggleable in Settings > System,
+disclosed; site security copy needs the "except optional version check" caveat at merge). After viewing
 the UX-6 preview the owner redirected the IA: nav is now Chat / Chat History / Document Hub /
 Review & Compare / Settings with Billing + Referrals pinned at the bottom. The Document Hub
 is the filing cabinet: upload anything -> Unfiled (a real lazily-created matter) -> drag onto
