@@ -7,6 +7,11 @@ _Last updated: 2026-07-09_
 
 ## Status
 
+**2026-07-09 UX cycles MERGED TO MAIN (owner-approved): D-75/D-76/D-77/D-78 all live on
+main; `ux-v2` deleted.** Users get this when the next release is CUT — still blocked on
+signing certs (desktop/SIGNING.md). At release-cut time: bump appversion.py, tag, and add
+the site security caveat ("zero outbound except an optional daily version check").
+
 **2026-07-09 UX-7/UX-8 cycles — owner-directed nav v3 + update check, SHIPPED on `ux-v2`
 (D-77, D-78).** UX-8: one-click "Update available" above Billing — the ONE fenced
 non-loopback call (daily GitHub version tag; lazy, toggleable in Settings > System,
