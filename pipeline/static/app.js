@@ -739,6 +739,7 @@
         "<button class='btn secondary' id='matter-export'>export</button>" +
         "<button class='btn secondary' id='matter-dispose'>dispose</button>" +
         "</div>" +
+        "<div id='matter-overview'></div>" +
         "<div id='matter-dropzone' class='panel' style='border:2px dashed var(--border);text-align:center;padding:28px;cursor:pointer'>" +
         "Drag &amp; drop files here, or click to choose. <span class='muted'>(.pdf .docx .txt .md .eml .html .vtt .srt .csv .json)</span>" +
         "<input type='file' id='matter-file-input' multiple style='display:none'></div>" +
@@ -807,6 +808,7 @@
     }
     refreshMatterDocs();
     refreshMatterThreads();
+    renderMatterOverview(slug);
   }
 
   // Ingest progress line (Move 0c): queue depth + in-flight stage, from the worker.
@@ -848,6 +850,9 @@
         "<button class='btn secondary' data-del-doc='" + d.id + "'>delete</button></td></tr>";
     }).join("") : "<tr><td colspan='5' class='muted'>No documents yet — drop files above.</td></tr>";
     wireDocRowActions(tbody);
+    var dz = document.getElementById("matter-dropzone");
+    if (dz) dz.classList.toggle("slim", docs.length > 0);
+    renderMatterOverview(mattersState.open);
   }
 
   async function refreshMatterThreads() {
@@ -864,6 +869,133 @@
       : "<span class='muted'>No conversations yet. Use “Ask about this matter” above.</span>";
     box.querySelectorAll(".matter-thread").forEach(function (a) {
       a.addEventListener("click", function (e) { e.preventDefault(); openThread(a.dataset.thread); });
+    });
+  }
+
+  // M-2 matter overview: pure display of mechanically verified fact rows. Deadline
+  // dates are the attorney's — the UI shows source language and takes THEIR date;
+  // it never computes one. Every row cites verbatim source with a highlight link.
+  var overviewPoll = null;
+  async function renderMatterOverview(slug) {
+    var box = document.getElementById("matter-overview");
+    if (!box) return;
+    var data;
+    try { data = await api("/matters/" + encodeURIComponent(slug) + "/overview"); }
+    catch (e) { box.innerHTML = ""; return; }
+
+    if (overviewPoll) { clearTimeout(overviewPoll); overviewPoll = null; }
+    var building = data.building.total > 0 && data.building.done < data.building.total;
+    if (building) overviewPoll = setTimeout(function () { renderMatterOverview(slug); }, 5000);
+
+    function srcLine(i) {
+      return "<div class='ov-src'>“" + esc(i.span) + "” — <a class='ov-cite' " +
+        "href='" + highlightUrl({ doc_id: i.doc_id, page: i.page, span: i.span }) +
+        "' target='_blank'>" + esc(i.filename) + " p." + esc(String(i.page)) + "</a></div>";
+    }
+
+    function deadlineRow(i) {
+      var v = i.value, r = i.review, eff = (r && r.confirmed_date) || v.date_iso;
+      var html = "<div class='ov-row' data-key='" + esc(i.fact_key) + "'><div class='ov-top'>";
+      html += "<span class='ov-due" + (r && r.status === "confirmed" ? " ok" : eff ? "" : " none") +
+        "'>" + (eff ? esc(eff) : "No date yet") + "</span>";
+      html += "<span class='ov-label'>" + esc(v.label || "") + "</span>";
+      if (r && r.status === "confirmed")
+        html += "<span class='ov-chip ok'>confirmed by you</span>";
+      else if (v.date_iso) html += "<span class='ov-chip'>date as written — confirm?</span>";
+      else html += "<span class='ov-chip'>needs your date</span>";
+      html += "</div>" + srcLine(i);
+      if (v.anchor && !eff)
+        html += "<div class='ov-note muted'>counts from: " + esc(v.anchor) + "</div>";
+      html += "<div class='ov-actions'>";
+      if (r && r.status === "confirmed")
+        html += "<button class='btn secondary ov-act' data-act='undo'>Unconfirm</button>";
+      else {
+        html += "<input type='date' class='ov-date' value='" + esc(v.date_iso || "") + "'>";
+        html += "<button class='btn ov-act' data-act='confirm'>Confirm</button>";
+        html += "<button class='btn secondary ov-act' data-act='dismiss'>Dismiss</button>";
+      }
+      return html + "</div></div>";
+    }
+
+    function tlRow(i) {
+      var v = i.value;
+      return "<div class='ov-tl'><span class='ov-tld'>" + esc(v.date_iso || v.date_text || "") +
+        "</span><span>" + esc(v.label || "") + "</span></div>";
+    }
+
+    function groupBy(items, keyFn) {
+      var m = {};
+      items.forEach(function (i) { var k = keyFn(i); (m[k] = m[k] || []).push(i); });
+      return m;
+    }
+
+    var html = "";
+    if (building)
+      html += "<div class='muted' style='font-size:13px;margin-bottom:6px'>Building matter digest — " +
+        data.building.done + " of " + data.building.total + " documents…</div>";
+
+    if (data.deadlines.length) {
+      html += "<div class='panel'><div class='ov-title'>Deadlines";
+      var unconf = data.deadlines.filter(function (i) {
+        return !(i.review && i.review.status === "confirmed"); }).length;
+      if (unconf) html += " <span class='muted'>· " + unconf + " need your confirmation</span>";
+      html += "</div>" + data.deadlines.map(deadlineRow).join("") + "</div>";
+    }
+
+    if (data.timeline.length || data.parties.length || data.amounts.length) {
+      html += "<div class='panel'><div class='ov-title'>Timeline · Parties · Amounts</div>";
+      html += data.timeline.map(tlRow).join("");
+      var parties = groupBy(data.parties, function (i) {
+        return (i.value.name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); });
+      var pbits = Object.keys(parties).map(function (k) {
+        var v = parties[k][0].value;
+        return esc(v.name) + (v.role ? " <span class='muted'>(" + esc(v.role) + ")</span>" : "");
+      });
+      var abits = data.amounts.map(function (i) {
+        return esc(i.value.value || "") + (i.value.purpose ? " <span class='muted'>" +
+          esc(i.value.purpose) + "</span>" : "");
+      });
+      if (pbits.length || abits.length)
+        html += "<div class='ov-tl'><span>" + pbits.concat(abits).join(" · ") + "</span></div>";
+      html += "</div>";
+    }
+
+    if (data.terms.length || data.refs.length) {
+      html += "<details class='panel ov-terms'><summary class='ov-title'>Key terms &amp; references (" +
+        (data.terms.length + data.refs.length) + ")</summary>";
+      html += data.terms.map(function (i) {
+        return "<div class='ov-tl'><span>" + esc(i.value.term || "") + "</span>" + srcLine(i) + "</div>";
+      }).join("");
+      html += data.refs.map(function (i) {
+        return "<div class='ov-tl'><span>" + esc(i.value.ref_type || "") + " " +
+          esc(i.value.ref_value || "") + "</span>" + srcLine(i) + "</div>";
+      }).join("");
+      html += "</details>";
+    }
+
+    if (data.dismissed_count)
+      html += "<div class='muted' style='font-size:12px'>dismissed (" + data.dismissed_count + ")</div>";
+    if (!html && !building)
+      html = "<div class='panel muted'>No extractable facts yet — the digest builds " +
+        "automatically when documents are added.</div>";
+    box.innerHTML = html;
+
+    box.querySelectorAll(".ov-act").forEach(function (b) {
+      b.addEventListener("click", async function () {
+        var row = b.closest(".ov-row"), key = row.dataset.key, body;
+        if (b.dataset.act === "dismiss") body = { status: "dismissed" };
+        else if (b.dataset.act === "undo") body = { status: null };
+        else {
+          var d = row.querySelector(".ov-date").value;
+          if (!d) { row.querySelector(".ov-date").focus(); return; }
+          body = { status: "confirmed", confirmed_date: d };
+        }
+        await api("/matters/" + encodeURIComponent(slug) + "/facts/" +
+          encodeURIComponent(key) + "/review",
+          { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body) });
+        renderMatterOverview(slug);
+      });
     });
   }
 

@@ -314,3 +314,28 @@ tr.doc-row:active{cursor:grabbing}
 .conf-pill.ok{background:#e6f0e2;color:var(--ok)}
 .conf-pill.warn{background:#f6ead0;color:var(--warn)}
 .conf-pill.low{background:#f6e2dc;color:var(--err)}
+
+/* M-2 matter overview */
+#matter-overview .ov-title{font-weight:600;font-size:11px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
+#matter-overview .ov-row{padding:8px 0;border-top:1px solid var(--border)}
+#matter-overview .ov-row:first-of-type{border-top:none}
+#matter-overview .ov-top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.ov-due{font-weight:600;color:var(--err);min-width:84px;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.ov-due.ok{color:var(--text)}
+.ov-due.none{color:var(--warn);font-weight:500}
+.ov-label{font-weight:500}
+.ov-chip{background:var(--accent-soft);color:var(--accent);border-radius:3px;
+  padding:1px 6px;font-size:11px;white-space:nowrap}
+.ov-chip.ok{background:#e8f7ee;color:var(--ok)}
+.ov-src{color:var(--muted);font-style:italic;font-size:13px;margin-top:2px}
+.ov-cite{color:var(--accent);font-style:normal}
+.ov-note{font-size:12px}
+.ov-actions{margin-top:5px;display:flex;gap:6px;align-items:center}
+.ov-date{border:1px solid var(--border-2);border-radius:4px;padding:2px 6px;
+  font-size:12px;background:var(--panel);color:var(--text);font-family:var(--sans)}
+.ov-tl{display:flex;gap:8px;padding:3px 0;font-size:13px}
+.ov-tld{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:84px}
+.ov-terms summary{cursor:pointer}
+#matter-dropzone.slim{padding:8px !important;font-size:12px}
