@@ -67,7 +67,7 @@ class ReviewJobsBase(unittest.TestCase):
     def setUp(self):
         jobs._reset_for_tests()
         self._answer = clauses.answer
-        clauses.answer = lambda q, matter=None, top_k=5, db_path=None: dict(FOUND)
+        clauses.answer = lambda q, matter=None, top_k=5, db_path=None, source_filename=None: dict(FOUND)
 
     def tearDown(self):
         clauses.answer = self._answer
@@ -113,7 +113,7 @@ class TestSubmitAndStream(ReviewJobsBase):
         gate = threading.Event()
         orig = clauses.answer
 
-        def slow_answer(q, matter=None, top_k=5, db_path=None):
+        def slow_answer(q, matter=None, top_k=5, db_path=None, source_filename=None):
             gate.wait(10)
             return dict(FOUND)
         clauses.answer = slow_answer
@@ -148,7 +148,7 @@ class TestScopeAndStaleness(ReviewJobsBase):
         gate = threading.Event()
         orig = clauses.answer
 
-        def slow_answer(q, matter=None, top_k=5, db_path=None):
+        def slow_answer(q, matter=None, top_k=5, db_path=None, source_filename=None):
             gate.wait(10)
             return dict(FOUND)
         clauses.answer = slow_answer
@@ -169,7 +169,7 @@ class TestScopeAndStaleness(ReviewJobsBase):
         state = {"added": False}
         orig = clauses.answer
 
-        def answer_and_sneak_a_doc(q, matter=None, top_k=5, db_path=None):
+        def answer_and_sneak_a_doc(q, matter=None, top_k=5, db_path=None, source_filename=None):
             if not state["added"]:
                 state["added"] = True
                 p = self.tmp / "midrun_addendum.pdf"
@@ -194,7 +194,7 @@ class TestCancel(ReviewJobsBase):
         first_clause = threading.Event()
         release = threading.Event()
 
-        def slow_answer(q, matter=None, top_k=5, db_path=None):
+        def slow_answer(q, matter=None, top_k=5, db_path=None, source_filename=None):
             first_clause.set()
             release.wait(10)
             return dict(FOUND)

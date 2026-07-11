@@ -88,9 +88,12 @@ class _FakeAnswer:
     def __init__(self, mapping):
         self.mapping = mapping
         self.calls = []
+        self.scopes = []
 
-    def __call__(self, question, matter=None, top_k=5, db_path=None):
+    def __call__(self, question, matter=None, top_k=5, db_path=None,
+                 source_filename=None):
         self.calls.append((question, matter, db_path))
+        self.scopes.append(source_filename)
         for needle, result in self.mapping.items():
             if needle.lower() in question.lower():
                 return result
@@ -215,6 +218,56 @@ class TestClassification(unittest.TestCase):
         self.assertEqual(r["status"], "not_confirmed",
                          "file-A citation leaked onto file-B-scoped review")
         self.assertEqual(r["citations"], [], "cross-document citation leak")
+
+    def test_doc_id_scopes_retrieval_not_just_the_postfilter(self):
+        # D3 (G-SCOPE): a single-document review must pass the resolved filename
+        # into answer() as source_filename, so RETRIEVAL is scoped (the D-52
+        # post-filter stays as belt-and-braces, but the top-5 must come from
+        # this document, not the whole matter).
+        import catalog
+        orig_get = catalog.get_document
+        catalog.get_document = lambda doc_id, db_path=None: {
+            "id": doc_id, "filename": "file_b.pdf", "matter_slug": "any-matter"}
+        try:
+            fake = _FakeAnswer({})
+            clauses.answer = fake
+            clauses.extract_clauses("any-matter", doc_id=42,
+                                    taxonomy=self.tax, db_path="/tmp/x")
+        finally:
+            catalog.get_document = orig_get
+        self.assertEqual(len(fake.scopes), 3)
+        self.assertTrue(all(s == "file_b.pdf" for s in fake.scopes),
+                        f"answer() not retrieval-scoped: {fake.scopes}")
+
+    def test_matter_wide_review_passes_no_scope(self):
+        _, fake = self._run({})
+        self.assertEqual(len(fake.scopes), 3)
+        self.assertTrue(all(s is None for s in fake.scopes))
+
+    def test_scoped_review_fails_loud_when_doc_not_in_index(self):
+        # D3 rider: "document not in the index" (still processing / OCR-failed)
+        # must PROPAGATE on a scoped review — swallowing it would persist a
+        # complete all-"Not located" review of unchecked passages. A matter-wide
+        # ValueError still degrades to clean refusals.
+        import catalog
+        orig_get = catalog.get_document
+        catalog.get_document = lambda doc_id, db_path=None: {
+            "id": doc_id, "filename": "file_b.pdf", "matter_slug": "any-matter"}
+
+        def raising_answer(q, matter=None, top_k=5, db_path=None,
+                           source_filename=None):
+            raise ValueError("document not found in the index for this matter")
+        try:
+            clauses.answer = raising_answer
+            with self.assertRaises(ValueError):
+                clauses.extract_clauses("any-matter", doc_id=42,
+                                        taxonomy=self.tax, db_path="/tmp/x")
+            # matter-wide: same error degrades to refusals, never raises
+            out = clauses.extract_clauses("any-matter", taxonomy=self.tax,
+                                          db_path="/tmp/x")
+            self.assertEqual(out["summary"]["potentially_missing"], 3)
+        finally:
+            catalog.get_document = orig_get
 
 
 # --- 3. Integration (real loopback Ollama, read-only eval store) -------------------

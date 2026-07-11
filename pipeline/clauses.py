@@ -166,10 +166,19 @@ def iter_clauses(matter, doc_id=None, taxonomy=None, taxonomy_path=None,
 
     for clause in clause_list:
         try:
-            res = answer(clause["question"], matter=matter, top_k=top_k, db_path=db_path)
+            # G-SCOPE (D3): a single-document review scopes RETRIEVAL to that
+            # file; the D-52 citation post-filter below stays as belt-and-braces
+            res = answer(clause["question"], matter=matter, top_k=top_k, db_path=db_path,
+                         source_filename=target_filename)
         except ValueError:
             # matter has no indexed chunks (e.g. empty KB) -> treat every clause as a
             # clean refusal: potentially missing, never a fabricated citation.
+            # A SCOPED review is different: "document not in the index" (still
+            # processing / OCR-failed) must fail LOUD — swallowing it would
+            # persist a complete all-"Not located" review of a document whose
+            # passages were never checked (adversarial review, D3).
+            if target_filename is not None:
+                raise
             res = {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
                    "grounding_chunks": []}
         yield _classify(clause, res, target_filename)

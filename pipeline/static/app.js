@@ -2937,7 +2937,11 @@
     var docs = [];
     try { docs = (await api("/kb/documents?matter=" + encodeURIComponent(state.matter))).documents || []; }
     catch (e) { docs = []; }
-    sel.innerHTML = "<option value=''>Whole matter</option>" + docs.map(function (d) {
+    // only reviewable docs: a parsing/failed doc has no indexed passages, and a
+    // scoped review of one now fails loud rather than fake-completing (D3)
+    sel.innerHTML = "<option value=''>Whole matter</option>" + docs.filter(function (d) {
+      return d.status === "ready" || d.status === "needs_review";
+    }).map(function (d) {
       return "<option value='" + d.id + "'>" + esc(d.filename) + "</option>";
     }).join("");
     if (prev && sel.querySelector("option[value='" + prev + "']")) sel.value = prev;
