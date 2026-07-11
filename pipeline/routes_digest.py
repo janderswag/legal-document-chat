@@ -131,9 +131,11 @@ def review_fact(matter: str, fact_key: str, body: ReviewBody):
 def fact_calendar(matter: str, fact_key: str):
     """A single all-day VEVENT for one attorney-confirmed deadline. The date is the
     attorney's confirmed_date verbatim — docuchat never computes or offsets it, and
-    the event carries no alarms/reminders."""
-    _require_matter(matter)
+    the event carries no alarms/reminders. Export exists only for attorney-entered dates;
+    a confirmation without a date must never fall back to the document's as-written date."""
     matter_row = catalog.get_matter(matter)
+    if matter_row is None:
+        raise HTTPException(status_code=404, detail="unknown matter")
     fact = next((r for r in catalog.facts_for_matter(matter) if r["fact_key"] == fact_key), None)
     if fact is None:
         raise HTTPException(status_code=404, detail="unknown fact")
@@ -141,11 +143,9 @@ def fact_calendar(matter: str, fact_key: str):
     if fact["fact_type"] != "date_event" or value.get("kind") not in ("deadline", "obligation"):
         raise HTTPException(status_code=409, detail="fact is not a deadline")
     review = catalog.reviews_for_matter(matter).get(fact_key)
-    if not review or review["status"] != "confirmed":
+    if not review or review["status"] != "confirmed" or not review.get("confirmed_date"):
         raise HTTPException(status_code=409, detail="deadline is not confirmed")
-    confirmed_date = review.get("confirmed_date") or value.get("date_iso")
-    if not confirmed_date:
-        raise HTTPException(status_code=409, detail="no confirmed date")
+    confirmed_date = review["confirmed_date"]
 
     ics = _build_ics(fact_key, matter_row["display_name"], value.get("label") or "",
                       confirmed_date, fact["span"], fact["filename"], fact["page"])

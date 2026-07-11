@@ -141,6 +141,20 @@ class TestDeadlineCalendar(unittest.TestCase):
         r = client.get("/matters/nimbus-dispute/facts/nope/calendar.ics")
         self.assertEqual(r.status_code, 404)
 
+    def test_confirmed_status_without_date_rejected(self):
+        # Confirmed status but no confirmed_date (set via catalog directly) → 409
+        catalog.set_fact_review("nimbus-dispute", "dl", "confirmed", None)
+        r = client.get("/matters/nimbus-dispute/facts/dl/calendar.ics")
+        self.assertEqual(r.status_code, 409)
+        self.assertIn("not confirmed", r.json()["detail"])
+
+    def test_no_alarms_in_export(self):
+        self._confirm("dl", "2026-07-24")
+        r = client.get("/matters/nimbus-dispute/facts/dl/calendar.ics")
+        self.assertEqual(r.status_code, 200)
+        body = r.text
+        self.assertNotIn("BEGIN:VALARM", body)
+
 
 class TestIcsHelpers(unittest.TestCase):
     def test_escape_order_and_chars(self):
