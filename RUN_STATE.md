@@ -9,8 +9,10 @@ _Last updated: 2026-07-11 (v0.5.0 build session)_
 
 **2026-07-11 (afternoon/evening) — v0.5.0 BUILT: the council session ("Review &
 Compare and the ingestion truth", docs/council/2026-07-11-council-review-compare-and-
-ingestion.md) executed end to end, Moves 0-6 all landed. RELEASE HELD FOR OWNER
-CLICK-THROUGH per the deploy approval rule — build + gates done, publish pending.**
+ingestion.md) executed end to end, Moves 0-6 all landed. OWNER APPROVED same
+evening — v0.5.0 PUBLISHED as Latest (draft flipped 2026-07-11T20:43Z; DMG attached;
+the installed app's update banner appears after its 24h check cache resets, i.e. on
+next app relaunch).**
 What shipped, in council order: **Move 0** — the WKWebView ~60s timeout was REFUTED
 empirically (a 300s no-byte fetch completes): the old blocking review was unusable,
 not broken. **Move 1** — apostrophe-guard on the three remaining highlight-href
