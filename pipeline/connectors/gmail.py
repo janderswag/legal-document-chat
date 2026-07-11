@@ -11,9 +11,12 @@ raw RFC822 bytes and are stored as .eml files — docuchat already ingests
 .eml natively, attachments included.
 
 Pull-only, strictly: every SELECT is readonly (IMAP EXAMINE), so nothing is
-ever marked read and the mailbox is never modified. A single pass imports at
-most 500 messages, oldest first — rerun the import to continue; dedupe by
-source id makes reruns safe.
+ever marked read and the mailbox is never modified. A single pass lists at
+most 500 NEW messages, oldest first — already-imported UIDs are excluded
+BEFORE the cap (council 2026-07-11 F1), so repeated passes walk a label of
+any size and new mail is always reachable once the backlog drains. The old
+behavior capped the raw UID list, which permanently pinned sync to the
+oldest 500 messages of a large label.
 
 This is the ONE adapter allowed to bypass connectors.request (stdlib imaplib,
 no HTTP). It maps imaplib/socket failures onto the shared taxonomy itself:
@@ -187,7 +190,7 @@ def test(creds):
         _logout(conn)
 
 
-def list_items(creds, since=None):
+def list_items(creds, since=None, exclude_ids=None):
     conn = _connect(creds)
     try:
         label = _label_name(creds)
@@ -199,8 +202,14 @@ def list_items(creds, since=None):
         if typ != "OK":
             raise connectors.ConnectorUnavailable(
                 "Gmail did not answer the message search — try again")
-        # UID SEARCH returns UIDs in ascending order: oldest first, capped.
-        uids = [u.decode() for u in (data[0] or b"").split()][:MAX_MESSAGES]
+        # UID SEARCH returns UIDs ascending (oldest first). Drop the already-
+        # imported ones BEFORE capping (F1): the cap bounds one pass's work,
+        # never the reachable mailbox.
+        uids = [u.decode() for u in (data[0] or b"").split()]
+        if exclude_ids:
+            seen = set(exclude_ids)
+            uids = [u for u in uids if f"{uidvalidity}:{u}" not in seen]
+        uids = uids[:MAX_MESSAGES]
         items = []
         for i in range(0, len(uids), _HEADER_BATCH):
             batch = uids[i:i + _HEADER_BATCH]

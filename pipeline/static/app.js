@@ -665,6 +665,33 @@
     });
   }
 
+  // F3 (council 2026-07-11): imported documents wear their origin. source_json
+  // is the provenance recorded at import time (service, date, author, title,
+  // attachment_of, suggested_matter); local uploads have none and render nothing.
+  function docSource(d) {
+    if (!d.source_json) return null;
+    try { return JSON.parse(d.source_json); } catch (e) { return null; }
+  }
+
+  function sourceBadgeHtml(d) {
+    var s = docSource(d);
+    if (!s || !s.service) return "";
+    var label = String(s.service);
+    label = label.charAt(0).toUpperCase() + label.slice(1);
+    if (s.attachment_of) label += " attachment";
+    else if (s.date) label += " · " + String(s.date).slice(0, 10);
+    var tip = [s.title, s.author && ("From " + s.author),
+               s.attachment_of && ("Attached to " + s.attachment_of)]
+      .filter(Boolean).join(" · ");
+    return " <span class='src-badge' title='" + esc(tip) + "'>" + esc(label) + "</span>";
+  }
+
+  function matterName(slug) {
+    var m = null;
+    state.matters.forEach(function (x) { if (x.slug === slug) m = x; });
+    return m ? m.display_name : slug;
+  }
+
   async function refreshUnfiled() {
     var tbody = document.getElementById("unfiled-rows");
     if (!tbody) return;
@@ -677,13 +704,26 @@
     tbody.innerHTML = docs.length ? docs.map(function (d) {
       var size = d.size_bytes != null ? Math.max(1, Math.round(d.size_bytes / 1024)) + " KB" : "—";
       var kind = d.doc_type === "transcript" ? " <span class='muted'>(transcript)</span>" : "";
+      // suggest-then-confirm (owner decision #4): a one-click chip files the
+      // import where the connection suggested — the attorney always confirms.
+      var sug = (docSource(d) || {}).suggested_matter;
+      var sugBtn = (sug && state.matters.some(function (m) { return m.slug === sug; }))
+        ? "<button class='btn secondary' data-file-doc='" + d.id + "' data-file-to='" +
+          esc(sug) + "'>File to " + esc(matterName(sug)) + "</button> "
+        : "";
       return "<tr draggable='true' data-doc='" + d.id + "' class='doc-row'><td>" + esc(d.filename) + kind +
+        sourceBadgeHtml(d) +
         "</td><td>" + size + "</td><td><span class='status " + esc(d.status) + "'>" + esc(d.status) +
-        "</span></td><td>" + moveSelectHtml(d) + " " +
+        "</span></td><td>" + sugBtn + moveSelectHtml(d) + " " +
         "<button class='btn secondary' data-view-doc='" + d.id + "'>view</button> " +
         "<button class='btn secondary' data-del-doc='" + d.id + "'>delete</button></td></tr>";
     }).join("") : "<tr><td colspan='4' class='muted'>Nothing unfiled — uploads without a matter land here.</td></tr>";
     wireDocRowActions(tbody);
+    tbody.querySelectorAll("[data-file-doc]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        moveDoc(b.dataset.fileDoc, b.dataset.fileTo);
+      });
+    });
   }
 
   function renderMatterCards() {
@@ -850,7 +890,7 @@
       var digestBtn = (d.doc_type === "transcript" && d.status === "ready")
         ? "<button class='btn secondary' data-digest-doc='" + d.id + "'>digest</button> " : "";
       var kind = d.doc_type === "transcript" ? " <span class='muted'>(transcript)</span>" : "";
-      return "<tr><td>" + esc(d.filename) + kind + "</td><td>" + size +
+      return "<tr><td>" + esc(d.filename) + kind + sourceBadgeHtml(d) + "</td><td>" + size +
         "</td><td><span class='status " + esc(d.status) + "'>" +
         esc(d.status) + "</span></td><td class='muted'>" + esc((d.updated || "").replace("T", " ")) +
         "</td><td>" + moveSelectHtml(d) + " " +
@@ -2040,8 +2080,11 @@
       "<a href='" + esc(svc.docs_url) + "' target='_blank' rel='noreferrer' " +
       "style='font-size:12.5px'>API documentation</a></div>" +
       "<div class='conn-form'>" + fields +
-      "<label class='conn-field'>Import into" +
+      "<label class='conn-field'>Suggest a matter for imports" +
       "<select class='matter-picker' id='conn-matter'></select></label>" +
+      "<p class='muted' style='font-size:12px;margin:2px 0 0'>Everything imports into " +
+      "Unfiled first. If you pick a matter here, each row gets a one-click " +
+      "“File to” button - you always confirm the filing.</p>" +
       "<label style='display:flex;gap:8px;align-items:center;font-size:13px'>" +
       "<input type='checkbox' id='conn-sync'> Keep in sync (checks every 30 minutes)</label>" +
       "<div style='display:flex;gap:8px;align-items:center'>" +
@@ -2077,8 +2120,9 @@
         "<div class='conn-text'><span class='conn-name'>" + esc(c.service_name) +
         (c.label ? " <span class='muted' style='font-weight:400'>· " + esc(c.label) +
           "</span>" : "") + "</span>" +
-        "<span class='conn-desc'>into " +
-        esc((c.config && c.config.matter) || "unfiled") +
+        "<span class='conn-desc'>to Unfiled" +
+        (c.config && c.config.matter && c.config.matter !== "unfiled"
+          ? ", suggests " + esc(c.config.matter) : "") +
         (c.config && c.config.sync ? " · syncing" : "") + " · " + jobLabel(c) +
         "</span></div>" +
         "<span style='display:flex;gap:8px;flex:0 0 auto'>" +

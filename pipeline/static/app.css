@@ -209,6 +209,11 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 .chip-x:hover{color:var(--err);background:var(--panel)}
 #clause-export{margin-top:12px}
 
+/* F3 provenance: imported documents wear their origin (service + date) */
+.src-badge{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);
+  background:var(--accent-soft);border-radius:999px;padding:1px 8px;margin-left:7px;
+  vertical-align:1px;white-space:nowrap}
+
 /* Compare Documents (document x clause matrix, sticky header + first column) */
 .grid-scroll{overflow:auto;max-height:72vh;border:1px solid var(--border);border-radius:13px;background:var(--panel)}
 .grid-table{border-collapse:separate;border-spacing:0;font-size:13px;min-width:640px}

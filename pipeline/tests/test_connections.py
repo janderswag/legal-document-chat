@@ -147,7 +147,8 @@ class TestImportEngine(ConnectionTestBase):
     def test_import_flows_into_document_hub_with_provenance(self):
         row = self._connect_fake()
         summary = connsync.run_import(row["id"])
-        self.assertEqual(summary, {"imported": 2, "skipped": 1, "already": 0})
+        self.assertEqual(summary, {"imported": 2, "skipped": 1,
+                                   "attachments": 0, "already": 0})
         docs = catalog.list_documents("unfiled")
         names = sorted(d["filename"] for d in docs)
         self.assertEqual(names, ["Board notes.txt", "Call transcript.txt"])
@@ -168,12 +169,20 @@ class TestImportEngine(ConnectionTestBase):
         self.assertEqual(summary["already"], 3)
         self.assertEqual(len(catalog.list_documents("unfiled")), 2)
 
-    def test_import_targets_a_real_matter(self):
+    def test_configured_matter_is_a_suggestion_never_a_target(self):
+        # Owner decision #4 (council 2026-07-11, Sam's option a): imports ALWAYS
+        # land in Unfiled - a configured matter survives only as the suggestion
+        # chip the attorney confirms. Auto-filing into a matter is the ethics
+        # defect (a synced tray can contaminate the wrong client's matter).
         catalog.create_matter("Pemberton MSA")
         row = self._connect_fake(matter="pemberton-msa")
         connsync.run_import(row["id"])
-        self.assertEqual(len(catalog.list_documents("pemberton-msa")), 2)
-        self.assertEqual(catalog.list_documents("unfiled"), [])
+        self.assertEqual(catalog.list_documents("pemberton-msa"), [])
+        docs = catalog.list_documents("unfiled")
+        self.assertEqual(len(docs), 2)
+        for d in docs:
+            prov = json.loads(d["source_json"])
+            self.assertEqual(prov["suggested_matter"], "pemberton-msa")
 
     def test_import_error_recorded_on_row(self):
         row = self._connect_fake()

@@ -1052,3 +1052,19 @@ def _job_public(row):
         except ValueError:
             d[dst] = None  # a corrupt value is dropped, never fatal
     return d
+
+
+def find_document_by_checksum(matter_slug, checksum, db_path=None):
+    """The matter's existing document with this exact content hash, if any —
+    the connector import path's duplicate-row guard (two rows over one stored
+    file would dangle on delete)."""
+    if not checksum:
+        return None
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM documents WHERE matter_slug = ? AND checksum = ? "
+            "ORDER BY id LIMIT 1", (matter_slug, checksum)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
