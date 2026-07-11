@@ -64,38 +64,49 @@ def resolve_docs(matter, doc_ids=None, catalog_db=None):
     return [{"doc_id": d["id"], "filename": d["filename"]} for d in docs]
 
 
-def evaluate_cell(matter, doc, column, db_path=None, top_k=5):
-    """Evaluate one (document, question) cell via answer() + the T-CLAUSE classifier.
+def evaluate_column(matter, docs, column, db_path=None, top_k=5):
+    """Evaluate one question for EVERY document row from a SINGLE answer() call.
 
-    Citations are scoped to THIS document (target_filename = the row's filename), so a
-    clause present elsewhere in the matter never reads as found here. Each surviving,
-    span-verified citation is enriched with the row's doc_id for the source viewer."""
+    The per-cell answer() call was identical across a column by construction — the
+    question and matter are the cell's only retrieval inputs; the document only
+    scopes the CLASSIFICATION (target_filename post-filter). Memoizing it is the
+    council 2026-07-11 Move 2i fix: 5 docs x 20 clauses cost 100 calls, now 20.
+    Citations are copied per row before doc_id enrichment so rows never share dicts;
+    the cross-document leak filter is unchanged (a citation only survives onto the
+    row whose filename it carries)."""
     try:
         res = answer(column["question"], matter=matter, top_k=top_k, db_path=db_path)
     except ValueError:
         # matter has no indexed chunks -> clean refusal (never a fabricated citation)
         res = {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
                "grounding_chunks": []}
-    row = classify_cell(column, res, target_filename=doc["filename"])
-    for c in row["citations"]:
-        c["doc_id"] = doc["doc_id"]  # every kept citation is on this row's document
-    return {
-        "doc_id": doc["doc_id"], "filename": doc["filename"],
-        "column_id": column["id"], "column_name": column.get("name"),
-        "question": column["question"],
-        "status": row["status"], "value": row["value"],
-        "citations": row["citations"], "rejected_claims": row["rejected_claims"],
-    }
+    cells = []
+    for doc in docs:
+        scoped = dict(res)
+        scoped["citations"] = [dict(c) for c in (res.get("citations") or [])]
+        row = classify_cell(column, scoped, target_filename=doc["filename"])
+        for c in row["citations"]:
+            c["doc_id"] = doc["doc_id"]  # every kept citation is on this row's document
+        cells.append({
+            "doc_id": doc["doc_id"], "filename": doc["filename"],
+            "column_id": column["id"], "column_name": column.get("name"),
+            "question": column["question"],
+            "status": row["status"], "value": row["value"],
+            "citations": row["citations"], "rejected_claims": row["rejected_claims"],
+        })
+    return cells
 
 
 def run_grid(matter, docs, columns, db_path=None, top_k=5, max_workers=3):
-    """Yield each cell as it completes, with BOUNDED concurrency (<= 4 workers). The order
-    is completion order (the SSE route streams them live)."""
+    """Yield each cell as its column completes, with BOUNDED concurrency (<= 4
+    workers over answer() calls). Column completion order (the SSE route streams
+    them live); a column's cells arrive together — one answer() per question."""
     workers = _clamp_workers(max_workers)
-    pairs = [(d, c) for d in docs for c in columns]
-    if not pairs:
+    if not docs or not columns:
         return
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = [ex.submit(evaluate_cell, matter, d, c, db_path, top_k) for d, c in pairs]
+        futs = [ex.submit(evaluate_column, matter, docs, c, db_path, top_k)
+                for c in columns]
         for fut in as_completed(futs):
-            yield fut.result()
+            for cell in fut.result():
+                yield cell

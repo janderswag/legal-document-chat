@@ -122,6 +122,34 @@ class TestMatrix(unittest.TestCase):
         self.assertLessEqual(grid._clamp_workers(999), 4)
         self.assertGreaterEqual(grid._clamp_workers(0), 1)
 
+    def test_one_answer_call_per_question_not_per_cell(self):
+        # Council 2026-07-11 Move 2i: the per-cell call was identical across a
+        # column by construction; N docs must not multiply model cost.
+        calls = []
+        lock = threading.Lock()
+
+        def counting(question, matter=None, top_k=5, db_path=None):
+            with lock:
+                calls.append(question)
+            return {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
+                    "grounding_chunks": []}
+        grid.answer = counting
+        big_docs = [{"doc_id": i, "filename": f"{i}.pdf"} for i in range(5)]
+        cells = list(grid.run_grid("m", big_docs, self.cols, max_workers=2))
+        self.assertEqual(len(cells), 10)            # every cell still present
+        self.assertEqual(sorted(calls), ["found?", "miss?"])  # 2 calls, not 10
+
+    def test_memoized_rows_do_not_share_citation_dicts(self):
+        # Two docs with the SAME filename: enrichment on one row must never
+        # mutate the other row's citation object.
+        self._fake({"found?": {"answer_text": "yes", "citations": [_cite("a.pdf")],
+                               "rejected_claims": [], "grounding_chunks": []}})
+        twins = [{"doc_id": 1, "filename": "a.pdf"}, {"doc_id": 7, "filename": "a.pdf"}]
+        cells = {c["doc_id"]: c for c in grid.run_grid("m", twins, self.cols[:1],
+                                                       max_workers=1)}
+        self.assertEqual(cells[1]["citations"][0]["doc_id"], 1)
+        self.assertEqual(cells[7]["citations"][0]["doc_id"], 7)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

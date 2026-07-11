@@ -68,6 +68,69 @@ class TestContractReviewJs(unittest.TestCase):
         self.assertIsNone(_EXTERNAL.search(self.js))
 
 
+class TestReviewJobSurface(unittest.TestCase):
+    """Council 2026-07-11 Move 2: review runs as a streamed background job."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.js = client.get("/static/app.js").text
+        cls.css = client.get("/static/app.css").text
+
+    def test_submits_a_job_and_streams_its_events(self):
+        self.assertIn("/clauses/review-jobs", self.js)
+        self.assertIn("/events", self.js)
+        self.assertIn("buildReviewSkeleton", self.js)      # meta -> instant skeleton
+        self.assertIn("fillReviewRow", self.js)            # clause -> live fill
+
+    def test_cancel_and_inflight_guard_wiring(self):
+        self.assertIn("clause-cancel", self.js)
+        self.assertIn("/cancel", self.js)
+        self.assertIn("if (reviewJob.running) return;", self.js)  # no double submit
+
+    def test_persisted_run_reopens(self):
+        self.assertIn("/clauses/runs", self.js)
+        self.assertIn("active_job_id", self.js)            # resume a live run
+        self.assertIn("documents changed since this review", self.js)  # staleness
+
+    def test_exports_present_with_sams_caveat(self):
+        for token in ("clause-copy", "clause-md", "clause-word",
+                      "/clauses/review.docx", "reviewMarkdown", "reviewPlainText"):
+            self.assertIn(token, self.js)
+        # Sam's rider: the scope caveat rides the UI foot and every export builder
+        self.assertIn("most relevant", self.js)
+        self.assertIn("REVIEW_CAVEAT", self.js)
+        for builder in ("reviewPlainText", "reviewMarkdown"):
+            i = self.js.index("function " + builder)
+            self.assertIn("REVIEW_CAVEAT", self.js[i:i + 900], builder)
+        # per-clause verification status on exports
+        self.assertIn("Found (span-verified)", self.js)
+
+    def test_scope_type_and_custom_question_controls(self):
+        for token in ("clause-scope", "Whole matter", "clause-type",
+                      "services_agreement", "clause-custom", "Add your own question"):
+            self.assertIn(token, self.js)
+
+    def test_skeleton_styles_exist(self):
+        self.assertIn(".clause-badge.pending", self.css)
+        self.assertIn(".clause-badge.stale", self.css)
+        self.assertIn(".clause-controls", self.css)
+
+    def test_stale_stream_guard(self):
+        # Review finding #1: matter A's clauses must never render under matter
+        # B's picker — streams are epoch-tagged and the matter switch resets.
+        self.assertIn("reviewJob.epoch", self.js)
+        self.assertIn("resetReviewView", self.js)
+        self.assertIn("myEpoch !== reviewJob.epoch", self.js)
+
+    def test_markdown_red_flags_sort_first(self):
+        # Review finding #2: ranks start at 1 so `|| 4` can never swallow the
+        # potentially_missing rank (0 was falsy and sorted red flags LAST).
+        i = self.js.index("function reviewMarkdown")
+        seg = self.js[i:i + 1400]
+        self.assertIn("potentially_missing: 1", seg)
+        self.assertNotIn("potentially_missing: 0", seg)
+
+
 class TestContractReviewCss(unittest.TestCase):
     def test_has_distinct_missing_badge_style(self):
         css = client.get("/static/app.css").text

@@ -189,6 +189,26 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 .clause-advisory{font-size:13px;margin:4px 0 0}
 .clause-foot{margin-top:16px;font-size:12px}
 
+/* Review-as-a-job surface (D-90): controls row, live progress, streamed rows */
+.clause-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0}
+.clause-controls select,.clause-controls input{font:inherit;font-size:13px;color:var(--text);
+  background:var(--panel);border:1px solid var(--border-2);border-radius:9px;padding:6px 9px}
+#clause-status{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0 4px;
+  font-size:13px;min-height:24px}
+.clause-summary.inline{display:inline-flex;margin:0 0 0 auto}
+.clause-row.pending{border-left-color:var(--border-2)}
+.clause-badge.pending{background:var(--panel-2);color:var(--faint);
+  animation:clause-pulse 1.6s ease-in-out infinite}
+@keyframes clause-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.clause-badge.stale{background:var(--accent-soft);color:var(--accent)}
+.custom-chip{display:inline-flex;align-items:center;gap:4px;background:var(--panel-2);
+  border:1px solid var(--border);border-radius:999px;padding:2px 4px 2px 10px;
+  font-size:12px;color:var(--text);margin:2px 4px 2px 0}
+.chip-x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;
+  line-height:1;padding:2px 5px;border-radius:999px}
+.chip-x:hover{color:var(--err);background:var(--panel)}
+#clause-export{margin-top:12px}
+
 /* Compare Documents (document x clause matrix, sticky header + first column) */
 .grid-scroll{overflow:auto;max-height:72vh;border:1px solid var(--border);border-radius:13px;background:var(--panel)}
 .grid-table{border-collapse:separate;border-spacing:0;font-size:13px;min-width:640px}

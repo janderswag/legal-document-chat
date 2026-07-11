@@ -47,6 +47,41 @@ def load_taxonomy(path=None):
     return list(doc["clauses"])
 
 
+def taxonomy_version(path=None):
+    """The taxonomy's ``_provenance.version`` (persisted-run staleness key)."""
+    import json
+    doc = json.loads(Path(path or DEFAULT_TAXONOMY).read_text(encoding="utf-8"))
+    return str((doc.get("_provenance") or {}).get("version", ""))
+
+
+def plan_clauses(taxonomy=None, taxonomy_path=None, doc_types=None,
+                 extra_questions=None):
+    """The clause list a review will actually run, in run order.
+
+    doc_types — attorney-designated document type(s) (council 2026-07-11 Move 2d:
+    the catalog never classifies documents into contract/lease/nda/services_agreement,
+    so the TYPE IS THE ATTORNEY'S CALL, never guessed). A clause survives the filter
+    when any of its ``doc_types`` intersects the designated set; an empty/None filter
+    keeps everything.
+    extra_questions — the attorney's own questions (owner decision #3, minimal
+    add-your-own-question row). Same shape as grid.resolve_columns custom entries;
+    always included regardless of the doc_types filter.
+    """
+    clause_list = list(taxonomy) if taxonomy is not None else load_taxonomy(taxonomy_path)
+    if doc_types:
+        wanted = set(doc_types)
+        clause_list = [c for c in clause_list
+                       if wanted & set(c.get("doc_types") or [])]
+    for i, q in enumerate(extra_questions or []):
+        text = (q or "").strip() if isinstance(q, str) else (q.get("question") or "").strip()
+        if not text:
+            continue
+        clause_list.append({"id": f"custom-{i + 1}", "name": text[:48],
+                            "category": "Custom", "question": text,
+                            "doc_types": None})
+    return clause_list
+
+
 def _classify(clause, result, target_filename=None):
     """Classify one answer() ``result`` for one ``clause`` into the checklist row.
 
@@ -96,20 +131,38 @@ def extract_clauses(matter, doc_id=None, taxonomy=None, taxonomy_path=None,
     Returns ``{matter, doc_id, results:[row...], summary:{...}}`` where each row is
     ``{id,name,category,question,doc_types,status,value,citations,rejected_claims}``.
     """
-    clause_list = taxonomy if taxonomy is not None else load_taxonomy(taxonomy_path)
+    results = list(iter_clauses(matter, doc_id=doc_id, taxonomy=taxonomy,
+                                taxonomy_path=taxonomy_path, db_path=db_path,
+                                top_k=top_k, catalog_db=catalog_db))
+    return {"matter": matter, "doc_id": doc_id, "results": results,
+            "summary": summarize(results)}
+
+
+def resolve_target_filename(matter, doc_id, catalog_db=None):
+    """doc_id -> filename for single-document scoping (validated to the matter)."""
+    import catalog
+    doc = catalog.get_document(doc_id, db_path=catalog_db) if catalog_db \
+        else catalog.get_document(doc_id)
+    if not doc:
+        raise ValueError(f"unknown document id: {doc_id!r}")
+    if doc.get("matter_slug") not in (None, matter):
+        raise ValueError(f"document {doc_id} is not in matter {matter!r}")
+    return doc["filename"]
+
+
+def iter_clauses(matter, doc_id=None, taxonomy=None, taxonomy_path=None,
+                 db_path=None, top_k=5, catalog_db=None, doc_types=None,
+                 extra_questions=None):
+    """Yield each checklist row as it completes, in plan order (the job runner and
+    its SSE stream consume this). Same classification as extract_clauses — this is
+    the same loop, streamed."""
+    clause_list = plan_clauses(taxonomy=taxonomy, taxonomy_path=taxonomy_path,
+                               doc_types=doc_types, extra_questions=extra_questions)
 
     target_filename = None
     if doc_id is not None:
-        import catalog
-        doc = catalog.get_document(doc_id, db_path=catalog_db) if catalog_db \
-            else catalog.get_document(doc_id)
-        if not doc:
-            raise ValueError(f"unknown document id: {doc_id!r}")
-        if doc.get("matter_slug") not in (None, matter):
-            raise ValueError(f"document {doc_id} is not in matter {matter!r}")
-        target_filename = doc["filename"]
+        target_filename = resolve_target_filename(matter, doc_id, catalog_db=catalog_db)
 
-    results = []
     for clause in clause_list:
         try:
             res = answer(clause["question"], matter=matter, top_k=top_k, db_path=db_path)
@@ -118,11 +171,12 @@ def extract_clauses(matter, doc_id=None, taxonomy=None, taxonomy_path=None,
             # clean refusal: potentially missing, never a fabricated citation.
             res = {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
                    "grounding_chunks": []}
-        results.append(_classify(clause, res, target_filename))
+        yield _classify(clause, res, target_filename)
 
+
+def summarize(results):
     summary = {"found": 0, "potentially_missing": 0, "not_confirmed": 0,
                "total": len(results)}
     for r in results:
         summary[r["status"]] += 1
-
-    return {"matter": matter, "doc_id": doc_id, "results": results, "summary": summary}
+    return summary

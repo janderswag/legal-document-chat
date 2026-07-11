@@ -177,6 +177,21 @@ CREATE TABLE IF NOT EXISTS fact_review (
     created TEXT NOT NULL,
     UNIQUE (matter_slug, fact_key)
 );
+CREATE TABLE IF NOT EXISTS jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    matter_slug TEXT,
+    dedupe_key TEXT,
+    params_json TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created TEXT NOT NULL,
+    started TEXT,
+    finished TEXT,
+    events_json TEXT,
+    result_json TEXT,
+    error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_jobs_kind ON jobs (kind, matter_slug, status);
 """
 
 
@@ -922,3 +937,118 @@ def delete_threads_for_matter(matter_slug, db_path=None):
         return len(ids)
     finally:
         conn.close()
+
+
+# --- jobs (D-90 background job runner) ------------------------------------------
+# Persisted state for queued background work (council 2026-07-11, Priya's R2 rule:
+# anything >10s becomes a queued job, never a long request). Rows carry the full
+# event history (events_json) so a reloaded UI can replay progress, and the final
+# result (result_json) so finished work costs zero seconds to reopen. Lives in the
+# (SQLCipher-encrypted in production) catalog; never leaves the machine.
+
+def job_create(kind, params, matter_slug=None, dedupe_key=None, db_path=None):
+    conn = _connect(db_path)
+    try:
+        cur = conn.execute(
+            "INSERT INTO jobs (kind, matter_slug, dedupe_key, params_json, status, "
+            "created, events_json) VALUES (?, ?, ?, ?, 'queued', ?, '[]')",
+            (kind, matter_slug, dedupe_key, json.dumps(params or {}), _now()))
+        conn.commit()
+        return job_get(cur.lastrowid, db_path=db_path)
+    finally:
+        conn.close()
+
+
+def job_get(job_id, db_path=None):
+    conn = _connect(db_path)
+    try:
+        row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        return _job_public(row) if row else None
+    finally:
+        conn.close()
+
+
+def job_find_active(kind, dedupe_key, db_path=None):
+    """The queued/running job for this kind+dedupe_key, if any (in-flight guard)."""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM jobs WHERE kind = ? AND dedupe_key = ? "
+            "AND status IN ('queued', 'running') ORDER BY id DESC LIMIT 1",
+            (kind, dedupe_key)).fetchone()
+        return _job_public(row) if row else None
+    finally:
+        conn.close()
+
+
+def job_list(kind=None, matter_slug=None, status=None, limit=20, db_path=None):
+    conn = _connect(db_path)
+    try:
+        where, args = [], []
+        for col, val in (("kind", kind), ("matter_slug", matter_slug),
+                         ("status", status)):
+            if val is not None:
+                where.append(f"{col} = ?")
+                args.append(val)
+        sql = "SELECT * FROM jobs"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " ORDER BY id DESC LIMIT ?"
+        args.append(int(limit))
+        return [_job_public(r) for r in conn.execute(sql, args).fetchall()]
+    finally:
+        conn.close()
+
+
+_JOB_COLUMNS = {"status", "started", "finished", "error"}
+
+
+def job_update(job_id, db_path=None, **fields):
+    """Update job columns. `params`/`result`/`events` are JSON-encoded; other keys
+    must name a real column (allowlisted — keys are interpolated into SQL)."""
+    encode = {"params": "params_json", "result": "result_json", "events": "events_json"}
+    sets, args = [], []
+    for k, v in fields.items():
+        if k in encode:
+            sets.append(f"{encode[k]} = ?")
+            args.append(json.dumps(v))
+        elif k in _JOB_COLUMNS:
+            sets.append(f"{k} = ?")
+            args.append(v)
+        else:
+            raise ValueError(f"unknown job column: {k!r}")
+    if not sets:
+        return
+    args.append(job_id)
+    conn = _connect(db_path)
+    try:
+        conn.execute(f"UPDATE jobs SET {', '.join(sets)} WHERE id = ?", args)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def jobs_mark_interrupted(db_path=None):
+    """Startup honesty: a queued/running row after a restart is work that silently
+    died with the process — surface it as an error, never leave it looking alive."""
+    conn = _connect(db_path)
+    try:
+        cur = conn.execute(
+            "UPDATE jobs SET status = 'error', error = 'interrupted by app restart', "
+            "finished = ? WHERE status IN ('queued', 'running')", (_now(),))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def _job_public(row):
+    d = dict(row)
+    for src, dst in (("params_json", "params"), ("result_json", "result"),
+                     ("events_json", "events")):
+        raw = d.pop(src, None)
+        try:
+            d[dst] = json.loads(raw) if raw else None
+        except ValueError:
+            d[dst] = None  # a corrupt value is dropped, never fatal
+    return d

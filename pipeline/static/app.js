@@ -2413,30 +2413,364 @@
     return "<div class='clause-row " + meta.cls + "'>" + head + bodyHtml + "</div>";
   }
 
-  async function runClauseReview() {
+  // --- Contract Review as a background job (D-90, council 2026-07-11 Move 2) ----
+  // Run review queues a job and streams one SSE event per clause: skeleton rows
+  // render instantly (meta), rows fill live (clause), and the finished run is
+  // persisted server-side so reopening the tab costs zero seconds (GET /clauses/
+  // runs). Cancel stops between clauses. Every export (copy / Markdown / Word)
+  // carries the retrieval-scope caveat + per-clause verification status.
+  var REVIEW_CAVEAT = "Each clause was checked against the matter's most relevant " +
+    "passages, not a page-by-page read. Verify each item against the cited source. " +
+    "This is not legal advice and not a complete review.";
+  var CLAUSE_TYPES = [
+    { value: "", label: "All document types" },
+    { value: "contract", label: "Contract" },
+    { value: "lease", label: "Lease" },
+    { value: "nda", label: "NDA" },
+    { value: "services_agreement", label: "Services agreement" },
+  ];
+  // epoch: bumped on every matter switch / new attach — a stale stream or a late
+  // loadLatestRun response compares epochs and bails, so matter A's clauses can
+  // never render under matter B's picker (findings never get misattributed).
+  var reviewJob = { id: null, running: false, plan: [], filled: 0, tally: null,
+                    run: null, customQs: [], epoch: 0 };
+
+  function resetReviewView() {
+    reviewJob.epoch += 1;          // any live stream / pending load goes stale
+    setReviewRunning(false);
+    setReviewExports(null);
+    reviewStatus("");
     var out = document.getElementById("clause-results");
+    if (out) out.innerHTML = "";
+  }
+
+  function reviewDate(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? (iso || "") : d.toLocaleDateString(undefined,
+      { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function reviewTallyHtml(t) {
+    return "<span class='clause-badge found'>" + (t.found || 0) + " found</span>" +
+      "<span class='clause-badge missing'>" + (t.potentially_missing || 0) + " potentially missing</span>" +
+      "<span class='clause-badge unconfirmed'>" + (t.not_confirmed || 0) + " not confirmed</span>";
+  }
+
+  function setReviewRunning(on) {
+    reviewJob.running = on;
+    var run = document.getElementById("clause-run");
+    var cancel = document.getElementById("clause-cancel");
+    if (run) run.style.display = on ? "none" : "";
+    if (cancel) { cancel.style.display = on ? "" : "none"; cancel.disabled = false;
+                  cancel.textContent = "Cancel"; }
+  }
+
+  function setReviewExports(run) {
+    var box = document.getElementById("clause-export");
+    if (!box) return;
+    box.style.display = run ? "" : "none";
+    reviewJob.run = run || null;
+  }
+
+  function reviewStatus(html) {
+    var el = document.getElementById("clause-status");
+    if (el) el.innerHTML = html;
+  }
+
+  function buildReviewSkeleton(meta) {
+    reviewJob.plan = meta.clauses || [];
+    reviewJob.filled = 0;
+    reviewJob.tally = { found: 0, potentially_missing: 0, not_confirmed: 0 };
+    var out = document.getElementById("clause-results");
+    if (!out) return;
+    out.innerHTML = reviewJob.plan.map(function (c) {
+      return "<div class='clause-row pending' id='clause-row-" + esc(c.id) + "'>" +
+        "<div class='clause-head'><div><span class='clause-name'>" + esc(c.name) +
+        "</span> <span class='clause-cat'>" + esc(c.category) + "</span></div>" +
+        "<span class='clause-badge pending'>checking</span></div></div>";
+    }).join("");
+    updateReviewProgress();
+  }
+
+  function updateReviewProgress() {
+    var total = reviewJob.plan.length;
+    reviewStatus("<span class='muted'>Checking clause " +
+      Math.min(reviewJob.filled + 1, total) + " of " + total +
+      " over " + esc(state.matter) + "</span>" +
+      "<span class='clause-summary inline'>" + reviewTallyHtml(reviewJob.tally || {}) + "</span>");
+  }
+
+  function fillReviewRow(row) {
+    reviewJob.filled += 1;
+    if (reviewJob.tally && row.status in reviewJob.tally) reviewJob.tally[row.status] += 1;
+    var el = document.getElementById("clause-row-" + row.id);
+    if (el) el.outerHTML = renderClauseRow(row);
+    updateReviewProgress();
+  }
+
+  function reviewFootHtml() {
+    return "<p class='muted clause-foot'>" + esc(REVIEW_CAVEAT) + "</p>";
+  }
+
+  function renderFinishedRun(run, opts) {
+    opts = opts || {};
+    var out = document.getElementById("clause-results");
+    if (!out) return;
+    var scope = run.doc_id ? "1 document" : "whole matter";
+    var head = "<span class='muted'>Reviewed " + esc(reviewDate(run.reviewed)) +
+      " (" + scope + ")</span>" +
+      (opts.stale ? " <span class='clause-badge stale'>documents changed since this review</span>" : "") +
+      "<span class='clause-summary inline'>" + reviewTallyHtml(run.summary || {}) + "</span>";
+    reviewStatus(head);
+    out.innerHTML = (run.results || []).map(renderClauseRow).join("") + reviewFootHtml();
+    setReviewExports(run);
+  }
+
+  async function runReviewJob() {
     var err = document.getElementById("clause-err");
     if (err) err.textContent = "";
     if (!state.matter) { if (err) err.textContent = "Create a matter first (Matters view), then run the review."; return; }
-    out.innerHTML = "<p class='muted'>Running the clause checklist over " +
-      esc(state.matter) + " … this can take a moment.</p>";
+    if (reviewJob.running) return;
+    reviewJob.running = true;      // guard BEFORE the await: two fast clicks must
+    setReviewRunning(true);        // never attach two readers to one job
+    var scopeSel = document.getElementById("clause-scope");
+    var typeSel = document.getElementById("clause-type");
+    var body = { matter: state.matter };
+    if (scopeSel && scopeSel.value) body.doc_id = parseInt(scopeSel.value, 10);
+    if (typeSel && typeSel.value) body.doc_types = [typeSel.value];
+    if (reviewJob.customQs.length) body.questions = reviewJob.customQs.slice();
+    setReviewExports(null);
     try {
-      var body = await api("/clauses/review", {
+      var job = await api("/clauses/review-jobs", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matter: state.matter }),
+        body: JSON.stringify(body),
       });
-      var s = body.summary || {};
-      var summary = "<div class='clause-summary'>" +
-        "<span class='clause-badge found'>" + (s.found || 0) + " found</span>" +
-        "<span class='clause-badge missing'>" + (s.potentially_missing || 0) + " potentially missing</span>" +
-        "<span class='clause-badge unconfirmed'>" + (s.not_confirmed || 0) + " not confirmed</span>" +
-        "</div>";
-      var rows = (body.results || []).map(renderClauseRow).join("");
-      out.innerHTML = summary + rows +
-        "<p class='muted clause-foot'>Locate &amp; summarize only — verify each item against the cited source. This is not legal advice.</p>";
+      attachReviewJob(job.id);
     } catch (e) {
-      out.innerHTML = "<span style='color:var(--err)'>" + esc(e.message) + "</span>";
+      setReviewRunning(false);
+      if (err) err.textContent = friendlyError(e);
     }
+  }
+
+  async function cancelReviewJob() {
+    var btn = document.getElementById("clause-cancel");
+    if (btn) { btn.disabled = true; btn.textContent = "Cancelling…"; }
+    try { await api("/jobs/" + reviewJob.id + "/cancel", { method: "POST" }); }
+    catch (e) {}
+  }
+
+  async function attachReviewJob(jobId) {
+    var myEpoch = ++reviewJob.epoch;   // stale streams bail on every event below
+    reviewJob.id = jobId;
+    setReviewRunning(true);
+    setReviewExports(null);            // never leave a previous run's exports armed
+    reviewStatus("<span class='muted'>Starting the review…</span>");
+    var err = document.getElementById("clause-err");
+    try {
+      var resp = await fetch("/jobs/" + jobId + "/events");
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      var reader = resp.body.getReader(), dec = new TextDecoder(), buf = "";
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        if (myEpoch !== reviewJob.epoch) { reader.cancel(); return; }
+        buf += dec.decode(chunk.value, { stream: true });
+        var parts = buf.split("\n\n"); buf = parts.pop();
+        parts.forEach(function (b) {
+          if (myEpoch !== reviewJob.epoch) return;
+          var msg = parseSseBlock(b);
+          if (!msg) return;
+          if (msg.event === "meta") buildReviewSkeleton(msg.data);
+          else if (msg.event === "clause") fillReviewRow(msg.data);
+          else if (msg.event === "done") { setReviewRunning(false); renderFinishedRun(msg.data, { stale: false }); }
+          else if (msg.event === "cancelled") { setReviewRunning(false); reviewCancelled(); }
+          else if (msg.event === "error") { setReviewRunning(false); reviewFailed(msg.data); }
+        });
+      }
+    } catch (e) {
+      if (myEpoch !== reviewJob.epoch) return;
+      setReviewRunning(false);
+      clearPendingRows();
+      if (err) err.textContent = friendlyError(e);
+    }
+    if (myEpoch === reviewJob.epoch && reviewJob.running) setReviewRunning(false);
+  }
+
+  function clearPendingRows() {
+    document.querySelectorAll("#clause-results .clause-row.pending").forEach(function (el) {
+      el.remove();
+    });
+  }
+
+  function reviewCancelled() {
+    var total = reviewJob.plan.length;
+    reviewStatus("<span class='muted'>Review cancelled. " + reviewJob.filled + " of " +
+      total + " clauses were checked.</span>" +
+      "<span class='clause-summary inline'>" + reviewTallyHtml(reviewJob.tally || {}) + "</span>");
+    clearPendingRows();
+    var out = document.getElementById("clause-results");
+    if (out && reviewJob.filled) out.insertAdjacentHTML("beforeend", reviewFootHtml());
+  }
+
+  function reviewFailed(data) {
+    reviewStatus("<span style='color:var(--err)'>The review could not finish" +
+      (data && data.detail ? ": " + esc(String(data.detail)) : ".") +
+      "</span> <span class='muted'>Your documents are untouched. Run it again when ready.</span>");
+    clearPendingRows();
+  }
+
+  // Reopen the last finished review instantly; resume a live one after a reload.
+  async function loadLatestRun() {
+    var out = document.getElementById("clause-results");
+    if (!state.matter || !out) return;
+    var myEpoch = reviewJob.epoch;
+    try {
+      var body = await api("/clauses/runs?matter=" + encodeURIComponent(state.matter));
+      // A Run click or matter switch while we awaited wins — never clobber it.
+      if (myEpoch !== reviewJob.epoch || reviewJob.running) return;
+      if (body.active_job_id) { attachReviewJob(body.active_job_id); return; }
+      if (body.run) { renderFinishedRun(body.run, { stale: !!body.run.stale }); return; }
+    } catch (e) {}
+    if (myEpoch !== reviewJob.epoch || reviewJob.running) return;
+    reviewStatus("");
+    setReviewExports(null);
+    out.innerHTML = "<p class='muted'>Run the checklist to see what these documents " +
+      "say about each standard clause, with the page cited.</p>";
+  }
+
+  // --- Review exports (Sam's rider: caveat + verification status on every one) --
+  var CLAUSE_STATUS_TEXT = {
+    found: "Found (span-verified)",
+    potentially_missing: "Potentially missing",
+    not_confirmed: "Not confirmed (spans rejected)",
+  };
+
+  function reviewCites(r) {
+    return (r.citations || []).map(function (c) {
+      return c.filename + " p." + c.page + (c.span ? ' "' + c.span + '"' : "");
+    }).join("; ");
+  }
+
+  function reviewPlainText(run) {
+    var lines = ["Contract Review: " + run.matter,
+                 "Reviewed " + reviewDate(run.reviewed), "", REVIEW_CAVEAT, ""];
+    var s = run.summary || {};
+    lines.push("Summary: " + (s.found || 0) + " found, " + (s.potentially_missing || 0) +
+      " potentially missing, " + (s.not_confirmed || 0) + " not confirmed (of " +
+      (s.total || 0) + " checked)", "");
+    (run.results || []).forEach(function (r) {
+      lines.push(r.name + " (" + r.category + ") [" +
+        (CLAUSE_STATUS_TEXT[r.status] || r.status) + "]");
+      var v = answerToPlainText(r.value || "");
+      if (v) lines.push("  " + v);
+      var cites = reviewCites(r);
+      if (cites) lines.push("  Source: " + cites);
+      lines.push("");
+    });
+    return lines.join("\n").trim() + "\n";
+  }
+
+  function reviewMarkdown(run) {
+    var s = run.summary || {};
+    var lines = ["# Contract Review: " + run.matter, "",
+                 "Reviewed " + reviewDate(run.reviewed) + ".", "", "> " + REVIEW_CAVEAT, "",
+                 "**Summary:** " + (s.found || 0) + " found, " + (s.potentially_missing || 0) +
+                 " potentially missing, " + (s.not_confirmed || 0) + " not confirmed (of " +
+                 (s.total || 0) + " checked)", ""];
+    // red flags first — ranks start at 1 so the || default can never swallow a
+    // real rank (0 || 4 === 4 put potentially_missing LAST; review finding #2)
+    var order = { potentially_missing: 1, not_confirmed: 2, found: 3 };
+    var rows = (run.results || []).slice().sort(function (a, b) {
+      return (order[a.status] || 4) - (order[b.status] || 4);
+    });
+    lines.push("| Clause | Verification status | Finding | Source |");
+    lines.push("| --- | --- | --- | --- |");
+    rows.forEach(function (r) {
+      var v = answerToPlainText(r.value || "").replace(/\|/g, "\\|").replace(/\n+/g, " ");
+      lines.push("| " + r.name + " (" + r.category + ") | " +
+        (CLAUSE_STATUS_TEXT[r.status] || r.status) + " | " + v + " | " +
+        reviewCites(r).replace(/\|/g, "\\|") + " |");
+    });
+    return lines.join("\n") + "\n";
+  }
+
+  function downloadBlob(filename, blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportReviewWord() {
+    if (!reviewJob.run) return;
+    var btn = document.getElementById("clause-word");
+    if (btn) btn.disabled = true;
+    try {
+      var resp = await fetch("/clauses/review.docx", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reviewJob.run),
+      });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      downloadBlob("contract-review-" + (reviewJob.run.matter || "matter") + ".docx",
+                   await resp.blob());
+    } catch (e) {
+      var err = document.getElementById("clause-err");
+      if (err) err.textContent = "Word export failed: " + e.message;
+    }
+    if (btn) btn.disabled = false;
+  }
+
+  async function copyReview() {
+    if (!reviewJob.run) return;
+    var btn = document.getElementById("clause-copy");
+    var ok = await copyPlainText(reviewPlainText(reviewJob.run));
+    if (btn) {
+      var label = btn.textContent;
+      btn.textContent = ok ? "Copied" : "Copy failed";
+      btn.disabled = true;
+      setTimeout(function () { btn.textContent = label; btn.disabled = false; }, 1500);
+    }
+  }
+
+  // Scope picker: whole matter or one document (the single-document route existed
+  // since T-CLAUSE and was never exposed — council Move 2e).
+  async function refreshClauseScope() {
+    var sel = document.getElementById("clause-scope");
+    if (!sel) return;
+    var prev = sel.value;
+    if (!state.matter) { sel.innerHTML = "<option value=''>Whole matter</option>"; return; }
+    var docs = [];
+    try { docs = (await api("/kb/documents?matter=" + encodeURIComponent(state.matter))).documents || []; }
+    catch (e) { docs = []; }
+    sel.innerHTML = "<option value=''>Whole matter</option>" + docs.map(function (d) {
+      return "<option value='" + d.id + "'>" + esc(d.filename) + "</option>";
+    }).join("");
+    if (prev && sel.querySelector("option[value='" + prev + "']")) sel.value = prev;
+  }
+
+  function renderCustomChips() {
+    var box = document.getElementById("clause-custom-chips");
+    if (!box) return;
+    box.innerHTML = reviewJob.customQs.map(function (q, i) {
+      return "<span class='custom-chip'>" + esc(q) +
+        " <button class='chip-x' data-i='" + i + "' title='Remove'>&times;</button></span>";
+    }).join("");
+    box.querySelectorAll(".chip-x").forEach(function (b) {
+      b.addEventListener("click", function () {
+        reviewJob.customQs.splice(parseInt(b.dataset.i, 10), 1);
+        renderCustomChips();
+      });
+    });
+  }
+
+  function addCustomQuestion() {
+    var input = document.getElementById("clause-custom");
+    var q = (input && input.value || "").trim();
+    if (!q) return;
+    reviewJob.customQs.push(q);
+    input.value = "";
+    renderCustomChips();
   }
 
   // The comparison matrix streamed live over SSE (POST /grid). Each cell is a
@@ -2625,12 +2959,33 @@
       "<button class='tab' data-tab='grid'>Compare Documents</button>" +
       "</div>" +
       "<div id='pane-clauses'>" +
-      "<div class='panel' style='display:flex;gap:8px;align-items:center'>" +
+      "<div class='panel'>" +
+      "<div class='clause-controls'>" +
       "<label class='muted'>Matter:</label>" +
-      "<select class='matter-picker' id='clause-matter' style='max-width:340px'></select>" +
-      "<button class='btn' id='clause-run'>Run review</button></div>" +
+      "<select class='matter-picker' id='clause-matter' style='max-width:280px'></select>" +
+      "<select id='clause-scope' title='Review the whole matter or one document'>" +
+      "<option value=''>Whole matter</option></select>" +
+      "<select id='clause-type' title='Skip clauses that do not apply to this kind of document'>" +
+      CLAUSE_TYPES.map(function (t) {
+        return "<option value='" + t.value + "'>" + esc(t.label) + "</option>";
+      }).join("") + "</select>" +
+      "<button class='btn' id='clause-run'>Run review</button>" +
+      "<button class='btn secondary' id='clause-cancel' style='display:none'>Cancel</button>" +
+      "</div>" +
+      "<div class='clause-controls'>" +
+      "<input id='clause-custom' placeholder='Add your own question, e.g. Is there a pilot period?' " +
+      "style='flex:1;min-width:220px'>" +
+      "<button class='btn secondary' id='clause-custom-add'>Add question</button>" +
+      "<span id='clause-custom-chips'></span>" +
+      "</div></div>" +
+      "<div id='clause-status'></div>" +
       "<div id='clause-err' style='color:var(--err);font-size:13px'></div>" +
       "<div id='clause-results'></div>" +
+      "<div id='clause-export' class='clause-controls' style='display:none'>" +
+      "<button class='btn secondary' id='clause-copy'>Copy</button>" +
+      "<button class='btn secondary' id='clause-md'>Download Markdown</button>" +
+      "<button class='btn secondary' id='clause-word'>Download Word</button>" +
+      "</div>" +
       "</div>" +
       "<div id='pane-grid' style='display:none'>" +
       "<div class='panel'>" +
@@ -2650,12 +3005,27 @@
     document.getElementById("clause-matter").addEventListener("change", function (e) {
       var opt = e.target.selectedOptions[0];
       setActiveMatter(e.target.value, opt ? opt.textContent : null);
+      resetReviewView();     // stale-stream guard: the old matter's run detaches
+      refreshClauseScope();
+      loadLatestRun();
     });
     document.getElementById("grid-matter").addEventListener("change", function (e) {
       var opt = e.target.selectedOptions[0];
       setActiveMatter(e.target.value, opt ? opt.textContent : null);
     });
-    document.getElementById("clause-run").addEventListener("click", runClauseReview);
+    document.getElementById("clause-run").addEventListener("click", runReviewJob);
+    document.getElementById("clause-cancel").addEventListener("click", cancelReviewJob);
+    document.getElementById("clause-custom-add").addEventListener("click", addCustomQuestion);
+    document.getElementById("clause-custom").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); addCustomQuestion(); }
+    });
+    document.getElementById("clause-copy").addEventListener("click", copyReview);
+    document.getElementById("clause-md").addEventListener("click", function () {
+      if (!reviewJob.run) return;
+      downloadBlob("contract-review-" + (reviewJob.run.matter || "matter") + ".md",
+                   new Blob([reviewMarkdown(reviewJob.run)], { type: "text/markdown" }));
+    });
+    document.getElementById("clause-word").addEventListener("click", exportReviewWord);
     document.getElementById("grid-run").addEventListener("click", runGrid);
     document.getElementById("grid-csv").addEventListener("click", downloadCsv);
   }
@@ -2664,6 +3034,10 @@
     ensureBuilt("review", buildReview);
     fillMatterPickers().catch(function () {});
     refreshGridDocs();
+    refreshClauseScope();
+    // A finished review reopens instantly; a live one resumes its stream. Never
+    // interrupt a stream this tab is already attached to.
+    if (!reviewJob.running) loadLatestRun();
     setReviewTab(reviewState.tab);
   }
   window.viewHooks.review = reviewHook;

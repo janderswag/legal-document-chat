@@ -80,6 +80,7 @@ import routes_connectors  # noqa: E402
 import routes_data  # noqa: E402
 import routes_digest  # noqa: E402
 import routes_grid  # noqa: E402
+import routes_jobs  # noqa: E402
 import routes_kb  # noqa: E402
 import routes_matters  # noqa: E402
 import routes_profile  # noqa: E402
@@ -96,6 +97,7 @@ app.include_router(routes_search.router)
 app.include_router(routes_chat.router)
 app.include_router(routes_clauses.router)
 app.include_router(routes_grid.router)
+app.include_router(routes_jobs.router)
 app.include_router(routes_settings.router)
 app.include_router(routes_profile.router)
 app.include_router(routes_connectors.router)
@@ -106,6 +108,16 @@ app.include_router(routes_setup.router)
 app.include_router(routes_transcripts.router)
 app.include_router(routes_retention.router)
 app.include_router(routes_updates.router)
+
+
+@app.on_event("startup")
+def _jobs_startup():
+    """D-90: a queued/running job row after a restart is work that died with the
+    old process — flip it to an honest error before the UI can read it as alive."""
+    import jobs
+    flipped = jobs.mark_interrupted()
+    if flipped:
+        print(f"[startup] marked {flipped} interrupted background job(s)")
 
 
 @app.on_event("startup")
