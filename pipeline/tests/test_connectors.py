@@ -148,6 +148,48 @@ class TestWatchedFolders(unittest.TestCase):
                        catalog.list_documents("watch-matter"))
         self.assertEqual(names, ["contract-1.txt", "contract.txt"])
 
+    def test_one_level_subfolders_are_scanned_deeper_are_not(self):
+        # Council 2026-07-12: scanner trays write dated subfolders
+        # (Scans/2026-07-12/x.pdf) — one level in, deeper deliberately not.
+        import os
+        folder = self.tmp / "tray"
+        (folder / "2026-07-12").mkdir(parents=True)
+        (folder / "2026-07-12" / "deep").mkdir()
+        old = time.time() - 60
+        top = folder / "top.txt"; top.write_text("SYNTHETIC top")
+        sub = folder / "2026-07-12" / "scan.txt"; sub.write_text("SYNTHETIC sub")
+        deep = folder / "2026-07-12" / "deep" / "nope.txt"
+        deep.write_text("SYNTHETIC deep")
+        hidden_dir = folder / ".git"; hidden_dir.mkdir()
+        hid = hidden_dir / "config.txt"; hid.write_text("SYNTHETIC hidden dir")
+        for f in (top, sub, deep, hid):
+            os.utime(f, (old, old))
+        link = folder / "linked"
+        link.symlink_to(self.tmp)          # symlinked dir: never followed
+        catalog.add_watch_folder("watch-matter", folder)
+        names = sorted(d["filename"] for d in watchers.scan_once())
+        self.assertEqual(names, ["scan.txt", "top.txt"])   # deep/.git/link excluded
+        # restart semantics: keys are in-memory only — after a restart every
+        # file is re-read once and checksum identity drops the known ones
+        watchers._seen_mtimes.clear()
+        self.assertEqual(watchers.scan_once(), [])
+
+    def test_same_filename_in_two_subfolders_both_land(self):
+        import os
+        folder = self.tmp / "tray2"
+        (folder / "a").mkdir(parents=True); (folder / "b").mkdir()
+        old = time.time() - 60
+        fa = folder / "a" / "scan.txt"; fa.write_text("SYNTHETIC A")
+        fb = folder / "b" / "scan.txt"; fb.write_text("SYNTHETIC B")
+        for f in (fa, fb):
+            os.utime(f, (old, old))
+        catalog.add_watch_folder("watch-matter", folder)
+        self.assertEqual(len(watchers.scan_once()), 2)     # distinct relpath keys
+        # both LAND, neither clobbers: the suffix loop keeps A and B distinct
+        self.assertEqual(sorted(d["filename"]
+                                for d in catalog.list_documents("watch-matter")),
+                         ["scan-1.txt", "scan.txt"])
+
     def test_heartbeat_stats_and_status_fields(self):
         folder = self.tmp / "beat"
         folder.mkdir()

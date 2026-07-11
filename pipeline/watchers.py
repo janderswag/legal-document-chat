@@ -125,8 +125,9 @@ def scan_once(db_path=None):
     ingested when the content actually changed (a corrected re-scan of
     contract.pdf must land; a merely-touched identical file is dropped by
     checksum identity in _ingest_file, and is not read again until it changes
-    again). Only the folder itself is scanned — subfolders are not watched,
-    and the UI says so."""
+    again). The folder and its IMMEDIATE subfolders are scanned (scanner trays
+    write dated dirs, council 2026-07-12); deeper nesting is deliberately not
+    walked, and the UI says exactly that."""
     allowed = _allowed_suffixes()
     queued = []
     for wf in catalog.list_watch_folders(db_path=db_path):
@@ -139,6 +140,19 @@ def scan_once(db_path=None):
             continue    # matter was disposed; folder row is inert
         try:
             entries = sorted(folder.iterdir())
+            for sub in list(entries):
+                # one level of subfolders (scanner trays write dated dirs);
+                # deeper nesting is deliberately NOT walked, and the UI says so
+                # symlinked dirs are skipped: following one would silently
+                # broaden the picker-chosen root (validate_folder guards the
+                # root only) — worst case a link into the KB store self-ingests
+                if sub.is_dir() and not sub.is_symlink() \
+                        and not sub.name.startswith("."):
+                    try:
+                        entries.extend(sorted(sub.iterdir()))
+                    except OSError as e:
+                        print(f"[watchers] cannot read {sub}: {e}",
+                              file=sys.stderr)
         except OSError as e:
             print(f"[watchers] cannot read {folder}: {e}", file=sys.stderr)
             _bump_stats(wf["id"], 0)
@@ -149,7 +163,9 @@ def scan_once(db_path=None):
                 continue
             if f.name.startswith("."):
                 continue
-            key = (wf["id"], f.name)
+            # keyed by path RELATIVE to the watched root, so a.pdf in two
+            # different subfolders stays two distinct files on re-scan
+            key = (wf["id"], str(f.relative_to(folder)))
             try:
                 mtime = f.stat().st_mtime
                 if time.time() - mtime < _STABLE_SECONDS:

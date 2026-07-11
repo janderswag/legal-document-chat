@@ -2284,7 +2284,8 @@
       "its matter (checked every " + (data.poll_seconds || 15) + " seconds; originals are never " +
       "moved or changed). Point one at a scanner's output folder, or at a Dropbox / Google Drive / " +
       "OneDrive synced folder: the sync app moves the bytes, docuchat never touches the network. " +
-      "Only the folder itself is watched - files in subfolders are not imported. " +
+      "The folder and its immediate subfolders are watched (one level - a scanner's " +
+      "dated folders work; deeper nesting is not imported). " +
       "Tip: for a shared scanner tray, watch it into Unfiled and file each scan yourself.</p>" +
       "<div style='display:flex;gap:8px;align-items:center;margin:12px 0;flex-wrap:wrap'>" +
       "<select class='matter-picker' id='folder-matter' style='max-width:240px'></select>" +

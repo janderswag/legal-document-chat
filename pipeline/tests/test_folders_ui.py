@@ -45,7 +45,10 @@ class TestFoldersUi(unittest.TestCase):
         self.assertIn("startFolderHeartbeat", self.js)
 
     def test_subfolder_honesty_copy(self):
-        self.assertIn("subfolders are not imported", self.js)
+        # B3 (council 2026-07-12): one level in — the copy must state both what
+        # now works (a scanner's dated folders) and the boundary (no deeper)
+        self.assertIn("immediate subfolders are watched", self.js)
+        self.assertIn("deeper nesting is not imported", self.js)
 
     def test_matter_detail_entry_point(self):
         self.assertIn("matter-watch-folder", self.js)
