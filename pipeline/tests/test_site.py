@@ -41,8 +41,8 @@ class TestLandingPage(unittest.TestCase):
         self.assertIn("notarized", low)
         self.assertRegex(
             self.html,
-            r"github\.com/[\w.-]+/legal-document-chat/releases/latest/download/docuchat\.dmg")
-        self.assertRegex(self.html, r"github\.com/[\w.-]+/legal-document-chat")
+            r"github\.com/[\w.-]+/docuchat\.app/releases/latest/download/docuchat\.dmg")
+        self.assertRegex(self.html, r"github\.com/[\w.-]+/docuchat\.app")
 
     def test_windows_coming_soon(self):
         self.assertIn("coming soon", self.html.lower())

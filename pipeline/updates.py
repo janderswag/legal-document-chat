@@ -25,7 +25,7 @@ import urllib.request
 import appversion
 import catalog
 
-RELEASES_API = ("https://api.github.com/repos/janderswag/legal-document-chat/"
+RELEASES_API = ("https://api.github.com/repos/janderswag/docuchat.app/"
                 "releases/latest")
 DOWNLOAD_PAGE = "https://docuchat.app"
 CHECK_INTERVAL_S = 24 * 3600

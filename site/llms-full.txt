@@ -78,7 +78,7 @@ The pipeline is: ingest -> parse -> chunk + embed -> retrieve -> answer -> verif
 ## Links
 
 - Website: https://docuchat.app/
-- Source (MIT): https://github.com/janderswag/legal-document-chat
-- README: https://github.com/janderswag/legal-document-chat/blob/main/README.md
-- Architecture decisions: https://github.com/janderswag/legal-document-chat/blob/main/DECISIONS.md
-- Get it (run from source today; signed apps soon): https://github.com/janderswag/legal-document-chat
+- Source (MIT): https://github.com/janderswag/docuchat.app
+- README: https://github.com/janderswag/docuchat.app/blob/main/README.md
+- Architecture decisions: https://github.com/janderswag/docuchat.app/blob/main/DECISIONS.md
+- Get it (run from source today; signed apps soon): https://github.com/janderswag/docuchat.app

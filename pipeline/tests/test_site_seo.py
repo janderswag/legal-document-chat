@@ -70,7 +70,7 @@ class TestPhaseAMachineFiles(unittest.TestCase):
         # version must track the app's real version (appversion.py) forever.
         from appversion import APP_VERSION
         self.assertEqual(app["offers"]["price"], "0")
-        self.assertIn("github.com/janderswag/legal-document-chat/releases/latest/"
+        self.assertIn("github.com/janderswag/docuchat.app/releases/latest/"
                       "download/docuchat.dmg", app["downloadUrl"])
         self.assertEqual(app.get("softwareVersion"), APP_VERSION,
                          "site softwareVersion out of sync with appversion.py")

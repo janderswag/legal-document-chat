@@ -6,9 +6,9 @@ Key facts: inference, embeddings, OCR, and storage are all local (binds to loopb
 
 ## Docs
 - [Website](https://docuchat.app/): product overview, setup, and download
-- [README](https://github.com/janderswag/legal-document-chat/blob/main/README.md): features, cloud-AI comparison, FAQ, architecture, tech stack
-- [Architecture decisions](https://github.com/janderswag/legal-document-chat/blob/main/DECISIONS.md): why hand-rolled RAG, why LanceDB, why mechanical citation verification
+- [README](https://github.com/janderswag/docuchat.app/blob/main/README.md): features, cloud-AI comparison, FAQ, architecture, tech stack
+- [Architecture decisions](https://github.com/janderswag/docuchat.app/blob/main/DECISIONS.md): why hand-rolled RAG, why LanceDB, why mechanical citation verification
 
 ## About
-- [GitHub repository](https://github.com/janderswag/legal-document-chat): MIT-licensed source
-- [Get docuchat](https://github.com/janderswag/legal-document-chat): run from source today; signed macOS and Windows apps coming soon
+- [GitHub repository](https://github.com/janderswag/docuchat.app): MIT-licensed source
+- [Get docuchat](https://github.com/janderswag/docuchat.app): run from source today; signed macOS and Windows apps coming soon
