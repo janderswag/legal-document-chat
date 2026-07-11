@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import fitz
 
@@ -75,6 +76,56 @@ class TestDemoLabelMigration(unittest.TestCase):
     def test_both_slugs_flagged_sample(self):
         self.assertIn(sample_matter.SAMPLE_MATTER_SLUG, sample_matter.SAMPLE_SLUGS)
         self.assertIn(sample_matter.LEGACY_SAMPLE_SLUG, sample_matter.SAMPLE_SLUGS)
+
+
+class TestSeedDigestEnqueue(unittest.TestCase):
+    """Critical fix: seeding calls kb_ingest.ingest_document() directly, bypassing
+    ingest_worker._run's digest.enqueue hook — without one here, seeded docs never
+    get a digest_version stamp and routes_digest's idle-proxy "stuck" heuristic
+    falsely reports them as unprocessable on the very first screen."""
+
+    def test_each_ingested_doc_is_digest_enqueued(self):
+        tmp = Path(tempfile.mkdtemp())
+        cat, kb, docs = tmp / "cat.db", tmp / "kb", tmp / "kb_docs"
+        seen = []
+        with mock.patch.object(sample_matter.kb_ingest, "ingest_document",
+                               return_value="ready"), \
+             mock.patch.object(sample_matter.digest, "enqueue",
+                               side_effect=lambda doc_id, *a, **k: seen.append(doc_id)):
+            slug = sample_matter.seed_sample_matter(db_path=cat, kb_db=kb, kb_docs=docs)
+        rows = catalog.list_documents(slug, db_path=cat)
+        self.assertEqual(len(rows), len(sample_matter._DOCS))
+        self.assertEqual(sorted(seen), sorted(r["id"] for r in rows))
+
+    def test_needs_review_is_also_digest_enqueued(self):
+        tmp = Path(tempfile.mkdtemp())
+        cat, kb, docs = tmp / "cat.db", tmp / "kb", tmp / "kb_docs"
+        with mock.patch.object(sample_matter.kb_ingest, "ingest_document",
+                               return_value="needs_review"), \
+             mock.patch.object(sample_matter.digest, "enqueue") as enq:
+            sample_matter.seed_sample_matter(db_path=cat, kb_db=kb, kb_docs=docs)
+        self.assertEqual(enq.call_count, len(sample_matter._DOCS))
+
+    def test_failed_ingest_does_not_enqueue_digest(self):
+        tmp = Path(tempfile.mkdtemp())
+        cat, kb, docs = tmp / "cat.db", tmp / "kb", tmp / "kb_docs"
+        with mock.patch.object(sample_matter.kb_ingest, "ingest_document",
+                               return_value="failed"), \
+             mock.patch.object(sample_matter.digest, "enqueue") as enq:
+            sample_matter.seed_sample_matter(db_path=cat, kb_db=kb, kb_docs=docs)
+        enq.assert_not_called()
+
+    def test_digest_enqueue_failure_never_fails_seeding(self):
+        tmp = Path(tempfile.mkdtemp())
+        cat, kb, docs = tmp / "cat.db", tmp / "kb", tmp / "kb_docs"
+        with mock.patch.object(sample_matter.kb_ingest, "ingest_document",
+                               return_value="ready"), \
+             mock.patch.object(sample_matter.digest, "enqueue",
+                               side_effect=RuntimeError("boom")):
+            slug = sample_matter.seed_sample_matter(db_path=cat, kb_db=kb, kb_docs=docs)
+        self.assertEqual(slug, sample_matter.SAMPLE_MATTER_SLUG)   # seeding still succeeded
+        rows = catalog.list_documents(slug, db_path=cat)
+        self.assertEqual(len(rows), len(sample_matter._DOCS))
 
 
 class TestSeedEndToEnd(unittest.TestCase):

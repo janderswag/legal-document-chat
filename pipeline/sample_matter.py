@@ -13,6 +13,7 @@ setup wizard finishes — so maybe_seed_async() waits (bounded) for readiness in
 thread and then seeds. Loopback Ollama only; no document data leaves the machine.
 """
 
+import logging
 import threading
 import time
 from pathlib import Path
@@ -20,8 +21,11 @@ from pathlib import Path
 import fitz
 
 import catalog
+import digest
 import kb_ingest
 from routes_kb import KB_DB, KB_DOCS
+
+log = logging.getLogger("docuchat.sample_matter")
 
 SAMPLE_MATTER_NAME = "Sample Matter"
 SAMPLE_MATTER_SLUG = catalog.slugify(SAMPLE_MATTER_NAME)   # "sample-matter"
@@ -163,8 +167,18 @@ def seed_sample_matter(db_path=None, kb_db=None, kb_docs=None):
                                    db_path=db_path,
                                    checksum=hashlib.sha256(plain).hexdigest(),
                                    size_bytes=len(plain))
-        kb_ingest.ingest_document(doc["id"], str(dest), slug,
-                                  str(kb_db or KB_DB), db_path)
+        result = kb_ingest.ingest_document(doc["id"], str(dest), slug,
+                                           str(kb_db or KB_DB), db_path)
+        # Mirror ingest_worker.py's hook (M-2): seeding bypasses the normal ingest
+        # queue, so it must also queue the digest itself, or the sample matter's docs
+        # stay unstamped forever and routes_digest's stuck heuristic falsely reports
+        # them as unprocessable. Best-effort: an enqueue failure must never fail seeding.
+        if result in ("ready", "needs_review"):
+            try:
+                digest.enqueue(doc["id"], str(kb_db or KB_DB), catalog_db=db_path)
+            except Exception:
+                log.exception("sample matter digest enqueue failed (non-fatal): doc_id=%s",
+                              doc["id"])
     return slug
 
 

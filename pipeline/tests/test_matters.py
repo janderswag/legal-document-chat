@@ -145,5 +145,27 @@ class TestChatGuideFirstRunRace(unittest.TestCase):
         self.assertNotIn("pending_count", send_chat)
 
 
+class TestChatGuidePollGuards(unittest.TestCase):
+    """Important fix: the 2s suggestion poll must not keep fetching /matters while
+    the chat pane isn't the active view, and must not run forever if a doc wedges in
+    queued/parsing. Static assertions only; behavior is smoke-tested in the app."""
+
+    def test_poll_callback_skips_fetch_when_chat_pane_hidden(self):
+        guide = APP_JS[APP_JS.index("function chatGuideVisible"):
+                       APP_JS.index("function sendChat")]
+        self.assertIn("chatGuideVisible", guide)
+        self.assertIn("view-chat", guide)
+        self.assertIn("classList.contains(\"active\")", guide)
+        # the visibility check must guard the fetch, not just exist somewhere nearby
+        poll_cb = guide[guide.index("chatGuidePoll = setTimeout"):]
+        self.assertLess(poll_cb.index("chatGuideVisible"), poll_cb.index("fillMatterPickers"))
+
+    def test_poll_has_a_max_age_stop(self):
+        guide = APP_JS[APP_JS.index("function renderChatGuide"):
+                       APP_JS.index("function sendChat")]
+        self.assertIn("30 * 60 * 1000", guide)
+        self.assertIn("Date.now()", guide)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

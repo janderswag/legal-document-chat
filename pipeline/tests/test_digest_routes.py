@@ -48,7 +48,12 @@ class TestOverviewRoutes(unittest.TestCase):
         catalog.DEFAULT_DB = self._cat
 
     def test_overview_groups_and_review_join(self):
-        r = client.get("/matters/nimbus-dispute/overview")
+        # "v1" predates the real EXTRACTOR_VERSION and nothing is queued to redo it
+        # -> stuck, not building, but only once the backfill sweep has completed.
+        with mock.patch.object(digest, "status",
+                               return_value={"queue_depth": 0, "current": None,
+                                             "backfill_done": True}):
+            r = client.get("/matters/nimbus-dispute/overview")
         self.assertEqual(r.status_code, 200)
         body = r.json()
         self.assertEqual([i["fact_key"] for i in body["deadlines"]], ["dl"])
@@ -56,8 +61,6 @@ class TestOverviewRoutes(unittest.TestCase):
         self.assertEqual(body["parties"][0]["value"]["name"], "Nimbus Analytics LLC")
         self.assertEqual(body["deadlines"][0]["filename"], "msa.pdf")
         self.assertIsNone(body["deadlines"][0]["review"])
-        # "v1" predates the real EXTRACTOR_VERSION and nothing is queued to redo it
-        # (the digest worker never started in this test process) -> stuck, not building.
         self.assertEqual(body["building"], {"done": 0, "total": 1, "stuck": 1})
 
     def test_unknown_matter_404(self):
@@ -130,28 +133,49 @@ class TestDigestStuckSignal(unittest.TestCase):
 
     def test_not_stuck_while_digest_worker_is_busy(self):
         with mock.patch.object(digest, "status",
-                               return_value={"queue_depth": 0, "current": self.doc["id"]}):
+                               return_value={"queue_depth": 0, "current": self.doc["id"],
+                                             "backfill_done": True}):
             body = client.get("/matters/stuck-matter/overview").json()
         self.assertEqual(body["building"], {"done": 0, "total": 1, "stuck": 0})
 
     def test_not_stuck_while_something_is_queued(self):
         with mock.patch.object(digest, "status",
-                               return_value={"queue_depth": 1, "current": None}):
+                               return_value={"queue_depth": 1, "current": None,
+                                             "backfill_done": True}):
             body = client.get("/matters/stuck-matter/overview").json()
         self.assertEqual(body["building"], {"done": 0, "total": 1, "stuck": 0})
 
     def test_stuck_when_worker_idle_and_undigested(self):
         with mock.patch.object(digest, "status",
-                               return_value={"queue_depth": 0, "current": None}):
+                               return_value={"queue_depth": 0, "current": None,
+                                             "backfill_done": True}):
             body = client.get("/matters/stuck-matter/overview").json()
         self.assertEqual(body["building"], {"done": 0, "total": 1, "stuck": 1})
 
     def test_no_stuck_once_fully_digested(self):
         catalog.replace_facts(self.doc["id"], "stuck-matter", [], digest.EXTRACTOR_VERSION)
         with mock.patch.object(digest, "status",
-                               return_value={"queue_depth": 0, "current": None}):
+                               return_value={"queue_depth": 0, "current": None,
+                                             "backfill_done": True}):
             body = client.get("/matters/stuck-matter/overview").json()
         self.assertEqual(body["building"], {"done": 1, "total": 1, "stuck": 0})
+
+    def test_not_stuck_when_backfill_sweep_has_not_completed(self):
+        # Root-cause fix (sample-matter false stuck positive): idle + undigested is
+        # NOT enough — a process that hasn't finished its one-shot startup backfill
+        # sweep yet must not accuse docs that simply haven't been enqueued.
+        with mock.patch.object(digest, "status",
+                               return_value={"queue_depth": 0, "current": None,
+                                             "backfill_done": False}):
+            body = client.get("/matters/stuck-matter/overview").json()
+        self.assertEqual(body["building"], {"done": 0, "total": 1, "stuck": 0})
+
+    def test_stuck_once_backfill_sweep_has_completed(self):
+        with mock.patch.object(digest, "status",
+                               return_value={"queue_depth": 0, "current": None,
+                                             "backfill_done": True}):
+            body = client.get("/matters/stuck-matter/overview").json()
+        self.assertEqual(body["building"], {"done": 0, "total": 1, "stuck": 1})
 
 
 if __name__ == "__main__":

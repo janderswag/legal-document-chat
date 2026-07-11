@@ -34,6 +34,10 @@ _started = False
 # Read-only progress snapshot (mirrors ingest_worker._state) — lets a caller tell a
 # doc that's still queued/in-flight apart from one that's permanently unstamped.
 _state = {"current": None}
+# Set once the startup backfill sweep (backfill_async) has run to completion. A
+# process that hasn't swept yet can have freshly-seeded/ingested docs that are simply
+# not yet enqueued — that must never be reported as "stuck" (routes_digest.overview).
+BACKFILL_DONE = False
 
 DIGEST_MODEL = os.environ.get("LDI_CHAT_MODEL", "qwen3:14b")
 EXTRACTOR_VERSION = "digest-v4 " + DIGEST_MODEL   # bump v1 on any prompt/schema change
@@ -338,10 +342,13 @@ def _loop():
 
 
 def status():
-    """Read-only snapshot: queue depth + the in-flight doc id, if any. Used to tell a
-    doc that's still queued/in-flight apart from one left permanently unstamped after
-    extract_for_document gave up on it (digest_progress's "stuck" count)."""
-    return {"queue_depth": _QUEUE.qsize(), "current": _state["current"]}
+    """Read-only snapshot: queue depth + the in-flight doc id, if any, plus whether the
+    startup backfill sweep has completed. Used to tell a doc that's still queued/in-flight
+    apart from one left permanently unstamped after extract_for_document gave up on it
+    (digest_progress's "stuck" count) — and to withhold that verdict until backfill has
+    had its one chance to enqueue everything pre-existing."""
+    return {"queue_depth": _QUEUE.qsize(), "current": _state["current"],
+            "backfill_done": BACKFILL_DONE}
 
 
 def enqueue(doc_id, db_path, catalog_db=None):
@@ -369,14 +376,20 @@ def backfill_async(db_path, catalog_db=None, initial_delay=20.0):
     the current extractor version. Daemon thread; the digest worker itself yields
     to chat and runs the jobs, so this loop just needs to enqueue them."""
     def _backfill_loop():
+        global BACKFILL_DONE
         time.sleep(initial_delay)   # let startup (model preload etc.) finish first
-        if not enabled():
-            return
-        for doc_id in _stale_doc_ids(catalog_db):
-            try:
-                enqueue(doc_id, db_path, catalog_db=catalog_db)
-            except Exception:
-                log.exception("digest backfill enqueue failed: doc_id=%s", doc_id)
+        try:
+            if not enabled():
+                return
+            for doc_id in _stale_doc_ids(catalog_db):
+                try:
+                    enqueue(doc_id, db_path, catalog_db=catalog_db)
+                except Exception:
+                    log.exception("digest backfill enqueue failed: doc_id=%s", doc_id)
+        finally:
+            # Always flip the flag, even if disabled/errored — the sweep has had its
+            # one chance either way, so routes_digest can now trust the stuck signal.
+            BACKFILL_DONE = True
     t = threading.Thread(target=_backfill_loop, name="matter-digest-backfill", daemon=True)
     t.start()
     return t

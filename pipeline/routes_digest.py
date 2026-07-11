@@ -94,7 +94,10 @@ def overview(matter: str):
     pending = building["total"] - building["done"]
     dstatus = digest.status()
     idle = dstatus["queue_depth"] == 0 and dstatus["current"] is None
-    building["stuck"] = pending if (pending > 0 and idle) else 0
+    # A process that hasn't completed its startup backfill sweep yet must not accuse
+    # docs of being stuck: they may simply not have been enqueued onto the digest
+    # queue yet (e.g. sample-matter seeding racing the one-shot backfill at t+20s).
+    building["stuck"] = pending if (pending > 0 and idle and dstatus["backfill_done"]) else 0
     out = {"building": building,
            "deadlines": [], "timeline": [], "parties": [], "amounts": [],
            "terms": [], "refs": [], "dismissed_count": 0}

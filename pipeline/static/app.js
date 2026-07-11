@@ -1317,6 +1317,16 @@
   // buttons stay disabled (manual typing is never blocked) until /matters reports
   // pending_count === 0, polling on the same cadence as the matter overview builder.
   var chatGuidePoll = null;
+  // Trust fix (poll runaway): the 2s poll must not fetch /matters while the chat
+  // pane is hidden, and must not run forever if a doc wedges in queued/parsing.
+  // chatGuideProgress tracks the last-seen pending_count and when it was first seen
+  // at that value; once it hasn't budged for 30 minutes, polling stops (the static
+  // "still preparing" note stays put rather than spinning forever).
+  var chatGuideProgress = null;
+  function chatGuideVisible() {
+    var el = document.getElementById("view-chat");
+    return !!(el && el.classList.contains("active"));
+  }
   function renderChatGuide() {
     var box = document.getElementById("chat-guide");
     if (!box) return;
@@ -1338,6 +1348,13 @@
         "wait for Ready, then ask.</div>";
     } else if (active && active.sample && (active.suggested_questions || []).length) {
       var stillPreparing = active.pending_count > 0;
+      if (!stillPreparing) {
+        chatGuideProgress = null;
+      } else if (!chatGuideProgress || chatGuideProgress.count !== active.pending_count) {
+        chatGuideProgress = { count: active.pending_count, since: Date.now() };
+      }
+      var stalledTooLong = stillPreparing &&
+        (Date.now() - chatGuideProgress.since) > 30 * 60 * 1000;
       box.innerHTML =
         "<div class='guide-chips'><span class='muted'>Try a question against the sample documents:</span> " +
         active.suggested_questions.map(function (q) {
@@ -1346,9 +1363,14 @@
         }).join(" ") + "</div>" +
         (stillPreparing ? "<p class='muted' style='font-size:12px;margin-top:2px'>" +
           "Preparing your sample matter…</p>" : "");
-      if (stillPreparing) {
+      if (stillPreparing && !stalledTooLong) {
         chatGuidePoll = setTimeout(async function () {
           chatGuidePoll = null;
+          if (!chatGuideVisible()) {
+            // Chat pane isn't showing: skip the /matters fetch, just reschedule.
+            renderChatGuide();
+            return;
+          }
           try { await fillMatterPickers(); } catch (e) {}
           renderChatGuide();
         }, 2000);

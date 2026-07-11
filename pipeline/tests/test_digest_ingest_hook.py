@@ -87,6 +87,14 @@ class TestBackfill(unittest.TestCase):
             t.join(timeout=10)
         self.assertEqual(seen, [d1["id"]])
 
+    def test_backfill_flips_the_done_flag(self):
+        # routes_digest gates the "stuck" signal on this — must flip on completion,
+        # even on the disabled/erroring path (the sweep still had its one chance).
+        with mock.patch.object(digest, "enqueue"):
+            t = digest.backfill_async(self.tmp / "kb", initial_delay=0)
+            t.join(timeout=10)
+        self.assertTrue(digest.status()["backfill_done"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
