@@ -45,6 +45,21 @@ class TestOverviewUI(unittest.TestCase):
         self.assertIn("ovHref", tl)
         self.assertIn("ov-cite", tl)
 
+    def test_add_to_calendar_button_wired(self):
+        self.assertIn("function calHref", APP_JS)
+        self.assertIn("calendar.ics", APP_JS)
+        self.assertIn("Add to calendar", APP_JS)
+        # calHref must apostrophe-guard the URL exactly like ovHref does (F2 pattern)
+        calh = APP_JS[APP_JS.index("function calHref"):APP_JS.index("function calHref") + 300]
+        self.assertIn('replace(/\'/g, "%27")', calh)
+
+    def test_deadlines_disclaimer_present(self):
+        self.assertIn(
+            "Extracted from your documents - verify against the source. Not a complete docket.",
+            APP_JS)
+        self.assertIn("ov-disclaimer", APP_JS)
+        self.assertIn(".ov-disclaimer", APP_CSS)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

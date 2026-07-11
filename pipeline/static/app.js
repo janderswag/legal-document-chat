@@ -907,6 +907,11 @@
         .replace(/'/g, "%27"); // encodeURIComponent leaves ' raw; it would end the href='...'
     }
 
+    function calHref(i) {
+      return ("/matters/" + encodeURIComponent(slug) + "/facts/" +
+        encodeURIComponent(i.fact_key) + "/calendar.ics").replace(/'/g, "%27");
+    }
+
     function srcLine(i) {
       return "<div class='ov-src'>“" + esc(i.span) + "” — <a class='ov-cite' " +
         "href='" + ovHref(i) + "' target='_blank'>" + esc(i.filename) + " p." + esc(String(i.page)) + "</a></div>";
@@ -926,8 +931,10 @@
       if (v.anchor && !eff)
         html += "<div class='ov-note muted'>counts from: " + esc(v.anchor) + "</div>";
       html += "<div class='ov-actions'>";
-      if (r && r.status === "confirmed")
+      if (r && r.status === "confirmed") {
+        html += "<a class='btn secondary' href='" + calHref(i) + "'>Add to calendar</a>";
         html += "<button class='btn secondary ov-act' data-act='undo'>Unconfirm</button>";
+      }
       else {
         html += "<input type='date' class='ov-date' value='" + esc(v.date_iso || "") + "'>";
         html += "<button class='btn ov-act' data-act='confirm'>Confirm</button>";
@@ -959,7 +966,9 @@
       var unconf = data.deadlines.filter(function (i) {
         return !(i.review && i.review.status === "confirmed"); }).length;
       if (unconf) html += " <span class='muted'>· " + unconf + " need your confirmation</span>";
-      html += "</div>" + data.deadlines.map(deadlineRow).join("") + "</div>";
+      html += "</div>" + data.deadlines.map(deadlineRow).join("");
+      html += "<div class='ov-disclaimer muted'>" +
+        "Extracted from your documents - verify against the source. Not a complete docket.</div></div>";
     }
 
     if (data.timeline.length || data.parties.length || data.amounts.length) {

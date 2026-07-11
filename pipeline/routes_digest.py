@@ -4,8 +4,9 @@ attorney's: docuchat surfaces source language; the human supplies/confirms the d
 
 import json
 import re
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 
 import catalog
@@ -14,6 +15,7 @@ import digest
 router = APIRouter()
 
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_ICS_CRLF = "\r\n"
 
 
 class ReviewBody(BaseModel):
@@ -24,6 +26,57 @@ class ReviewBody(BaseModel):
 def _require_matter(matter):
     if catalog.get_matter(matter) is None:
         raise HTTPException(status_code=404, detail="unknown matter")
+
+
+def _ics_escape(text):
+    """RFC 5545 TEXT escaping: backslash, then semicolon/comma, then newlines as \\n."""
+    text = (text or "").replace("\\", "\\\\")
+    text = text.replace(";", "\\;").replace(",", "\\,")
+    text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\\n")
+    return text
+
+
+def _ics_fold_line(line):
+    """Fold one content line so no physical (CRLF-terminated) line exceeds 75 octets,
+    per RFC 5545 3.1. Continuation lines are prefixed with a single space, which counts
+    against their 75-octet budget. Never splits a UTF-8 multi-byte sequence."""
+    data = line.encode("utf-8")
+    if len(data) <= 75:
+        return line
+    chunks = []
+    start, limit = 0, 75
+    while start < len(data):
+        end = min(start + limit, len(data))
+        while end < len(data) and (data[end] & 0xC0) == 0x80:  # UTF-8 continuation byte
+            end -= 1
+        chunks.append(data[start:end])
+        start = end
+        limit = 74  # subsequent physical lines reserve 1 octet for the leading space
+    return _ICS_CRLF.join(
+        chunk.decode("utf-8") if i == 0 else " " + chunk.decode("utf-8")
+        for i, chunk in enumerate(chunks))
+
+
+def _build_ics(fact_key, matter_display, label, confirmed_date, span, filename, page):
+    dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    dtstart = confirmed_date.replace("-", "")
+    summary = f"{label} ({matter_display})"
+    description = (f'Source: "{span}" {filename} p.{page}\n'
+                    "Extracted by docuchat. Verify against the source document.")
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//docuchat//EN",
+        "BEGIN:VEVENT",
+        "UID:" + _ics_escape(f"{fact_key}@docuchat.local"),
+        "DTSTAMP:" + dtstamp,
+        "DTSTART;VALUE=DATE:" + dtstart,
+        "SUMMARY:" + _ics_escape(summary),
+        "DESCRIPTION:" + _ics_escape(description),
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
+    return _ICS_CRLF.join(_ics_fold_line(l) for l in lines) + _ICS_CRLF
 
 
 @router.get("/matters/{matter}/overview")
@@ -72,3 +125,31 @@ def review_fact(matter: str, fact_key: str, body: ReviewBody):
                          json.dumps({"fact_key": fact_key, "status": body.status,
                                      "confirmed_date": body.confirmed_date}))
     return {"ok": True}
+
+
+@router.get("/matters/{matter}/facts/{fact_key}/calendar.ics")
+def fact_calendar(matter: str, fact_key: str):
+    """A single all-day VEVENT for one attorney-confirmed deadline. The date is the
+    attorney's confirmed_date verbatim — docuchat never computes or offsets it, and
+    the event carries no alarms/reminders."""
+    _require_matter(matter)
+    matter_row = catalog.get_matter(matter)
+    fact = next((r for r in catalog.facts_for_matter(matter) if r["fact_key"] == fact_key), None)
+    if fact is None:
+        raise HTTPException(status_code=404, detail="unknown fact")
+    value = json.loads(fact["value_json"])
+    if fact["fact_type"] != "date_event" or value.get("kind") not in ("deadline", "obligation"):
+        raise HTTPException(status_code=409, detail="fact is not a deadline")
+    review = catalog.reviews_for_matter(matter).get(fact_key)
+    if not review or review["status"] != "confirmed":
+        raise HTTPException(status_code=409, detail="deadline is not confirmed")
+    confirmed_date = review.get("confirmed_date") or value.get("date_iso")
+    if not confirmed_date:
+        raise HTTPException(status_code=409, detail="no confirmed date")
+
+    ics = _build_ics(fact_key, matter_row["display_name"], value.get("label") or "",
+                      confirmed_date, fact["span"], fact["filename"], fact["page"])
+    catalog.audit_append("deadline_calendar_export", matter, json.dumps({"fact_key": fact_key}))
+    return Response(content=ics, media_type="text/calendar; charset=utf-8",
+                    headers={"Content-Disposition":
+                             f'attachment; filename="deadline-{confirmed_date}.ics"'})

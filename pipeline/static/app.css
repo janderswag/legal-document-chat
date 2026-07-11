@@ -338,4 +338,6 @@ tr.doc-row:active{cursor:grabbing}
 .ov-tl{display:flex;gap:8px;padding:3px 0;font-size:13px}
 .ov-tld{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:84px}
 .ov-terms summary{cursor:pointer}
+.ov-actions a.btn{text-decoration:none;display:inline-block}
+.ov-disclaimer{font-size:11px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}
 #matter-dropzone.slim{padding:8px !important;font-size:12px}
