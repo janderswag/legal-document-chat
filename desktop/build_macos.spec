@@ -12,11 +12,17 @@
 # `hiddenimports`/`datas` against a real run (desktop/SIGNING.md "Verify the bundle").
 
 import os
+import sys
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
 REPO = os.path.abspath(os.getcwd())
 PIPELINE = os.path.join(REPO, "pipeline")
+
+# Single source of truth for the version (pipeline/appversion.py) — a hardcoded copy
+# here once stamped a v0.4.0 build as 0.3.2.
+sys.path.insert(0, PIPELINE)
+from appversion import APP_VERSION
 
 datas = []
 binaries = []
@@ -102,7 +108,7 @@ app = BUNDLE(
     info_plist={
         "CFBundleName": "docuchat",
         "CFBundleDisplayName": "docuchat",
-        "CFBundleShortVersionString": "0.3.2",
+        "CFBundleShortVersionString": APP_VERSION,
         "NSHighResolutionCapable": True,
         # pywebview uses WKWebView against 127.0.0.1 only; no ATS exception needed for
         # loopback. No microphone/camera/location usage strings — the app asks for none.
