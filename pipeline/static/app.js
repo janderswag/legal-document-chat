@@ -1204,18 +1204,79 @@
     }
     return "<div class='answer'>" + md(safe) + "</div>" + conf +
       (thumbs ? "<div class='thumb-row'>" + thumbs + "</div>" : "") +
-      (sources ? "<div class='sources'><b>Sources</b><ul>" + sources + "</ul></div>" : "");
+      (sources ? "<div class='sources'><b>Sources</b><ul>" + sources + "</ul></div>" : "") +
+      "<button class='btn secondary copy-answer-btn' type='button' style='margin-top:6px'>Copy</button>";
   };
   window.citationThumb = citationThumb;
 
+  // Sprint item 5: copy a completed answer as plain text (no HTML/markdown) — the
+  // answer followed by a blank line and numbered citations, e.g.
+  // [1] filename p.N: "verbatim span". Strips the model's inline [document: ...] tags
+  // and basic markdown markers so what lands on the clipboard is clean, readable text.
+  function answerToPlainText(text) {
+    var s = String(text || "");
+    s = s.replace(/\[document:[^\]]*\]/g, "");
+    s = s.replace(/\*\*([^*]+)\*\*/g, "$1");
+    s = s.replace(/^#{1,6}\s+/gm, "");
+    s = s.replace(/^[-*]\s+/gm, "");
+    s = s.replace(/^\d+\.\s+/gm, "");
+    s = s.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+    return s.trim();
+  }
+
+  function answerPlainText(body) {
+    var cites = body.citations || [];
+    var text = answerToPlainText(body.answer_text || "");
+    if (cites.length) {
+      text += "\n\n" + cites.map(function (c, i) {
+        var loc = "p." + c.page + (c.lines ? ":" + c.lines : "");
+        return "[" + (i + 1) + "] " + c.filename + " " + loc + ": \"" + (c.span || "") + "\"";
+      }).join("\n");
+    }
+    return text;
+  }
+
+  // Same clipboard mechanism as the referral-link copy (Referrals view): the async
+  // clipboard API first, a temporary textarea + execCommand("copy") fallback second —
+  // WKWebView does not always support navigator.clipboard.
+  async function copyPlainText(text) {
+    try { await navigator.clipboard.writeText(text); return; } catch (e) {}
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  // Wires the Copy button rendered by renderAnswerHtml() inside `container` (the
+  // specific message element just inserted, not the whole chat log) to `body` (the
+  // {answer_text, citations} the button was rendered from). Covers both the live
+  // stream path (sendChat) and historical messages opened from Chat History
+  // (openThread) — both render through renderAnswerHtml.
+  function wireCopyButton(container, body) {
+    var btn = container && container.querySelector(".copy-answer-btn");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      copyPlainText(answerPlainText(body));
+      var label = btn.textContent;
+      btn.textContent = "Copied";
+      btn.disabled = true;
+      setTimeout(function () { btn.textContent = label; btn.disabled = false; }, 1500);
+    });
+  }
+
   function appendMsg(role, html) {
     var box = document.getElementById("chat-messages");
-    if (!box) return;
+    if (!box) return null;
     var div = document.createElement("div");
     div.className = "msg " + role;
     div.innerHTML = html;
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
+    return div;
   }
 
   // Retrieved passages shown while the model reads them — candidates only, deliberately
@@ -1363,6 +1424,7 @@
       } else {
         pending.innerHTML = window.renderAnswerHtml(done);
       }
+      wireCopyButton(pending, done);
       box.scrollTop = box.scrollHeight;
     } catch (e) { pending.innerHTML = "<span style='color:var(--err)'>" + esc(e.message) + "</span>"; }
   }
@@ -1375,10 +1437,9 @@
     var box = document.getElementById("chat-messages");
     box.innerHTML = "";
     msgs.forEach(function (m) {
-      if (m.role === "user") appendMsg("user", esc(m.content));
-      else appendMsg("assistant", window.renderAnswerHtml({
-        answer_text: m.content, citations: m.citations_json ? JSON.parse(m.citations_json) : [],
-      }));
+      if (m.role === "user") { appendMsg("user", esc(m.content)); return; }
+      var body = { answer_text: m.content, citations: m.citations_json ? JSON.parse(m.citations_json) : [] };
+      wireCopyButton(appendMsg("assistant", window.renderAnswerHtml(body)), body);
     });
   }
   window.openThread = openThread;
