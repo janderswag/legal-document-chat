@@ -3,9 +3,54 @@
 > Single source of truth for "where are we right now." Update this after every working session.
 > Read at the start of each session alongside `CLAUDE.md`.
 
-_Last updated: 2026-07-11 (session close)_
+_Last updated: 2026-07-11 (v0.5.0 build session)_
 
 ## Status
+
+**2026-07-11 (afternoon/evening) — v0.5.0 BUILT: the council session ("Review &
+Compare and the ingestion truth", docs/council/2026-07-11-council-review-compare-and-
+ingestion.md) executed end to end, Moves 0-6 all landed. RELEASE HELD FOR OWNER
+CLICK-THROUGH per the deploy approval rule — build + gates done, publish pending.**
+What shipped, in council order: **Move 0** — the WKWebView ~60s timeout was REFUTED
+empirically (a 300s no-byte fetch completes): the old blocking review was unusable,
+not broken. **Move 1** — apostrophe-guard on the three remaining highlight-href
+builders + regression tests. **Move 2 (THE BUILD)** — the D-90 background job runner
+(serial FIFO worker, persisted rows + full event history in the encrypted catalog
+`jobs` table, cancel between clauses, restart honesty, SSE replay+tail with
+keepalives) with clause review as first tenant (owner decision #1: runner NOW):
+skeleton renders instantly, clauses stream (~9s/clause measured live on qwen3:14b;
+21 clauses ≈ 3 min), Run→Cancel swap, persisted runs reopen in ZERO seconds with
+docs_key/taxonomy staleness, attorney-designated doc-type filter (never guessed),
+single-document review exposed, add-your-own-question row, exports (copy / Markdown /
+Word via the EXISTING transcript writer — python-docx was already a dependency) all
+carrying per-clause verification status + Sam's scope caveat; grid memoization (one
+answer() per question: 5 docs x 20 clauses = 20 calls, was 100). **Move 3** — email
+truth: Gmail excludes seen UIDs BEFORE the 500 cap (sync walks a label of any size),
+.eml attachments become searchable child documents (same _ALLOWED gate + 25MB cap;
+unsafe names SKIPPED, never defaulted), source badges on Unfiled/ledger rows, since=
+allowlisted to fireflies only (most adapters filter client-side by modified-time —
+late-scoped items would vanish), owner decision #4: imports ALWAYS land in Unfiled
+with a suggested-matter "File to X" chip. **Move 4** — watched folders: native folder
+picker via a pywebview js_api bridge (DIALOGS ONLY; the window handle is
+underscore-private — pywebview exposes public attributes RECURSIVELY, a public handle
+= the whole Window API handed to page JS), split guards, heartbeat rows ("watching ·
+checked 12s ago · N files added"), corrected re-scans land (seen-mtimes map; checksum
+identity prevents duplicate rows), Unfiled a legal lazily-created target. **Move 5** —
+"Every mention" (renamed, promoted above the filing sections, two labeled modes,
+/find repointed, a per-answer cross-link); /search now normalizes under the
+VERIFIER's character contract (quote class / entities / hyphen-breaks) — a verified
+span can no longer 0-hit the counter. **Move 6** — token sweep (.drop-hot,
+--ok/warn/err/info-soft, .field-err). Plus: Core Four catalog presentation (owner
+decision #5; CRM cards pulled until F6), smoke gate extended with a review-SSE
+assertion (step e), site demo.html em-dashes removed (was failing the brand test),
+version 0.5.0 in all three places (tripwire green). Discipline held: adversarial
+review after EVERY move — five reviews, five sets of real defects fixed pre-commit
+(including one CRITICAL, the js_api Window exposure, and one HIGH, the
+search-vs-verifier normalization mismatch). Engine UNTOUCHED (answering/retrieval
+zero diffs). Dev-suite failures 45 vs 46 baseline — all the known missing-eval-data
+class, one fewer (the em-dash fix). **Owner verify-first:** click "Choose a folder"
+once in the built app (the bridge is invisible to the headless smoke — manual gate
+item), then the definition-of-done walk in council doc §5.
 
 **2026-07-11 midday addendum: v0.4.3 RELEASED — owner caught the slash palette floating over the Matter bar (it was anchored to the tall composer-wrap, not the input); now anchored inside .chat-composer, renders BELOW the input per owner design call, auto-flips above near the viewport bottom. Smoke gate PASSED.**
 

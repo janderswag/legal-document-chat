@@ -162,14 +162,30 @@ echo "$overview_json" | jq -e '.deadlines' >/dev/null 2>&1 \
   || fail "GET /matters/$matter_slug/overview did not return valid overview JSON — body: $overview_json"
 echo "==> (d) GET /matters/$matter_slug/overview -> 200 JSON"
 
-# --- (e) bundle version matches pipeline/appversion.py -------------------------
+# --- (e) review job runner streams SSE (v0.5.0 Move 2, D-90) -------------------
+# Submit a clause review job for the smoke matter and prove the events stream
+# opens and carries the meta event (the skeleton source). We cancel right after:
+# the smoke gate proves the PIPE works in the bundle, not model quality (that is
+# the golden gate's job) — and a scratch box may not have a warm model at all.
+job_resp="$(curl -s -X POST "$BASE/clauses/review-jobs" \
+  -H 'content-type: application/json' \
+  -d "{\"matter\":\"$matter_slug\"}")"
+job_id="$(echo "$job_resp" | jq -r '.id // empty')"
+[[ -n "$job_id" ]] || fail "POST /clauses/review-jobs did not return a job id — body: $job_resp"
+sse_head="$(curl -s -N --max-time 10 "$BASE/jobs/$job_id/events" | head -c 2000)"
+echo "$sse_head" | grep -q "event: meta" \
+  || fail "GET /jobs/$job_id/events did not stream the meta event — got: ${sse_head:0:300}"
+curl -s -X POST "$BASE/jobs/$job_id/cancel" >/dev/null
+echo "==> (e) review job $job_id streams SSE (meta event seen), cancelled cleanly"
+
+# --- (f) bundle version matches pipeline/appversion.py -------------------------
 plist_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
   "$APP/Contents/Info.plist" 2>/dev/null)"
 app_version="$(python3 -c "import sys; sys.path.insert(0,'pipeline'); from appversion import APP_VERSION; print(APP_VERSION)")"
 [[ -n "$plist_version" ]] || fail "could not read CFBundleShortVersionString from $APP/Contents/Info.plist"
 [[ "$plist_version" == "$app_version" ]] || \
   fail "bundle version '$plist_version' != pipeline/appversion.APP_VERSION '$app_version'"
-echo "==> (e) bundle version $plist_version == appversion.APP_VERSION"
+echo "==> (f) bundle version $plist_version == appversion.APP_VERSION"
 
 echo "==> SMOKE PASSED: $APP is real and working ($svc_count connectors, upload+overview+version all green)."
 exit 0

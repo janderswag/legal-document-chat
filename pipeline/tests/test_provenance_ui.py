@@ -47,5 +47,36 @@ class TestProvenanceUi(unittest.TestCase):
         self.assertIn("Everything imports into", self.js)
 
 
+
+class TestCoreFourCatalog(unittest.TestCase):
+    """Owner decision #5: Email / Meetings / Folders & Files / Practice
+    Management lead; the long tail collapses; CRM cards are pulled until F6."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.js = client.get("/static/app.js").text
+
+    def test_core_four_groups_lead(self):
+        i = self.js.index("var CONNECTOR_CATALOG = [")
+        block = self.js[i:self.js.index("CONNECTOR_CATALOG_MORE")]
+        for cat in ("Email", "Meetings", "Folders & Files", "Practice Management"):
+            self.assertIn('cat: "' + cat + '"', block)
+
+    def test_long_tail_collapses(self):
+        self.assertIn("CONNECTOR_CATALOG_MORE", self.js)
+        self.assertIn("More services", self.js)
+        self.assertIn("<details class='conn-more'>", self.js)
+
+    def test_crm_cards_pulled_from_catalog(self):
+        # adapters stay registered (connected accounts keep working); only the
+        # catalog presentation drops them until matter-affinity filtering lands
+        i = self.js.index("var CONNECTOR_CATALOG = [")
+        catalog_block = self.js[i:self.js.index("function connectorLogo")]
+        for slug in ('"hubspot"', '"zoho"', '"pipedrive"', '"salesforce"'):
+            self.assertNotIn(slug, catalog_block)
+
+    def test_slack_carries_files_only_honesty(self):
+        self.assertIn("threads are not imported", self.js)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

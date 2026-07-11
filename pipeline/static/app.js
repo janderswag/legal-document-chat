@@ -1995,29 +1995,62 @@
   // drives today). Vendors with NO user-reachable pull path were REMOVED —
   // we never list a connector a user would discover they cannot connect.
   // Row shape: [name, slug, credentialKind, description, live]
+  // Core Four presentation (owner decision #5, council 2026-07-11): the four
+  // families attorneys use daily lead; the long tail collapses under "More
+  // services". CRM cards are PULLED until F6 (matter-affinity filtering) is
+  // fixed - firm-wide dumps of numeric-ID notes are noise with an ethics
+  // hazard, and we never list a connector we would advise against connecting.
   var CONNECTOR_CATALOG = [
-    { cat: "AI Meeting Notetakers", items: [
-      ["Fathom", "fathom", "API key", "Call transcripts and meeting summaries", true],
+    { cat: "Email", items: [
+      ["Gmail", "gmail", "App password", "Mail and attachments by label - attachments become searchable documents", true],
+      ["Microsoft Outlook", "outlook", "Coming", "Mail and attachments by matter", false],
+    ]},
+    { cat: "Meetings", items: [
+      ["Zoom", "zoom", "Your Zoom app", "Cloud-recording transcripts", true],
       ["Fireflies.ai", "fireflies", "API key", "Transcripts and meeting summaries", true],
+      ["Fathom", "fathom", "API key", "Call transcripts and meeting summaries", true],
       ["Granola", "granola", "API key", "Meeting notes and transcripts", true],
       ["tl;dv", "tldv", "API key", "Meeting transcripts and notes", true],
       ["MeetGeek", "meetgeek", "API key", "Meeting summaries and transcripts", true],
       ["Avoma", "avoma", "API key", "Conversation notes and transcripts", true],
       ["Grain", "grain", "Access token", "Call transcripts and highlights", true],
       ["Jiminny", "jiminny", "API key", "Conversation transcripts", true],
+      ["Cisco Webex", "webex", "Access token", "Meeting recordings and transcripts", true],
+      ["Read AI", "readai", "Coming", "Meeting notes, transcripts, and summaries", false],
+      ["Microsoft Teams", "msteams", "Coming", "Meeting recordings and transcripts", false],
+      ["Google Meet", "googlemeet", "Coming", "Meeting recordings and transcripts", false],
+      ["Circleback", "circleback", "Coming", "Meeting notes and action items", false],
+    ]},
+    { cat: "Folders & Files", note: "Your scanner or a Dropbox / Drive / OneDrive " +
+        "synced folder works TODAY with a watched folder (top of this page) - " +
+        "the sync app moves the bytes, docuchat never touches the network.", items: [
+      ["Nextcloud", "nextcloud", "App password", "Self-hosted files over WebDAV", true],
+      ["ShareFile", "sharefile", "API key", "Client-shared files", true],
+      ["Microsoft OneDrive", "onedrive", "Coming", "Folders synced into matters", false],
+      ["Microsoft SharePoint", "sharepoint", "Coming", "Document libraries", false],
+      ["Google Drive", "googledrive", "Coming", "Folders synced into matters", false],
+      ["Dropbox", "dropbox", "Coming", "Folders synced into matters", false],
+      ["Box", "box", "Coming", "Folders synced into matters", false],
+    ]},
+    { cat: "Practice Management", items: [
+      ["Clio Manage", "clio", "Coming", "Matters, documents, and contacts", false],
+      ["NetDocuments", "netdocuments", "Coming", "Cabinets and documents", false],
+      ["MyCase", "mycase", "Coming", "Cases and documents", false],
+      ["Lawmatics", "lawmatics", "Coming", "Intake files and records", false],
+      ["Actionstep", "actionstep", "Coming", "Matters and documents", false],
+      ["LEAP", "leap", "Coming", "Matters and documents", false],
+      ["Litify", "litify", "Coming", "Matters via the Salesforce platform", false],
+    ]},
+  ];
+
+  // The long tail: real, connectable, just not daily-use for most firms.
+  var CONNECTOR_CATALOG_MORE = [
+    { cat: "Transcription services", items: [
       ["Rev AI", "revai", "Access token", "Speech-to-text transcripts (API jobs)", true],
       ["Sonix", "sonix", "API key", "Automated transcripts", true],
       ["Trint", "trint", "API key", "Transcripts and captions", true],
       ["Happy Scribe", "happyscribe", "API key", "Transcripts and subtitles", true],
-      ["Read AI", "readai", "Coming", "Meeting notes, transcripts, and summaries", false],
       ["Rev", "rev", "Coming", "Human transcription orders and results", false],
-      ["Circleback", "circleback", "Coming", "Meeting notes and action items", false],
-    ]},
-    { cat: "Meeting Platforms", items: [
-      ["Zoom", "zoom", "Your Zoom app", "Cloud-recording transcripts", true],
-      ["Cisco Webex", "webex", "Access token", "Meeting recordings and transcripts", true],
-      ["Microsoft Teams", "msteams", "Coming", "Meeting recordings and transcripts", false],
-      ["Google Meet", "googlemeet", "Coming", "Meeting recordings and transcripts", false],
     ]},
     { cat: "Notes & Knowledge", items: [
       ["Notion", "notion", "Integration token", "Pages and databases as documents", true],
@@ -2032,36 +2065,8 @@
       ["Microsoft Word", "msword", "Coming", "Word files from Microsoft 365", false],
       ["Dropbox Paper", "dropboxpaper", "Coming", "Paper docs via the Dropbox API", false],
     ]},
-    { cat: "Email & Communications", items: [
-      ["Gmail", "gmail", "App password", "Mail and attachments by label", true],
-      ["Slack", "slack", "Your Slack app", "Files shared in your channels", true],
-      ["Microsoft Outlook", "outlook", "Coming", "Mail and attachments by matter", false],
-    ]},
-    { cat: "Cloud File Storage", items: [
-      ["Nextcloud", "nextcloud", "App password", "Self-hosted files over WebDAV", true],
-      ["ShareFile", "sharefile", "API key", "Client-shared files", true],
-      ["Microsoft OneDrive", "onedrive", "Coming", "Folders synced into matters", false],
-      ["Microsoft SharePoint", "sharepoint", "Coming", "Document libraries", false],
-      ["Google Drive", "googledrive", "Coming", "Folders synced into matters", false],
-      ["Dropbox", "dropbox", "Coming", "Folders synced into matters", false],
-      ["Box", "box", "Coming", "Folders synced into matters", false],
-    ]},
-    { cat: "Legal Practice & Case Management", items: [
-      ["Clio Manage", "clio", "Coming", "Matters, documents, and contacts", false],
-      ["MyCase", "mycase", "Coming", "Cases and documents", false],
-      ["Lawmatics", "lawmatics", "Coming", "Intake files and CRM records", false],
-      ["Actionstep", "actionstep", "Coming", "Matters and documents", false],
-      ["LEAP", "leap", "Coming", "Matters and documents", false],
-      ["Litify", "litify", "Coming", "Matters via the Salesforce platform", false],
-    ]},
-    { cat: "Legal Document Management", items: [
-      ["NetDocuments", "netdocuments", "Coming", "Cabinets and documents", false],
-    ]},
-    { cat: "CRM & Intake", items: [
-      ["HubSpot", "hubspot", "Private app token", "Notes and file attachments", true],
-      ["Zoho CRM", "zoho", "Self Client", "Records and attachments", true],
-      ["Pipedrive", "pipedrive", "API token", "Notes and files from your deals", true],
-      ["Salesforce", "salesforce", "Coming", "Records and files", false],
+    { cat: "Chat", items: [
+      ["Slack", "slack", "Your Slack app", "Files shared in your channels (files only - threads are not imported)", true],
     ]},
   ];
 
@@ -2191,10 +2196,19 @@
   }
 
   function connectorCatalogHtml() {
-    return CONNECTOR_CATALOG.map(function (group) {
+    function groupHtml(group) {
       var rows = group.items.map(connectorRowHtml).join("");
-      return "<div class='panel conn-group'><b>" + esc(group.cat) + "</b>" + rows + "</div>";
-    }).join("");
+      var note = group.note
+        ? "<p class='muted' style='font-size:12.5px;margin:4px 0 2px'>" + esc(group.note) + "</p>"
+        : "";
+      return "<div class='panel conn-group'><b>" + esc(group.cat) + "</b>" + note + rows + "</div>";
+    }
+    var moreCount = CONNECTOR_CATALOG_MORE.reduce(function (n, g) {
+      return n + g.items.length;
+    }, 0);
+    return CONNECTOR_CATALOG.map(groupHtml).join("") +
+      "<details class='conn-more'><summary>More services (" + moreCount + ")</summary>" +
+      CONNECTOR_CATALOG_MORE.map(groupHtml).join("") + "</details>";
   }
 
   function folderRowsHtml(data) {
