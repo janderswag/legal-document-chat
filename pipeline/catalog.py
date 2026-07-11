@@ -16,6 +16,7 @@ via ``migrate_catalog_sqlcipher.py`` (rename-aside, rehearsed by the drill tests
 
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -56,6 +57,8 @@ def _encrypt_new(path):
     (tests, scratch copies, other platforms) stays plain sqlite."""
     if sys.platform != "darwin" or Path(path) != _PRODUCTION_DB:
         return False
+    if os.environ.get("DOCUCHAT_SMOKE") == "1":
+        return False  # smoke data is disposable — never touch the production Keychain key for it
     try:
         _master_key()
         return True

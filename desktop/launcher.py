@@ -413,6 +413,20 @@ a background copy of docuchat may still be running (quit it from Activity Monito
 </div></body></html>"""
 
 
+def _require_smoke_env():
+    """Guard for the DOCUCHAT_SMOKE=1 branch: refuse to proceed unless the caller
+    EXPLICITLY set both DOCUCHAT_DATA_DIR and DOCUCHAT_PORT. Defense in depth — the
+    real caller (desktop/smoke_packaged.sh) always passes both, but the launcher must
+    not trust that: DOCUCHAT_SMOKE=1 alone would default to port 8000 and the owner's
+    real data dir, and free_port() would then kill the owner's running app."""
+    missing = [v for v in ("DOCUCHAT_DATA_DIR", "DOCUCHAT_PORT") if not os.environ.get(v)]
+    if missing:
+        print("smoke: DOCUCHAT_SMOKE=1 requires " + " and ".join(missing) + " to also be "
+              "set explicitly — refusing to risk the owner's real app/data on the defaults "
+              "(see desktop/smoke_packaged.sh)", file=sys.stderr)
+        sys.exit(2)
+
+
 def _splash_msg(window, text):
     """Best-effort progress line on the splash; never fatal."""
     try:
@@ -438,13 +452,16 @@ def main(port=DEFAULT_PORT):
     # already stops the server/Ollama children on that signal. Unset (the default): zero
     # behavior change to a normal launch.
     if os.environ.get("DOCUCHAT_SMOKE") == "1":
+        _require_smoke_env()
         free_port(port)
         handles["ollama"] = ensure_ollama()
         if getattr(sys, "frozen", False):
             handles["server"] = start_server_frozen(port=port)
         else:
             handles["proc"] = start_server(port=port)
-        if not wait_healthy(port=port):
+        # smoke_packaged.sh documents 120s patience for a cold scratch start (fresh
+        # data dir, no warm model cache) — the 40s default is tuned for a warm launch.
+        if not wait_healthy(port=port, timeout=120):
             print(f"smoke: server did not become healthy on http://{HOST}:{port}",
                   file=sys.stderr)
             stop_server(handles.get("proc"))

@@ -11,11 +11,19 @@
 # and `datas` (see desktop/WINDOWS_TEST.md "Known gaps / iterate here").
 
 import os
+import sys
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
 REPO = os.path.abspath(os.getcwd())
 PIPELINE = os.path.join(REPO, "pipeline")
+
+# LOAD-BEARING: collect_submodules("connectors") below imports the "connectors" package to
+# walk it, so it silently returns [] unless pipeline/ is already on sys.path at spec-eval
+# time. build_macos.spec only avoids this by accident (its sys.path.insert is there for the
+# appversion import, not for this) — without it here too, the Windows build ships the same
+# empty-connector-registry regression the Mac build shipped (connectors-audit.md root cause).
+sys.path.insert(0, PIPELINE)
 
 datas = []
 binaries = []

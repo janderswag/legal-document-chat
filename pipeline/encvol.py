@@ -81,6 +81,8 @@ def mount_kb_volume(kb_db, bundle=None, passphrase=None):
     first, so new installs start encrypted instead of inheriting the plain-store
     posture. Returns a status string for Settings (no filesystem paths).
     ``passphrase`` is injectable for tests; production uses the Keychain secret."""
+    if os.environ.get("DOCUCHAT_SMOKE") == "1":
+        return "no-encrypted-volume"  # smoke data is disposable — never touch the production Keychain key for it
     bundle = Path(bundle) if bundle else KB_BUNDLE
     kb_db = Path(kb_db)
     try:
