@@ -117,10 +117,24 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 
 .chat-messages{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin:0;padding:18px 2px;max-width:none}
 
-.chat-composer-wrap{flex:0 0 auto;padding-top:14px}
+.chat-composer-wrap{flex:0 0 auto;padding-top:14px;position:relative}
 .chat-greeting{display:none}
 .chat-greeting h1{font-family:var(--serif);font-weight:500;font-size:30px;letter-spacing:-.3px;margin:0 0 10px;text-align:center}
 .greet-sub{font-size:14px;color:var(--muted);line-height:1.5;margin:0 auto;max-width:46ch;text-align:center}
+/* Slash-command palette: an on-demand menu of ACTIONS over existing features
+   (never a new feature of its own). Sits above the composer, never pushes layout. */
+.slash-palette{position:absolute;left:0;right:0;bottom:100%;margin-bottom:8px;
+  background:var(--panel);border:1px solid var(--border-2);border-radius:13px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(29,27,22,.04),0 10px 26px -20px rgba(29,27,22,.28);z-index:20}
+.slash-row{display:flex;align-items:baseline;gap:10px;padding:9px 14px;cursor:pointer;
+  border-bottom:1px solid var(--border)}
+.slash-row:hover,.slash-row.selected{background:var(--accent-soft)}
+.slash-cmd{font-weight:600;color:#6e5220;flex:0 0 auto}
+.slash-desc{color:var(--muted);font-size:13px}
+.slash-hint{padding:7px 14px;font-size:11px;color:var(--faint);background:var(--panel-2)}
+.slash-hint kbd{font-family:var(--sans);background:var(--panel-2);border:1px solid var(--border-2);
+  border-radius:4px;padding:1px 5px;font-size:10px;margin:0 3px}
+
 .chat-composer{display:flex;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--border-2);border-radius:16px;
   padding:8px 8px 8px 16px;box-shadow:0 1px 2px rgba(29,27,22,.04),0 10px 26px -20px rgba(29,27,22,.28);
   transition:border-color .15s,box-shadow .15s}

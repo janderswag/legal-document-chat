@@ -1508,6 +1508,126 @@
     renderChatGuide();
   }
 
+  // Slash-command palette (roadmap item 4): on-demand ACTIONS over features that
+  // already exist — no new feature lives behind a command. Navigation commands
+  // clear the composer; commands that fill a question replace the composer text
+  // and NEVER auto-send (the attorney presses Ask). applySlashCommand() must not
+  // call sendChat() directly.
+  var SLASH_COMMANDS = [
+    { cmd: "deadlines", desc: "Deadlines for this matter" },
+    { cmd: "overview", desc: "Matter overview: parties, timeline, deadlines" },
+    { cmd: "compare", desc: "Compare documents" },
+    { cmd: "review", desc: "Contract review" },
+    { cmd: "find", desc: "Ask where the documents discuss …" },
+    { cmd: "summarize", desc: "Summarize the key documents in this matter, with citations." },
+    { cmd: "copy", desc: "Copy the last answer with citations" }
+  ];
+  var slashState = { open: false, items: [], index: 0 };
+
+  function slashArg(value) {
+    return value.replace(/^\/\S*/, "").trim();
+  }
+
+  function findLastAnswerCopyButton() {
+    var box = document.getElementById("chat-messages");
+    if (!box) return null;
+    var msgs = box.querySelectorAll(".msg.assistant");
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      var btn = msgs[i].querySelector(".copy-answer-btn");
+      if (btn) return btn;
+    }
+    return null;
+  }
+
+  function hideSlashPalette() {
+    slashState.open = false;
+    slashState.items = [];
+    slashState.index = 0;
+    var pal = document.getElementById("slash-palette");
+    if (pal) { pal.style.display = "none"; pal.innerHTML = ""; }
+  }
+
+  function renderSlashPalette() {
+    var pal = document.getElementById("slash-palette");
+    if (!pal) return;
+    pal.innerHTML = slashState.items.map(function (c, i) {
+      return "<div class='slash-row" + (i === slashState.index ? " selected" : "") +
+        "' data-idx='" + i + "'><span class='slash-cmd'>/" + esc(c.cmd) + "</span>" +
+        "<span class='slash-desc'>" + esc(c.desc) + "</span></div>";
+    }).join("") +
+      "<div class='slash-hint'><kbd>&uarr;&darr;</kbd> navigate <kbd>&crarr;</kbd> select " +
+      "<kbd>esc</kbd> dismiss</div>";
+    pal.style.display = "";
+    pal.querySelectorAll(".slash-row").forEach(function (row) {
+      // mousedown would blur the textarea before the click is handled; suppress that.
+      row.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      row.addEventListener("click", function () {
+        applySlashCommand(slashState.items[Number(row.dataset.idx)]);
+      });
+    });
+  }
+
+  function updateSlashPalette() {
+    var input = document.getElementById("chat-input");
+    if (!input) return;
+    var m = /^\/(\S*)/.exec(input.value);
+    if (!m) { hideSlashPalette(); return; }
+    var word = m[1].toLowerCase();
+    var items = SLASH_COMMANDS.filter(function (c) { return c.cmd.indexOf(word) === 0; });
+    if (!items.length) { hideSlashPalette(); return; }
+    slashState.open = true;
+    slashState.items = items;
+    if (slashState.index >= items.length) slashState.index = 0;
+    renderSlashPalette();
+  }
+
+  // Applies the selected command. Navigation commands (deadlines/overview/compare/
+  // review) clear the composer and route to the existing view; find/summarize fill
+  // the composer with an editable question; copy triggers the existing copy button
+  // on the most recent answer. None of these send a question on the user's behalf.
+  function applySlashCommand(item) {
+    var input = document.getElementById("chat-input");
+    if (!input || !item) return;
+    hideSlashPalette();
+    if (item.cmd === "deadlines" || item.cmd === "overview") {
+      input.value = "";
+      if (!state.matter) { appendMsg("system", "<i>Select a matter first.</i>"); return; }
+      openMatter(state.matter);
+      return;
+    }
+    if (item.cmd === "compare") {
+      input.value = "";
+      if (!state.matter) { appendMsg("system", "<i>Select a matter first.</i>"); return; }
+      openReviewTab("grid");
+      return;
+    }
+    if (item.cmd === "review") {
+      input.value = "";
+      if (!state.matter) { appendMsg("system", "<i>Select a matter first.</i>"); return; }
+      openReviewTab("clauses");
+      return;
+    }
+    if (item.cmd === "find") {
+      var arg = slashArg(input.value);
+      if (!arg) { input.value = "/find "; input.focus(); return; }
+      input.value = "Where do this matter's documents discuss " + arg + "?";
+      input.focus();
+      return;
+    }
+    if (item.cmd === "summarize") {
+      input.value = "Summarize the key documents in this matter, with citations.";
+      input.focus();
+      return;
+    }
+    if (item.cmd === "copy") {
+      var btn = findLastAnswerCopyButton();
+      input.value = "";
+      if (btn) btn.click();
+      else appendMsg("system", "<i>No answer to copy yet.</i>");
+      return;
+    }
+  }
+
   // UX-7 (owner-directed): a single conversation pane — history is its own nav tab.
   function buildChat(inner) {
     inner.innerHTML =
@@ -1521,8 +1641,9 @@
       "<div class='chat-greeting'><h1 id='chat-greet-title'>What would you like to ask?</h1>" +
       "<p class='greet-sub'>Answers are grounded in the selected matter&#39;s documents and cited to the exact page and span.</p></div>" +
       "<div id='chat-guide'></div>" +
+      "<div id='slash-palette' class='slash-palette' style='display:none'></div>" +
       "<div class='chat-composer'>" +
-      "<textarea id='chat-input' rows='1' placeholder='Ask anything about this matter&#39;s documents…'></textarea>" +
+      "<textarea id='chat-input' rows='1' placeholder='Ask anything about this matter&#39;s documents… (try /)'></textarea>" +
       "<button class='btn' id='chat-send'>Ask&nbsp;→</button>" +
       "</div></div>";
     document.getElementById("chat-matter").addEventListener("change", function (e) {
@@ -1531,7 +1652,27 @@
     });
     document.getElementById("chat-new").addEventListener("click", newChat);
     document.getElementById("chat-send").addEventListener("click", sendChat);
+    document.getElementById("chat-input").addEventListener("input", updateSlashPalette);
+    document.getElementById("chat-input").addEventListener("blur", function () {
+      setTimeout(hideSlashPalette, 150);
+    });
     document.getElementById("chat-input").addEventListener("keydown", function (e) {
+      if (slashState.open) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          slashState.index = (slashState.index + 1) % slashState.items.length;
+          renderSlashPalette();
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          slashState.index = (slashState.index - 1 + slashState.items.length) % slashState.items.length;
+          renderSlashPalette();
+          return;
+        }
+        if (e.key === "Enter") { e.preventDefault(); applySlashCommand(slashState.items[slashState.index]); return; }
+        if (e.key === "Escape") { e.preventDefault(); hideSlashPalette(); return; }
+      }
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
     });
   }
