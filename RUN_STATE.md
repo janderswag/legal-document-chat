@@ -3,9 +3,49 @@
 > Single source of truth for "where are we right now." Update this after every working session.
 > Read at the start of each session alongside `CLAUDE.md`.
 
-_Last updated: 2026-07-10 (evening session)_
+_Last updated: 2026-07-11 (overnight sprint)_
 
 ## Status
+
+**2026-07-11 overnight — v0.4.1 RELEASED: CONNECTORS FOR REAL + deadline calendar export
++ chat fixes. The "Make It Real" council sprint (docs/council/2026-07-10-council-make-it-
+real.md) executed end to end. OWNER'S MORNING TEST: click "Update available v0.4.1" →
+Settings → Connectors (28 services now listed and connectable — paste a key per the steps
+in docs/2026-07-10-connector-registrations.md) → import lands in Unfiled → drag onto a
+matter → open the matter → confirm a deadline → "Add to calendar" puts it in Calendar.app
+with the source quote.** What shipped: (1) ROOT CAUSE of the unclickable connectors found
+and fixed — PyInstaller never bundled the dynamically-discovered adapters
+(pkgutil.iter_modules is invisible to static analysis; collect_submodules added to BOTH
+specs), so every prior release shipped an EMPTY connector registry despite green source
+tests; third instance of the source-tested/bundle-broken class. (2) The institutional fix:
+build_macos.sh now runs desktop/smoke_packaged.sh automatically — launches the real built
+.app headless against a scratch dir (guards: refuses without explicit env, never touches
+the real data dir/port 8000, never touches the production Keychain key) and asserts 28
+services + upload→ready + overview 200 + bundle version == appversion; SKIP_SMOKE=1 is the
+only (loud) escape. v0.4.1's gate run: SMOKE PASSED. (3) Connect→import→Unfiled→drag
+proven end-to-end in tests for Gmail/Zoom/Fireflies (191 connector tests green); catalog
+verified honest, zero demotions needed. (4) Deadline → calendar: .ics export on confirmed
+deadline rows, ATTORNEY'S date only (review found + killed a fallback to the document's
+date), RFC 5545 escaped/folded, source quote in DESCRIPTION; persistent "not a complete
+docket" disclaimer per ethics seat. (5) Copy-with-citations on every answer (WKWebView-safe
+clipboard, honest failure feedback). (6) Owner's chat-splitting bug: root cause = any
+failure between generation and the SSE done event lost the thread_id so the next send
+forked a thread; citation enrichment AND message persist are now guarded (answer always
+delivered), catalog got PRAGMA busy_timeout=5000 (background digest/ingest workers write
+concurrently). (7) Trust polish: sample-matter suggested questions wait for readiness
+(and sample docs are now digest-enqueued at seed — review caught a first-screen false
+"could not be processed" path, fixed with a backfill-done guard); TM-exclusion failure
+surfaces in Settings; overview empty state distinguishes building / no facts / N
+unprocessable. (8) README rewritten (Heppner positioning per ethics wording, zero
+em-dashes, all numbers traceable to eval artifacts) + docs/demo.png is now a real
+screenshot of the matter overview. Review discipline paid every round: 6 sprint reviews
+each found a Critical or Important finding, all fixed same-night (incl. Windows spec
+silent no-op, smoke-mode safety guards, .ics date fallback, unguarded persist,
+stuck-signal false positive). Answer path untouched all night (verified byte-identical;
+the v0.4.0 63/63 gate stands). **⚠️ OWNER FOLLOW-UPS:** OAuth connectors
+(Clio/Google/Microsoft/Read AI) still need your registrations; a real-account connector
+pass is your highest-value manual check; WKWebView digest-confirm smoke in the updated
+app; STILL no Time Machine backup.**
 
 **2026-07-10 evening — MATTER DIGEST (M-2 keystone) BUILT AND GATED on branch
 `feature/matter-digest` — NOT yet merged; owner actions at the end of this entry.**
