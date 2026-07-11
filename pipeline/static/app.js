@@ -2577,7 +2577,7 @@
   // strings pass through esc() before render (D-48 XSS guard).
   var CLAUSE_STATUS = {
     found: { label: "Found", cls: "found" },
-    potentially_missing: { label: "Potentially missing", cls: "missing" },
+    potentially_missing: { label: "Not located in the passages checked", cls: "missing" },
     not_confirmed: { label: "Not confirmed", cls: "unconfirmed" },
   };
 
@@ -2598,7 +2598,7 @@
     } else if (r.status === "potentially_missing") {
       // advisory only — NOT legal advice, NOT a citation
       bodyHtml = "<p class='clause-advisory muted'>" + esc(r.value ||
-        "Not located in the documents.") + "</p>";
+        "Not located in the passages checked.") + "</p>";
     } else { // not_confirmed
       bodyHtml = "<div class='answer muted'>" + md(injectChips(esc(r.value || ""), [])) +
         "</div><p class='clause-advisory muted'>No span-verified citation — not shown as found.</p>";
@@ -2645,7 +2645,7 @@
 
   function reviewTallyHtml(t) {
     return "<span class='clause-badge found'>" + (t.found || 0) + " found</span>" +
-      "<span class='clause-badge missing'>" + (t.potentially_missing || 0) + " potentially missing</span>" +
+      "<span class='clause-badge missing'>" + (t.potentially_missing || 0) + " not located</span>" +
       "<span class='clause-badge unconfirmed'>" + (t.not_confirmed || 0) + " not confirmed</span>";
   }
 
@@ -2834,7 +2834,7 @@
   // --- Review exports (Sam's rider: caveat + verification status on every one) --
   var CLAUSE_STATUS_TEXT = {
     found: "Found (span-verified)",
-    potentially_missing: "Potentially missing",
+    potentially_missing: "Not located (passages checked, not a page-by-page read)",
     not_confirmed: "Not confirmed (spans rejected)",
   };
 
@@ -2849,7 +2849,7 @@
                  "Reviewed " + reviewDate(run.reviewed), "", REVIEW_CAVEAT, ""];
     var s = run.summary || {};
     lines.push("Summary: " + (s.found || 0) + " found, " + (s.potentially_missing || 0) +
-      " potentially missing, " + (s.not_confirmed || 0) + " not confirmed (of " +
+      " not located, " + (s.not_confirmed || 0) + " not confirmed (of " +
       (s.total || 0) + " checked)", "");
     (run.results || []).forEach(function (r) {
       lines.push(r.name + " (" + r.category + ") [" +
@@ -2868,7 +2868,7 @@
     var lines = ["# Contract Review: " + run.matter, "",
                  "Reviewed " + reviewDate(run.reviewed) + ".", "", "> " + REVIEW_CAVEAT, "",
                  "**Summary:** " + (s.found || 0) + " found, " + (s.potentially_missing || 0) +
-                 " potentially missing, " + (s.not_confirmed || 0) + " not confirmed (of " +
+                 " not located, " + (s.not_confirmed || 0) + " not confirmed (of " +
                  (s.total || 0) + " checked)", ""];
     // red flags first — ranks start at 1 so the || default can never swallow a
     // real rank (0 || 4 === 4 put potentially_missing LAST; review finding #2)
@@ -2999,7 +2999,10 @@
     var td = document.getElementById(gridCellId(cell.doc_id, cell.column_id));
     if (!td) return;
     var badge = GRID_BADGE[cell.status] || "unconf";
-    var inner = "<span class='clause-badge " + badge + "'>" + esc(badge) + "</span>";
+    // chip text is retrieval-honest, never the raw CSS class ("missing" would
+    // assert an absence the retrieval cannot support; council 2026-07-11)
+    var chip = cell.status === "potentially_missing" ? "not located" : badge;
+    var inner = "<span class='clause-badge " + badge + "'>" + esc(chip) + "</span>";
     if (cell.status === "found") {
       var c = (cell.citations || [])[0];
       var snippet = (cell.value || "").replace(/\s+/g, " ").slice(0, 90);
@@ -3009,7 +3012,7 @@
           "' title='" + esc(c.filename) + " p." + esc(c.page) + "'>p." + esc(c.page) + "</a>";
       }
     } else if (cell.status === "potentially_missing") {
-      inner += " <span class='muted'>not located</span>";
+      inner += " <span class='muted'>in the passages checked</span>";
     } else {
       inner += " <span class='muted'>unverified</span>";
     }

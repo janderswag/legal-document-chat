@@ -133,7 +133,8 @@ def review_docx(payload: dict):
     summary = payload.get("summary") or {}
 
     status_label = {"found": "Found (span-verified)",
-                    "potentially_missing": "Potentially missing",
+                    "potentially_missing":
+                        "Not located (passages checked, not a page-by-page read)",
                     "not_confirmed": "Not confirmed (spans rejected)"}
 
     doc = Document()
@@ -149,13 +150,14 @@ def review_docx(payload: dict):
     # THE CAVEAT (Sam): scope honesty + verification honesty, on every export.
     doc.add_paragraph(
         "Each clause was checked against the matter's most relevant passages - "
-        "not a page-by-page read. A 'Potentially missing' row means the clause was "
-        "not located, not that it is absent. Every 'Found' quote was mechanically "
+        "not a page-by-page read. A 'Not located' row means the clause was not "
+        "located in those passages, not that it is absent. Every 'Found' quote was "
+        "mechanically "
         "verified against the source text; verify context before use. This is not "
         "legal advice and not a complete review.")
     doc.add_paragraph(
         f"Summary: {summary.get('found', 0)} found - "
-        f"{summary.get('potentially_missing', 0)} potentially missing - "
+        f"{summary.get('potentially_missing', 0)} not located - "
         f"{summary.get('not_confirmed', 0)} not confirmed "
         f"(of {summary.get('total', 0)} checked)")
 

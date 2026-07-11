@@ -141,5 +141,45 @@ class TestContractReviewCss(unittest.TestCase):
         self.assertIn("tab-row", css)
 
 
+class TestRetrievalHonestLabels(unittest.TestCase):
+    """Adoption council 2026-07-11: 'Potentially missing' reads as a legal
+    conclusion the retrieval cannot support. The label must say what the
+    system actually did: it checked the most relevant passages and did not
+    locate the clause."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.js = client.get("/static/app.js").text
+        cls.css = client.get("/static/app.css").text
+
+    def test_display_label_is_retrieval_honest(self):
+        self.assertIn("Not located in the passages checked", self.js)
+        self.assertNotIn('label: "Potentially missing"', self.js)
+
+    def test_export_label_and_summary_chips_are_retrieval_honest(self):
+        # CLAUSE_STATUS_TEXT (copy/markdown/plaintext exports) + the tally chip
+        self.assertIn("Not located (passages checked, not a page-by-page read)",
+                      self.js)
+        self.assertNotIn('"Potentially missing"', self.js)
+        self.assertIn(" not located</span>", self.js)
+
+    def test_status_value_unchanged_for_persisted_runs(self):
+        # persisted v0.5.0 runs must still render: the STATUS KEY survives
+        self.assertIn("potentially_missing: {", self.js)
+
+    def test_badge_is_demoted_from_warning_amber(self):
+        # Jonas: a maybe-absence must not shout like a confirmed problem
+        i = self.css.index(".clause-badge.missing{")
+        seg = self.css[i:i + 120]
+        self.assertNotIn("--warn", seg)
+        self.assertIn("--muted", seg)
+
+    def test_row_edge_is_demoted_but_still_visible(self):
+        i = self.css.index(".clause-row.missing{")
+        seg = self.css[i:self.css.index("}", i)]
+        self.assertNotIn("--warn", seg)
+        self.assertIn("--border-2", seg)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

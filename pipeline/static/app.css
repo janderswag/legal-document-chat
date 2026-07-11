@@ -179,14 +179,14 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 .clause-row{background:var(--panel);border:1px solid var(--border);border-radius:13px;
   padding:15px 17px;margin:11px 0;border-left:4px solid var(--border)}
 .clause-row.found{border-left-color:var(--ok)}
-.clause-row.missing{border-left-color:var(--warn)}
+.clause-row.missing{border-left-color:var(--border-2)}
 .clause-row.unconfirmed{border-left-color:var(--muted)}
 .clause-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
 .clause-name{font-weight:600;font-size:15px}
 .clause-cat{color:var(--muted);font-size:12px;margin-left:6px}
 .clause-badge{font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
 .clause-badge.found{background:var(--ok-soft);color:var(--ok)}
-.clause-badge.missing{background:var(--warn-soft);color:var(--warn)}
+.clause-badge.missing{background:var(--panel-2);color:var(--muted)}
 .clause-badge.unconfirmed{background:var(--panel-2);color:var(--muted)}
 .clause-advisory{font-size:13px;margin:4px 0 0}
 .clause-foot{margin-top:16px;font-size:12px}
@@ -243,7 +243,7 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
   background-size:200% 100%;animation:gridpulse 1.2s ease-in-out infinite}
 @keyframes gridpulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .grid-cell.found{background:#eef5ea}
-.grid-cell.missing{background:#f9f1e2}
+.grid-cell.missing{background:var(--panel-2)}
 .grid-val{display:block;color:var(--text);margin-top:3px;font-size:12px}
 
 /* Review & Compare tabs (UX-2) */

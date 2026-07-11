@@ -31,9 +31,10 @@ import apppaths
 
 DEFAULT_TAXONOMY = apppaths.assets_root() / "data" / "clause_taxonomy.json"
 
-# Advisory text for an absent clause. NOT a citation, NOT legal advice — a plain
-# statement that the standard clause was not located in the matter's documents.
-MISSING_ADVISORY = "Not located in the documents."
+# Advisory text for a not-located clause. NOT a citation, NOT legal advice — a
+# plain statement of what retrieval actually did: the clause was not located in
+# the passages checked (never an absence claim; council 2026-07-11).
+MISSING_ADVISORY = "Not located in the passages checked."
 
 _FIELDS = ("id", "name", "category", "question", "doc_types")
 

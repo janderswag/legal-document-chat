@@ -58,7 +58,8 @@ class TestReviewDocx(unittest.TestCase):
         table = doc.tables[0]
         self.assertEqual(table.rows[0].cells[1].text, "Verification status")
         statuses = [row.cells[1].text for row in table.rows[1:]]
-        self.assertIn("Potentially missing", statuses)
+        self.assertIn("Not located (passages checked, not a page-by-page read)",
+                      statuses)
         self.assertIn("Found (span-verified)", statuses)
         self.assertIn("Not confirmed (spans rejected)", statuses)
 
