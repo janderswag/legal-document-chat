@@ -147,8 +147,12 @@ def chat_stream(body: ChatRequest):
     canned = small_talk_reply(body.question)
     if canned is not None:
         def gen_small_talk():
-            catalog.add_message(thread_id, "assistant", canned, json.dumps([]))
-            catalog.touch_thread(thread_id)
+            try:
+                catalog.add_message(thread_id, "assistant", canned, json.dumps([]))
+                catalog.touch_thread(thread_id)
+            except Exception:
+                log.exception("chat: message persist failed (answer still delivered): thread=%s",
+                              thread_id)
             yield event("token", {"text": canned})
             yield event("done", {"thread_id": thread_id, "answer_text": canned,
                                  "citations": [], "rejected_claims": [],
