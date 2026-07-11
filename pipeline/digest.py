@@ -160,7 +160,8 @@ def _extract_call(group_text):
     finding zero facts ([]), and callers must not stamp the doc digested on None."""
     payload = {"model": DIGEST_MODEL, "stream": False, "think": False,
                "keep_alive": KEEP_ALIVE, "format": _FORMAT,
-               "options": {"temperature": 0, "num_ctx": NUM_CTX},
+               "options": {"temperature": 0, "num_ctx": NUM_CTX,
+                           "num_predict": 3072},  # cap generation to prevent stuck grammar decodes
                "messages": [{"role": "system", "content": _SYSTEM},
                             {"role": "user", "content": group_text}]}
     req = urllib.request.Request(
