@@ -7,6 +7,7 @@ empty matter (no indexed chunks) returns the exact D-30 refusal — never a tool
 """
 
 import json
+import logging
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -18,6 +19,7 @@ import routes_kb  # for the shared KB_DB path (monkeypatchable in tests)
 from answering import answer, answer_stream, small_talk_reply, REFUSAL
 
 router = APIRouter()
+log = logging.getLogger("docuchat.chat")
 
 
 class ChatRequest(BaseModel):
@@ -64,13 +66,29 @@ def chat(body: ChatRequest):
     # Enrich each chunk-derived citation with its catalog doc_id so the UI can request
     # the page thumbnail + cited-span highlight. doc_id is looked up by (matter, filename)
     # — the displayed page/span stay chunk-derived (D-38); we add no model-asserted data.
-    _enrich_doc_ids(body.matter, res["citations"])
-    _enrich_transcript_lines(body.matter, res["citations"], res.get("grounding_chunks"))
+    _enrich_citations(body.matter, res["citations"], res.get("grounding_chunks"))
 
     catalog.add_message(thread_id, "assistant", res["answer_text"],
                         json.dumps(res["citations"]))
     catalog.touch_thread(thread_id)
     return {"thread_id": thread_id, **res}
+
+
+def _enrich_citations(matter, citations, grounding):
+    """Runs both display-only enrichments and never lets a failure in either one lose an
+    already-generated, already-verified answer. Root cause of the "one session splits into
+    row-per-message" Chat History bug: this used to run unguarded after the SSE stream's
+    token loop, so a lookup failure here (e.g. a transient catalog read) raised past the
+    generator's only `except ValueError`, which aborted the stream before the 'done' event
+    (and its thread_id) ever reached the client. The next send then had no thread_id to
+    carry, so it created a brand-new thread instead of appending to the existing one. The
+    citations themselves stay verifier-produced either way (D-19/D-38); only the doc_id/
+    line-number DECORATION is best-effort."""
+    try:
+        _enrich_doc_ids(matter, citations)
+        _enrich_transcript_lines(matter, citations, grounding)
+    except Exception:
+        log.exception("citation enrichment failed; answer still delivered without it")
 
 
 def _enrich_doc_ids(matter, citations):
@@ -148,16 +166,20 @@ def chat_stream(body: ChatRequest):
                     # citations (those come exclusively from the 'done' event below).
                     srcs = [{"filename": g["source_filename"], "page": g["page_number"],
                              "snippet": g["text"][:200]} for g in ev["grounding"]]
-                    _enrich_doc_ids(body.matter, srcs)
+                    try:
+                        _enrich_doc_ids(body.matter, srcs)
+                    except Exception:
+                        log.exception("sources doc_id lookup failed; showing without it")
                     yield event("sources", {"sources": srcs})
                 else:
                     result = ev
         except ValueError:
             result = {"answer_text": REFUSAL, "citations": [], "rejected_claims": []}
         activity.mark_chat()    # re-mark at completion: quiet window starts now
-        _enrich_doc_ids(body.matter, result["citations"])
-        _enrich_transcript_lines(body.matter, result["citations"],
-                                 result.get("grounding_chunks"))
+        # Enrichment failures must never cost the client the 'done' event / thread_id
+        # (see _enrich_citations docstring — that gap is how one chat session used to
+        # split into a separate Chat History row per message).
+        _enrich_citations(body.matter, result["citations"], result.get("grounding_chunks"))
         catalog.add_message(thread_id, "assistant", result["answer_text"],
                             json.dumps(result["citations"]))
         catalog.touch_thread(thread_id)
