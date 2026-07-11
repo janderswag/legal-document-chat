@@ -34,7 +34,24 @@ definition of done (docs/council/2026-07-11-council-review-compare-and-ingestion
 - Time Machine: still NO backup destination on this machine (no external drive
   found this session; an APFS local snapshot was taken as interim). Plug in a drive.
 
-## Queued next-cycle (council §6 non-goals, reaffirmed; owner additions 2026-07-11)
+## Queued next-cycle — RE-RANKED by the evening adoption-verdict council
+(docs/council/2026-07-11-council-adoption-verdict.md; tally: 1 yes / 7 conditional / 1 no)
+
+**The council's adoption sequence (beachhead solo first; none of 1-4 touch the engine):**
+1. Demote/reword the "Potentially missing" label to retrieval-honest language
+   (Jonas's interim; every seat flagged the false-missing signal as the top defect).
+2. Bundle Tesseract OCR + watched-folder one-level subfolder recursion
+   (Maria/Elena/Patricia — scanned paper is the solo's reality).
+3. RAM preflight gate: refuse-with-explanation under 16GB (~1 day; Priya/Patricia).
+4. Sam's first-run disclosure screen (what it is, what it never does, verify everything).
+5. Per-document retrieval scoping PROMOTED to the FRONT of the next 63/63 engine
+   cycle (three seats' single tipping item — the real false-missing fix).
+6. THEN the firm track: Outlook OAuth (needs owner Entra registration) + iManage
+   research + Windows — these convert Rosa's No, not the beachhead solo.
+Council warns AGAINST: opening distribution before 1-5 land, treating the export
+caveat as the fix, chasing Spellbook's redline job, selling firms yet.
+
+## Original queue (owner additions 2026-07-11, retained for reference)
 
 - **Outlook email (owner-requested, first OAuth tenant).** No key-paste path exists —
   Microsoft retired basic auth/app passwords for IMAP on BOTH Microsoft 365 and
