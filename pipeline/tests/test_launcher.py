@@ -17,6 +17,7 @@ import time
 import os
 import unittest
 from pathlib import Path
+from unittest import mock
 from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -262,6 +263,64 @@ class TestRestartMarkerWatch(unittest.TestCase):
             t.join(timeout=5)                        # user-clicked update) is consent
             self.assertTrue(window.destroyed)
         self.assertFalse(self.marker.exists())
+
+
+class TestRamGate(unittest.TestCase):
+    """Adoption council: an 8GB Mac degrades mysteriously (Ollama swap-thrash);
+    the launcher must refuse WITH AN EXPLANATION instead. Fails OPEN: if RAM
+    cannot be read, the gate never blocks."""
+
+    def test_threshold_logic(self):
+        with mock.patch.object(launcher, "total_ram_bytes", return_value=8 * 1024**3):
+            self.assertFalse(launcher.ram_ok())
+        with mock.patch.object(launcher, "total_ram_bytes", return_value=16 * 1024**3):
+            self.assertTrue(launcher.ram_ok())
+
+    def test_detection_failure_fails_open(self):
+        with mock.patch.object(launcher, "total_ram_bytes", return_value=0):
+            self.assertTrue(launcher.ram_ok())
+
+    def test_escape_hatch(self):
+        with mock.patch.object(launcher, "total_ram_bytes", return_value=8 * 1024**3), \
+             mock.patch.dict(launcher.os.environ, {"DOCUCHAT_SKIP_RAM_GATE": "1"}):
+            self.assertTrue(launcher.ram_ok())
+
+    def test_lowram_html_explains_and_names_the_requirement(self):
+        self.assertIn("16 GB", launcher.LOWRAM_HTML)
+        self.assertIn("on this Mac", launcher.LOWRAM_HTML)   # local-model framing
+
+    def test_gate_is_wired_into_main_before_any_engine_start(self):
+        """Deleting the gate block from main() must fail THIS test: on a
+        low-RAM machine main() shows the explanation window and returns
+        without ever starting Ollama or the server, and the rendered HTML
+        carries the real GB count (placeholder substituted)."""
+        shown = {}
+
+        class _FakeWebview:
+            def create_window(self, title, html=None, **kw):
+                shown["html"] = html
+
+            def start(self):
+                shown["started"] = True
+
+        with mock.patch.object(launcher, "total_ram_bytes",
+                               return_value=8 * 1024**3), \
+             mock.patch.object(launcher, "install_cleanup_live"), \
+             mock.patch.object(launcher, "ensure_ollama") as ollama, \
+             mock.patch.object(launcher, "start_server") as server, \
+             mock.patch.object(launcher, "free_port") as freep, \
+             mock.patch.dict(sys.modules, {"webview": _FakeWebview()}), \
+             mock.patch.dict(launcher.os.environ, {}, clear=False):
+            launcher.os.environ.pop("DOCUCHAT_SKIP_RAM_GATE", None)
+            launcher.os.environ.pop("DOCUCHAT_SMOKE", None)
+            rc = launcher.main(port=PORT3)
+        self.assertEqual(rc, 0)
+        self.assertTrue(shown.get("started"), "low-RAM window never shown")
+        self.assertIn("8 GB", shown["html"])
+        self.assertNotIn("{ram_gb}", shown["html"])
+        ollama.assert_not_called()
+        server.assert_not_called()
+        freep.assert_not_called()
 
 
 if __name__ == "__main__":

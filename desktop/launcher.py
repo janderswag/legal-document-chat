@@ -476,6 +476,54 @@ a background copy of docuchat may still be running (quit it from Activity Monito
 </div></body></html>"""
 
 
+# Adoption council 2026-07-11: an 8GB Mac downloads 10.5GB of models and then
+# swap-thrashes with no explanation. Refuse-with-explanation instead. Fails
+# OPEN (never blocks when RAM cannot be read); DOCUCHAT_SKIP_RAM_GATE=1 is the
+# documented escape hatch for a wrong detection.
+MIN_RAM_BYTES = 16 * 1024**3
+
+
+def total_ram_bytes():
+    """Physical RAM; 0 when undeterminable (the gate then fails open)."""
+    try:
+        out = subprocess.run(["sysctl", "-n", "hw.memsize"],
+                             capture_output=True, text=True, timeout=5)
+        return int(out.stdout.strip() or 0)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        # any failure at all -> 0 -> the gate fails open (never a crash
+        # before a window exists; that is the exact mystery this gate kills)
+        return 0
+
+
+def ram_ok():
+    if os.environ.get("DOCUCHAT_SKIP_RAM_GATE") == "1":
+        return True
+    total = total_ram_bytes()
+    return total == 0 or total >= MIN_RAM_BYTES
+
+
+LOWRAM_HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
+  body{margin:0;height:100vh;display:grid;place-items:center;background:#f4f0e8;
+       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+       color:#1d1b16}
+  .card{max-width:480px;padding:0 32px}
+  h2{font-family:Georgia,serif;font-weight:500;margin:0 0 12px}
+  p{font-size:14px;line-height:1.55}
+  .fine{color:#6b6557;font-size:13px}
+  code{background:#f6f2ea;border:1px solid #e7e0d3;border-radius:5px;padding:1px 5px;
+       font-size:12px}
+</style></head><body><div class="card">
+<h2>This Mac does not have enough memory for docuchat</h2>
+<p>docuchat runs its AI models entirely on this Mac - that is what keeps your
+documents private - and the models need <b>16 GB of memory</b>. This Mac has
+{ram_gb} GB, so answers would be extremely slow or fail outright.</p>
+<p class="fine">Nothing was installed or changed. If you believe this detection
+is wrong, relaunch from Terminal with
+<code>DOCUCHAT_SKIP_RAM_GATE=1 open -n -a docuchat</code> after closing this
+window.</p>
+</div></body></html>"""
+
+
 def _require_smoke_env():
     """Guard for the DOCUCHAT_SMOKE=1 branch: refuse to proceed unless the caller
     EXPLICITLY set both DOCUCHAT_DATA_DIR and DOCUCHAT_PORT. Defense in depth — the
@@ -533,6 +581,19 @@ def main(port=DEFAULT_PORT):
         print(f"smoke: healthy on http://{HOST}:{port}", flush=True)
         while True:
             time.sleep(1)
+
+    # RAM gate BEFORE any server/Ollama start (the smoke path above is never
+    # gated: an automated check must not depend on the build machine's RAM).
+    if not ram_ok():
+        import webview
+        # ram_ok() was False, so this read succeeded (0 fails open) — reuse it
+        # rather than re-reading and risking "This Mac has 0 GB" in the dialog
+        gb = round(total_ram_bytes() / 1024**3)
+        webview.create_window("docuchat",
+                              html=LOWRAM_HTML.replace("{ram_gb}", str(gb)),
+                              width=640, height=420)
+        webview.start()
+        return 0
 
     import webview  # deferred: needs a display; keep the helpers headless-importable
 
