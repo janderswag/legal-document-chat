@@ -196,6 +196,10 @@ def _connect(db_path=None):
     else:
         conn = sqlite3.connect(str(path))
         conn.row_factory = sqlite3.Row
+    # Background ingest/digest workers write this catalog concurrently with request
+    # handlers; without a busy timeout a momentary writer lock raises immediately and
+    # has aborted user-facing streams (Sprint 4-8).
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.executescript(_SCHEMA)
     # Idempotent migrations for pre-existing databases (CREATE TABLE IF NOT EXISTS
     # doesn't alter existing tables). doc_type: 'document' | 'transcript' (T-TRANS/D-70,

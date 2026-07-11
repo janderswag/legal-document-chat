@@ -68,9 +68,16 @@ def chat(body: ChatRequest):
     # — the displayed page/span stay chunk-derived (D-38); we add no model-asserted data.
     _enrich_citations(body.matter, res["citations"], res.get("grounding_chunks"))
 
-    catalog.add_message(thread_id, "assistant", res["answer_text"],
-                        json.dumps(res["citations"]))
-    catalog.touch_thread(thread_id)
+    try:
+        catalog.add_message(thread_id, "assistant", res["answer_text"],
+                            json.dumps(res["citations"]))
+        catalog.touch_thread(thread_id)
+    except Exception:
+        # An undelivered answer is worse than an unsaved one: the caller still gets
+        # thread_id + the verified answer even if persistence hiccuped (transient
+        # catalog lock, Sprint 4-8).
+        log.exception("chat: message persist failed (answer still delivered): thread=%s",
+                      thread_id)
     return {"thread_id": thread_id, **res}
 
 
@@ -180,9 +187,17 @@ def chat_stream(body: ChatRequest):
         # (see _enrich_citations docstring — that gap is how one chat session used to
         # split into a separate Chat History row per message).
         _enrich_citations(body.matter, result["citations"], result.get("grounding_chunks"))
-        catalog.add_message(thread_id, "assistant", result["answer_text"],
-                            json.dumps(result["citations"]))
-        catalog.touch_thread(thread_id)
+        try:
+            catalog.add_message(thread_id, "assistant", result["answer_text"],
+                                json.dumps(result["citations"]))
+            catalog.touch_thread(thread_id)
+        except Exception:
+            # A transient SQLite lock here must not abort the stream before 'done'
+            # (and its thread_id) reach the client — that's the exact "one session
+            # forks into N Chat History rows" bug, one call site later. An
+            # undelivered answer is worse than an unsaved one.
+            log.exception("chat: message persist failed (answer still delivered): thread=%s",
+                          thread_id)
         yield event("done", {"thread_id": thread_id, "answer_text": result["answer_text"],
                              "citations": result["citations"],
                              "rejected_claims": result.get("rejected_claims", [])})

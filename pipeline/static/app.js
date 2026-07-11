@@ -1240,15 +1240,17 @@
   // clipboard API first, a temporary textarea + execCommand("copy") fallback second —
   // WKWebView does not always support navigator.clipboard.
   async function copyPlainText(text) {
-    try { await navigator.clipboard.writeText(text); return; } catch (e) {}
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
     var ta = document.createElement("textarea");
     ta.value = text;
     ta.style.position = "fixed";
     ta.style.opacity = "0";
     document.body.appendChild(ta);
     ta.select();
-    try { document.execCommand("copy"); } catch (e) {}
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) {}
     document.body.removeChild(ta);
+    return ok;
   }
 
   // Wires the Copy button rendered by renderAnswerHtml() inside `container` (the
@@ -1259,10 +1261,10 @@
   function wireCopyButton(container, body) {
     var btn = container && container.querySelector(".copy-answer-btn");
     if (!btn) return;
-    btn.addEventListener("click", function () {
-      copyPlainText(answerPlainText(body));
+    btn.addEventListener("click", async function () {
+      var ok = await copyPlainText(answerPlainText(body));
       var label = btn.textContent;
-      btn.textContent = "Copied";
+      btn.textContent = ok ? "Copied" : "Copy failed";
       btn.disabled = true;
       setTimeout(function () { btn.textContent = label; btn.disabled = false; }, 1500);
     });

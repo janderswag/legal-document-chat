@@ -213,6 +213,34 @@ class TestChatHistoryOneSession(unittest.TestCase):
         self.assertEqual(len(threads), 1)
         self.assertEqual(len(catalog.get_thread_messages(threads[0]["id"])), 4)
 
+    def test_persist_failure_still_delivers_done_and_thread_id(self):
+        # Sprint 4-8: a transient SQLite lock during the post-generation persist step
+        # must not abort the stream before 'done' — an undelivered answer is worse
+        # than an unsaved one. Only the assistant-message persist (the guarded call,
+        # inside gen()) is made to fail; the user-message persist ahead of it is real,
+        # matching the actual failure mode (a lock that clears between the two calls).
+        self._add_message = catalog.add_message
+
+        def boom(tid, role, *a, **k):
+            if role == "assistant":
+                raise RuntimeError("simulated sqlite lock")
+            return self._add_message(tid, role, *a, **k)
+        catalog.add_message = boom
+        try:
+            with self.assertLogs("docuchat.chat", level="ERROR") as logs:
+                r = client.post("/chat/stream", json={
+                    "question": "tell me about this document", "matter": self.slug})
+        finally:
+            catalog.add_message = self._add_message
+
+        events = _parse_sse(r.text)
+        self.assertIn("done", [e for e, _ in events],
+                      "persist failure must not swallow the done event")
+        done = events[-1][1]
+        self.assertIsNotNone(done["thread_id"])
+        self.assertTrue(done["citations"], "the verified answer must survive persist failure")
+        self.assertTrue(any("persist failed" in m for m in logs.output))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

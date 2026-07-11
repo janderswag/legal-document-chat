@@ -104,6 +104,16 @@ class TestDigestCatalog(unittest.TestCase):
         with self.assertRaises(ValueError):
             catalog.replace_facts(self.doc["id"], "", [_fact("a")], "v1")
 
+    def test_connect_sets_busy_timeout(self):
+        # Sprint 4-8: background ingest/digest workers write this catalog concurrently
+        # with request handlers; without a busy timeout a momentary writer lock raises
+        # immediately instead of waiting, which has aborted user-facing streams.
+        conn = catalog._connect()
+        try:
+            self.assertEqual(conn.execute("PRAGMA busy_timeout").fetchone()[0], 5000)
+        finally:
+            conn.close()
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
