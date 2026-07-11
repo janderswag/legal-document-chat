@@ -8,10 +8,9 @@ test_adapters. Gmail is the one non-HTTP adapter (stdlib imaplib), so it is
 proven against a scripted FakeIMAP via unittest.mock: readonly-only selects,
 raw RFC822 -> .eml round trip, and imaplib error -> taxonomy mapping.
 
-ShareFile was researched but is intentionally NOT built: its documented
-token request is a form-encoded POST body only (api.sharefile.com
-gettingstarted/oauth2password), which connectors.request cannot send and no
-query-string variant is documented — skipped rather than guessed.
+ShareFile IS built (connectors/sharefile.py, proven separately in
+test_adapters_sharefile.py) once connectors.request grew a form_body param
+for its form-encoded password-grant token request.
 """
 
 import imaplib

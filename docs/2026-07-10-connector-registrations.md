@@ -1,3 +1,66 @@
+## Sprint 2 (2026-07-11) — E2E flow verification + honest catalog pass
+
+The packaging bug that shipped an empty connector registry (Sprint 1,
+`desktop/build_macos.spec` / `build_windows.spec`) is fixed; this pass proves
+the flow works end to end for real adapters and re-checks the two adapters
+the audit flagged as needing verification (Zoom, Zoho — both use a
+self-serve, no-vendor-review OAuth pattern rather than a paste-a-key one, so
+they were worth confirming aren't accidentally OAuth-only).
+
+**E2E verified (real adapter code, vendor transport mocked, no network) —
+`pipeline/tests/test_e2e_connector_flow.py`:** connect → import → land in
+Unfiled with `source_json` provenance → `POST /kb/documents/move` re-files
+into a real matter, proven for the top 3 of the audit's value ranking:
+
+- **Gmail** (#1) — real IMAP protocol against a scripted server (FakeIMAP).
+- **Zoom** (#4) — real Server-to-Server OAuth token mint + 30-day recording
+  window walk + VTT download.
+- **Fireflies.ai** (#7, tied with Fathom) — real GraphQL query/response shape.
+
+All three pass. `pipeline/routes_kb.py` move route is
+`POST /kb/documents/move` (`{"doc_id": int, "matter": str}`).
+
+**Honest catalog pass: zero demotions.** All 28 `live: true` rows in
+`pipeline/static/app.js` `CONNECTOR_CATALOG` have a complete adapter module
+(`pipeline/connectors/*.py`) and a passing adapter-specific test
+(`pipeline/tests/test_adapters_*.py`) — confirmed by re-running the full
+adapter suite and by re-checking Zoom's and Zoho's vendor docs directly
+(2026-07-11): Zoom Server-to-Server OAuth apps are still self-created at
+marketplace.zoom.us with no Marketplace review (they're explicitly excluded
+from the review requirement because they're never published); Zoho's Self
+Client is still self-created at api-console.zoho.com with a user-generated
+client ID/secret and short-lived grant code. Neither is disguised
+interactive OAuth — both match the audit's "self-serve OAuth, feasible from
+a loopback desktop app" classification, and neither needed a demotion to
+Planned. (Also fixed while auditing: a stale docstring in
+`pipeline/tests/test_adapters_email_files.py` claimed ShareFile was
+"intentionally NOT built" — it is built, with its own passing test file;
+the comment was left over from before `connectors.request` grew its
+`form_body` parameter.)
+
+**What the owner must paste — top 3 connectors:**
+
+- **Gmail:** turn on 2-Step Verification (myaccount.google.com > Security)
+  if it isn't already on, then go to myaccount.google.com/apppasswords,
+  create one named "docuchat", and copy the 16-character password (shown
+  once). In Gmail, create a label (e.g. "docuchat") and apply it to the
+  matter emails to import. Paste: Gmail address, the app password, and that
+  label name.
+- **Zoom:** sign in at marketplace.zoom.us as the account owner/admin >
+  Develop > Build App > Server-to-Server OAuth > Create. Add the scopes
+  `cloud_recording:read:list_user_recordings:admin`,
+  `cloud_recording:read:list_recording_files:admin`,
+  `cloud_recording:read:meeting_transcript:admin`, `user:read:user:admin`,
+  then Activate (internal app, no Zoom review). In Zoom Settings > Recording,
+  turn on "Audio transcript" so future cloud recordings produce transcripts.
+  Paste: Account ID, Client ID, Client Secret. Requires a paid Zoom plan
+  (Pro or higher).
+- **Fireflies.ai:** log in at app.fireflies.ai > Integrations > Fireflies API
+  > copy the API key shown. Paste: that key. Works on every plan including
+  Free (50 API requests/day — a large backfill may take a few days there).
+
+---
+
 # Owner action list — developer-app registrations for the Planned connectors
 
 Every LIVE connector shipped in v0.3.0 uses a credential the user creates
