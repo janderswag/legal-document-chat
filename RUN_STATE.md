@@ -46,9 +46,13 @@ deadline date, Confirm, watch the row flip to "confirmed by you" (WKWebView focu
 behavior is exactly where this feature could differ from browser QA); (2) merge
 decision on `feature/matter-digest`; (3) follow-up ticket: the SAME apostrophe-in-href
 breakout we fixed in the new overview exists PRE-EXISTING in injectChips/
-renderAnswerHtml (app.js ~1140-1160) — one small fix + test, separate diff; (4) value-
-correctness spot grade running, lands at eval/digest_spot_grade_v4.md; (5) STILL no
-Time Machine backup.**
+renderAnswerHtml (app.js ~1140-1160) — one small fix + test, separate diff; (4) value-correctness
+spot grade DONE (eval/digest_spot_grade_v4.md): **zero date_iso violations across all
+46 extracted facts** (the never-store-a-non-literal-date rule holds); 16/22 graded
+faithful, 5 unfaithful — all labeling-quality issues (two no-date spans typed as
+date_event, one address as key_ref, one d/b/a org_form, one missing anchor), none a
+trust-surface risk since spans are verified and dates null; queue for an extractor v5
+pass, not a blocker; (5) STILL no Time Machine backup.**
 
 **2026-07-10 overnight — v0.3.2 RELEASED (uploads fix + self-healing startup). Keychain
 incident RESOLVED. Owner action list at the very bottom.** Owner's fresh v0.3.1 download
