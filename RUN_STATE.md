@@ -7,6 +7,8 @@ _Last updated: 2026-07-11 (session close)_
 
 ## Status
 
+**2026-07-11 midday addendum: v0.4.3 RELEASED — owner caught the slash palette floating over the Matter bar (it was anchored to the tall composer-wrap, not the input); now anchored inside .chat-composer, renders BELOW the input per owner design call, auto-flips above near the viewport bottom. Smoke gate PASSED.**
+
 **2026-07-11 morning — v0.4.2 RELEASED (real restart after update + slash commands).
 SESSION CLOSED — next session starts from this entry + docs/prompts/2026-07-11-session-
 handoff.md (queued backlog, verify-first list, hard-won lessons).** Two owner reports
