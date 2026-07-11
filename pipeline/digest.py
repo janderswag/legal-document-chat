@@ -33,7 +33,7 @@ _START_LOCK = threading.Lock()
 _started = False
 
 DIGEST_MODEL = os.environ.get("LDI_CHAT_MODEL", "qwen3:14b")
-EXTRACTOR_VERSION = "digest-v3 " + DIGEST_MODEL   # bump v1 on any prompt/schema change
+EXTRACTOR_VERSION = "digest-v4 " + DIGEST_MODEL   # bump v1 on any prompt/schema change
 KEEP_ALIVE = "30m"
 NUM_CTX = 8192
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -64,10 +64,14 @@ _SYSTEM = """You extract facts from legal documents into JSON. Rules:
   (YYYY-MM-DD) ONLY when date_kind is "explicit" — NEVER compute, infer, or convert
   a relative date. anchor is what a relative date counts from.
 - fact_type "amount": value (as written), currency, purpose.
-- fact_type "defined_term": term (the defined phrase).
-- fact_type "key_ref": ref_type (invoice/claim/case/section/...), ref_value.
+- fact_type "defined_term": term (the defined phrase) — only for terms whose
+  definition carries legal or economic weight; skip boilerplate definitions.
+- fact_type "key_ref": ref_type (invoice/claim/case/docket/section/...), ref_value.
+  key_ref is ONLY for identifiers — invoice, case, claim, docket, or section
+  NUMBERS. Do NOT emit defined or quoted phrases as key_ref.
 - Extract EVERY monetary value (including percentages and late-charge formulas) and
   EVERY time period — a single sentence may contain several distinct facts.
+- Never emit the same fact twice.
 - Extract facts stated in the text only. Do not add, summarize, or conclude."""
 
 _FORMAT = {
@@ -224,6 +228,35 @@ def gate_facts(raw_facts, group_pages, doc_id):
     return verified, dropped
 
 
+def extract_group(group_pages, doc_id):
+    """Extract+gate one group with a per-page fallback: if the group call fails
+    (pathological decode, truncation), retry each page alone so one bad group
+    can't blank a document's digest. Returns (verified, dropped) or None if
+    every sub-call failed."""
+    text = "\n\n".join(f"=== page {p['page_number']} ===\n{p['page_text']}"
+                       for p in group_pages)
+    raw = _extract_call(text)
+    if raw is not None:
+        return gate_facts(raw, group_pages, doc_id)
+    log.warning("digest: group call failed, retrying per-page: doc_id=%s", doc_id)
+    verified, dropped, any_ok, any_fail = [], 0, False, False
+    for page in group_pages:
+        ptext = f"=== page {page['page_number']} ===\n{page['page_text']}"
+        praw = _extract_call(ptext)
+        if praw is None:
+            any_fail = True
+            continue
+        any_ok = True
+        ok, bad = gate_facts(praw, [page], doc_id)
+        verified.extend(ok)
+        dropped += bad
+    if not any_ok:
+        return None
+    if any_fail:
+        log.warning("digest: partial page failure after group fallback, doc_id=%s", doc_id)
+    return verified, dropped
+
+
 def _yield_to_chat():
     """Interactive priority (same stance as ingest_worker): digest extraction defers
     to an in-flight chat on shared local compute."""
@@ -253,17 +286,15 @@ def extract_for_document(doc_id, db_path, catalog_db=None):
     extracted, dropped, facts = 0, 0, []
     for group in _groups(pages):
         _yield_to_chat()
-        text = "\n\n".join(f"=== page {p['page_number']} ===\n{p['page_text']}"
-                           for p in group)
-        raw = _extract_call(text)
-        if raw is None:
+        result = extract_group(group, doc_id)
+        if result is None:
             # A genuine transport/JSON failure, not a genuine empty result — stamping
             # the doc here would hide the loss forever. Leave it unstamped and let the
             # backfill retry it.
             log.warning("digest: extraction call failed, doc left unstamped: doc_id=%s",
                         doc_id)
             return None
-        ok, bad = gate_facts(raw, group, doc_id)
+        ok, bad = result
         facts.extend(ok)
         extracted += len(ok)
         dropped += bad

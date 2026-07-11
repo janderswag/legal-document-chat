@@ -99,6 +99,33 @@ class TestGate(unittest.TestCase):
         self.assertEqual((verified, dropped), ([], 1))
 
 
+class TestExtractGroup(unittest.TestCase):
+    def setUp(self):
+        self.pages = [{"page_number": 1, "page_text": PAGE1}]
+
+    def test_group_call_fails_per_page_recovers(self):
+        # First call is the whole-group call (fails); the second is the lone
+        # page's fallback call (succeeds) — one bad group must not blank the
+        # rest of the document's digest.
+        calls = {"n": 0}
+
+        def fake_extract(_text):
+            calls["n"] += 1
+            return None if calls["n"] == 1 else [_raw()]
+
+        with mock.patch.object(digest, "_extract_call", side_effect=fake_extract):
+            result = digest.extract_group(self.pages, doc_id=7)
+        self.assertIsNotNone(result)
+        verified, dropped = result
+        self.assertEqual(dropped, 0)
+        self.assertEqual(len(verified), 1)
+
+    def test_group_and_every_page_fail_returns_none(self):
+        with mock.patch.object(digest, "_extract_call", return_value=None):
+            result = digest.extract_group(self.pages, doc_id=7)
+        self.assertIsNone(result)
+
+
 class TestExtractForDocument(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -134,6 +161,25 @@ class TestExtractForDocument(unittest.TestCase):
             out = digest.extract_for_document(self.doc["id"], self.tmp / "kb")
         self.assertIsNone(out)
         self.assertIsNone(catalog.get_document(self.doc["id"])["digest_version"])
+
+    def test_group_failure_then_page_recovery_still_stamps(self):
+        # The group call fails (e.g. a truncated decode), but the per-page
+        # fallback inside extract_group recovers — the document must still
+        # get digested and stamped, not left behind for backfill.
+        calls = {"n": 0}
+
+        def fake_extract(_text):
+            calls["n"] += 1
+            return None if calls["n"] == 1 else [_raw()]
+
+        with mock.patch.object(digest, "pages_from_store",
+                               return_value=[{"page_number": 1, "page_text": PAGE1}]), \
+             mock.patch.object(digest, "_extract_call", side_effect=fake_extract), \
+             mock.patch.object(digest, "_yield_to_chat"):
+            out = digest.extract_for_document(self.doc["id"], self.tmp / "kb")
+        self.assertEqual(out, {"extracted": 1, "dropped": 0})
+        self.assertEqual(catalog.get_document(self.doc["id"])["digest_version"],
+                         digest.EXTRACTOR_VERSION)
 
     def test_extract_call_failure_leaves_doc_unstamped(self):
         # _extract_call returning None means a transport/JSON failure, indistinguishable
