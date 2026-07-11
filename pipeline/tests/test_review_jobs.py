@@ -240,6 +240,137 @@ class TestRuns(ReviewJobsBase):
         self.assertEqual(r.status_code, 400)
 
 
+class TestAbsenceVerification(unittest.TestCase):
+    """D5 (G-SCOPE): after the streamed pass, every potentially_missing row is
+    re-asked scoped to each candidate document until found or exhausted. A
+    formerly-false 'missing' flips to found with a span-verified citation; a
+    true absence earns the per-document claim and summary.verified_absences."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp())
+        cls._cat, catalog.DEFAULT_DB = catalog.DEFAULT_DB, cls.tmp / "cat.db"
+        catalog.create_matter("Verify Matter")
+        cls.docs = []
+        for name in ("a.pdf", "b.pdf"):
+            p = cls.tmp / name
+            p.write_bytes(b"%PDF-1.4 synthetic")
+            cls.docs.append(catalog.add_document("verify-matter", p, status="ready"))
+
+    @classmethod
+    def tearDownClass(cls):
+        catalog.DEFAULT_DB = cls._cat
+
+    def setUp(self):
+        jobs._reset_for_tests()
+        self._answer = clauses.answer
+
+    def tearDown(self):
+        clauses.answer = self._answer
+
+    def _run(self):
+        r = client.post("/clauses/review-jobs", json={"matter": "verify-matter"})
+        job = r.json()
+        self.assertTrue(jobs.wait(job["id"], timeout=30))
+        ev = parse_sse(client.get(f"/jobs/{job['id']}/events").text)
+        done = [d for n, d in ev if n == "done"][0]
+        return ev, done
+
+    def test_false_missing_flips_to_found_under_document_scope(self):
+        calls = []
+
+        def fake(q, matter=None, top_k=5, db_path=None, source_filename=None):
+            calls.append(source_filename)
+            if source_filename == "b.pdf":
+                return {"answer_text": "Found under scope.",
+                        "citations": [{"filename": "b.pdf", "page": 7,
+                                       "chunk_id": "C1", "span": "x",
+                                       "char_start": 0, "char_end": 1}],
+                        "rejected_claims": [], "grounding_chunks": []}
+            from answering import REFUSAL
+            return {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
+                    "grounding_chunks": []}
+        clauses.answer = fake
+        ev, done = self._run()
+
+        n = len(clauses.load_taxonomy())
+        # every row refused matter-wide, was re-asked scoped (a.pdf refuses,
+        # b.pdf finds) and flipped to found with the b.pdf citation
+        for row in done["results"]:
+            self.assertEqual(row["status"], "found", row["id"])
+            self.assertEqual(row["verified_scope"], "document")
+            self.assertEqual(row["citations"][0]["filename"], "b.pdf")
+            self.assertEqual(row["citations"][0]["doc_id"], self.docs[1]["id"])
+        self.assertEqual(done["summary"]["found"], n)
+        self.assertEqual(done["summary"].get("verified_absences", 0), 0)
+        # per row: one progress-only event BEFORE the fan-out, one row event after
+        verifies = [d for name, d in ev if name == "verify"]
+        with_row = [v for v in verifies if v.get("row")]
+        self.assertEqual(len(with_row), n)
+        self.assertEqual(len(verifies), 2 * n)
+        self.assertEqual({v["of"] for v in verifies}, {n})
+        # replay consistency: the persisted "clause" events keep their ORIGINAL
+        # statuses — upgrades must never retroactively rewrite event history
+        clause_events = [d for name, d in ev if name == "clause"]
+        self.assertEqual(len(clause_events), n)
+        self.assertTrue(all(c["status"] == "potentially_missing"
+                            for c in clause_events),
+                        "clause event history was retroactively rewritten")
+        # call arithmetic: n matter-wide + n scoped-to-a + n scoped-to-b
+        self.assertEqual(len(calls), 3 * n)
+
+    def test_true_absence_earns_the_per_document_claim(self):
+        def fake(q, matter=None, top_k=5, db_path=None, source_filename=None):
+            from answering import REFUSAL
+            return {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
+                    "grounding_chunks": []}
+        clauses.answer = fake
+        _, done = self._run()
+        n = len(clauses.load_taxonomy())
+        for row in done["results"]:
+            self.assertEqual(row["status"], "potentially_missing")
+            self.assertEqual(row["verified_scope"], "matter_documents")
+            self.assertEqual(row["value"],
+                             "Not located in 2 documents "
+                             "(every document checked individually).")
+        self.assertEqual(done["summary"]["verified_absences"], n)
+
+    def test_unindexed_document_is_never_claimed_checked(self):
+        def fake(q, matter=None, top_k=5, db_path=None, source_filename=None):
+            if source_filename == "b.pdf":
+                raise ValueError("document not found in the index")
+            from answering import REFUSAL
+            return {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
+                    "grounding_chunks": []}
+        clauses.answer = fake
+        _, done = self._run()
+        for row in done["results"]:
+            self.assertEqual(row["status"], "potentially_missing")
+            self.assertIn("1 document that could be checked individually",
+                          row["value"])
+            self.assertIn("1 could not be checked", row["value"])
+
+    def test_single_document_review_runs_no_absence_pass(self):
+        # doc_id reviews are already retrieval-scoped (D3); no second pass
+        calls = []
+
+        def fake(q, matter=None, top_k=5, db_path=None, source_filename=None):
+            calls.append(source_filename)
+            from answering import REFUSAL
+            return {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
+                    "grounding_chunks": []}
+        clauses.answer = fake
+        r = client.post("/clauses/review-jobs",
+                        json={"matter": "verify-matter",
+                              "doc_id": self.docs[0]["id"]})
+        job = r.json()
+        self.assertTrue(jobs.wait(job["id"], timeout=30))
+        ev = parse_sse(client.get(f"/jobs/{job['id']}/events").text)
+        self.assertEqual([n for n, _ in ev if n == "verify"], [])
+        # every call was the D3 scoped base pass; no extra fan-out
+        self.assertTrue(all(sf == "a.pdf" for sf in calls))
+
+
 class TestJobsSurface(ReviewJobsBase):
     def test_unknown_job_404s(self):
         self.assertEqual(client.get("/jobs/99999").status_code, 404)

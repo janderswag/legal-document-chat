@@ -174,6 +174,15 @@ class TestRetrievalHonestLabels(unittest.TestCase):
         self.assertNotIn("--warn", seg)
         self.assertIn("--muted", seg)
 
+    def test_verify_upgrade_surface_is_wired(self):
+        # D5: verify events re-render rows in place (no fill-count advance),
+        # live progress names the absence pass, and a verified absence earns
+        # the stronger badge + export label
+        self.assertIn("upgradeReviewRow", self.js)
+        self.assertIn("Verifying absences in each document", self.js)
+        self.assertIn("Not located (each document checked)", self.js)
+        self.assertIn("Not located (each document checked individually)", self.js)
+
     def test_row_edge_is_demoted_but_still_visible(self):
         i = self.css.index(".clause-row.missing{")
         seg = self.css[i:self.css.index("}", i)]

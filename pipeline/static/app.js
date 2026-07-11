@@ -2584,6 +2584,10 @@
 
   function renderClauseRow(r) {
     var meta = CLAUSE_STATUS[r.status] || { label: esc(r.status), cls: "unconfirmed" };
+    // D5: a verified absence earned a stronger claim than the matter-wide badge
+    if (r.status === "potentially_missing" && r.verified_scope === "matter_documents") {
+      meta = { label: "Not located (each document checked)", cls: "missing" };
+    }
     var head =
       "<div class='clause-head'><div><span class='clause-name'>" + esc(r.name) +
       "</span> <span class='clause-cat'>" + esc(r.category) + "</span></div>" +
@@ -2604,7 +2608,10 @@
       bodyHtml = "<div class='answer muted'>" + md(injectChips(esc(r.value || ""), [])) +
         "</div><p class='clause-advisory muted'>No span-verified citation — not shown as found.</p>";
     }
-    return "<div class='clause-row " + meta.cls + "'>" + head + bodyHtml + "</div>";
+    // the id survives the skeleton fill so a D5 verify upgrade can re-render
+    // this row in place (verify events arrive after the clause event)
+    return "<div class='clause-row " + meta.cls + "' id='clause-row-" +
+      esc(r.id) + "'>" + head + bodyHtml + "</div>";
   }
 
   // --- Contract Review as a background job (D-90, council 2026-07-11 Move 2) ----
@@ -2702,6 +2709,19 @@
     updateReviewProgress();
   }
 
+  function upgradeReviewRow(row) {
+    // D5 verify upgrade: re-render in place WITHOUT advancing the fill count
+    // (the row was already counted); a flip to found moves the tally with it
+    if (row.verified_scope === "document" && reviewJob.tally) {
+      reviewJob.tally.potentially_missing = Math.max(0,
+        (reviewJob.tally.potentially_missing || 0) - 1);
+      reviewJob.tally.found = (reviewJob.tally.found || 0) + 1;
+    }
+    var el = document.getElementById("clause-row-" + row.id);
+    if (el) el.outerHTML = renderClauseRow(row);
+    updateReviewProgress();
+  }
+
   function reviewFootHtml() {
     return "<p class='muted clause-foot'>" + esc(REVIEW_CAVEAT) + "</p>";
   }
@@ -2776,6 +2796,14 @@
           if (!msg) return;
           if (msg.event === "meta") buildReviewSkeleton(msg.data);
           else if (msg.event === "clause") fillReviewRow(msg.data);
+          else if (msg.event === "verify") {
+            // D5: a formerly-missing row re-checked document by document —
+            // a progress-only event first, then the upgraded row (flipped to
+            // found with a citation, or verified absent)
+            if (msg.data.row) upgradeReviewRow(msg.data.row);
+            reviewStatus("<span class='muted'>Verifying absences in each document (" +
+              msg.data.n + " of " + msg.data.of + ")&hellip;</span>");
+          }
           else if (msg.event === "done") { setReviewRunning(false); renderFinishedRun(msg.data, { stale: false }); }
           else if (msg.event === "cancelled") { setReviewRunning(false); reviewCancelled(); }
           else if (msg.event === "error") { setReviewRunning(false); reviewFailed(msg.data); }
@@ -2839,6 +2867,14 @@
     not_confirmed: "Not confirmed (spans rejected)",
   };
 
+  function clauseStatusText(r) {
+    // D5: a verified absence carries the per-document claim into every export
+    if (r.status === "potentially_missing" && r.verified_scope === "matter_documents") {
+      return "Not located (each document checked individually)";
+    }
+    return CLAUSE_STATUS_TEXT[r.status] || r.status;
+  }
+
   function reviewCites(r) {
     return (r.citations || []).map(function (c) {
       return c.filename + " p." + c.page + (c.span ? ' "' + c.span + '"' : "");
@@ -2854,7 +2890,7 @@
       (s.total || 0) + " checked)", "");
     (run.results || []).forEach(function (r) {
       lines.push(r.name + " (" + r.category + ") [" +
-        (CLAUSE_STATUS_TEXT[r.status] || r.status) + "]");
+        clauseStatusText(r) + "]");
       var v = answerToPlainText(r.value || "");
       if (v) lines.push("  " + v);
       var cites = reviewCites(r);
@@ -2882,7 +2918,7 @@
     rows.forEach(function (r) {
       var v = answerToPlainText(r.value || "").replace(/\|/g, "\\|").replace(/\n+/g, " ");
       lines.push("| " + r.name + " (" + r.category + ") | " +
-        (CLAUSE_STATUS_TEXT[r.status] || r.status) + " | " + v + " | " +
+        clauseStatusText(r) + " | " + v + " | " +
         reviewCites(r).replace(/\|/g, "\\|") + " |");
     });
     return lines.join("\n") + "\n";

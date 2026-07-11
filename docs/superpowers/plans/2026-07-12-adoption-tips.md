@@ -687,6 +687,7 @@ res = answer(clause["question"], matter=matter, top_k=top_k, db_path=db_path,
 
 ### Task D6: The gate cycle + release v0.6.0
 
+- [ ] Update the export caveat to name the per-document verification (routes_clauses docx caveat paragraph + app.js REVIEW_CAVEAT): when a run carries verified rows, the caveat must say the absence pass ran (D5 adversarial-review rider — labels are already scope-aware, the caveat sentence is not).
 - [ ] Full dev suite vs baseline; `node --check`.
 - [ ] Eval repo: `run_golden.py v060-gate` -> `score_golden.py` MUST read exactly `63/63, 9/9, 0 rejected` (unscoped path byte-identical; any drift = STOP, diagnose, do not rationalize).
 - [ ] New G-SCOPE proof against the eval store: scoped ask for a clause known present in ONE doc of a multi-doc matter returns it; the same ask scoped to a doc lacking it refuses. Add to `pipeline/tests/test_retrieval_scope.py` as the live-integration class.

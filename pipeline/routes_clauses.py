@@ -137,6 +137,13 @@ def review_docx(payload: dict):
                         "Not located (passages checked, not a page-by-page read)",
                     "not_confirmed": "Not confirmed (spans rejected)"}
 
+    def row_status_label(r):
+        # D5: a verified absence carries the per-document claim into the report
+        if (r.get("status") == "potentially_missing"
+                and r.get("verified_scope") == "matter_documents"):
+            return "Not located (each document checked individually)"
+        return status_label.get(r.get("status"), str(r.get("status", "")))
+
     doc = Document()
     doc.add_heading(f"Contract Review - {matter}", level=1)
     scope = payload.get("doc_id")
@@ -175,7 +182,7 @@ def review_docx(payload: dict):
             continue  # defensive: payload is caller-shaped JSON, never trusted
         cells = table.add_row().cells
         cells[0].text = f"{r.get('name', '')} ({r.get('category', '')})"
-        cells[1].text = status_label.get(r.get("status"), str(r.get("status", "")))
+        cells[1].text = row_status_label(r)
         cells[2].text = str(r.get("value") or "").strip()
         cites = r.get("citations")
         cites = cites if isinstance(cites, list) else []

@@ -82,13 +82,85 @@ def run_review(ctx):
         results.append(row)
         ctx.emit("clause", row)
 
+    # --- G-SCOPE (D5): absence verification -------------------------------------
+    # Root cause of false "not located": matter-wide top-5 saturates with other
+    # documents' chunks. Every potentially_missing row is re-asked scoped to
+    # each candidate document until found or exhausted. A row upgrades to found
+    # (span-verified citation) or earns the honest per-document claim. Single-
+    # document reviews are already retrieval-scoped (D3) — no second pass.
+    if doc_id is None:
+        missing = [(i, r) for i, r in enumerate(results)
+                   if r["status"] == "potentially_missing"]
+        docs = catalog.list_documents(matter)
+        for n, (idx, row) in enumerate(missing, 1):
+            if ctx.cancelled():
+                raise jobs.JobCancelled()
+            # progress first: a row's fan-out is up to N serial model calls,
+            # and the UI must not keep claiming "Checking clause M of M"
+            ctx.emit("verify", {"n": n, "of": len(missing)})
+            # NEVER mutate the emitted row dict: jobs._emit holds event dicts
+            # by reference, so in-place upgrades would retroactively rewrite
+            # the persisted "clause" event history (replay consistency) and
+            # race a reconnecting client's mid-replay serialization
+            upgraded = dict(row)
+            upgraded.update(_verify_absence(ctx, matter, row, docs))
+            results[idx] = upgraded
+            ctx.emit("verify", {"row": upgraded, "n": n, "of": len(missing)})
+
+    summary = clauses.summarize(results)
+    summary["verified_absences"] = sum(
+        1 for r in results if r.get("verified_scope") == "matter_documents")
+
     return {
         "matter": matter, "doc_id": doc_id, "doc_types": doc_types,
-        "results": results, "summary": clauses.summarize(results),
+        "results": results, "summary": summary,
         "docs_key": started_docs_key,
         "taxonomy_version": clauses.taxonomy_version(),
         "reviewed": catalog._now(),
     }
+
+
+def _verify_absence(ctx, matter, row, docs, top_k=5):
+    """Scoped re-asks for one potentially_missing row, one document at a time.
+
+    Returns the dict of row upgrades: found (with doc_id-enriched citations,
+    verified_scope="document"), a verified absence (verified_scope=
+    "matter_documents" with an honest count), or {} when nothing was checkable.
+    A document whose scoped ask raises ValueError (no indexed chunks) is never
+    counted as checked — the claim only covers checks that actually ran."""
+    checked = 0
+    for d in docs:
+        if ctx.cancelled():
+            raise jobs.JobCancelled()
+        activity.mark_chat()   # still user-initiated foreground work (D-68)
+        try:
+            res = clauses.answer(row["question"], matter=matter, top_k=top_k,
+                                 db_path=_kb_path(),
+                                 source_filename=d["filename"])
+        except ValueError:
+            continue
+        checked += 1
+        cand = clauses._classify(row, res, target_filename=d["filename"])
+        if cand["status"] == "found":
+            for c in cand["citations"]:
+                c["doc_id"] = d["id"]
+            return {"status": "found", "value": cand["value"],
+                    "citations": cand["citations"],
+                    "rejected_claims": cand["rejected_claims"],
+                    "verified_scope": "document"}
+    total = len(docs)
+    if not checked:
+        return {}
+    noun = "document" if checked == 1 else "documents"
+    if checked == total:
+        value = (f"Not located in {checked} {noun} "
+                 "(every document checked individually).")
+    else:
+        value = (f"Not located in the {checked} {noun} that could be checked "
+                 f"individually ({total - checked} could not be checked).")
+    return {"status": "potentially_missing", "value": value, "citations": [],
+            "rejected_claims": [], "verified_scope": "matter_documents",
+            "docs_checked": checked}
 
 
 jobs.register(KIND, run_review)
