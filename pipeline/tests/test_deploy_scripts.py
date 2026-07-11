@@ -55,5 +55,37 @@ class TestDeployScripts(unittest.TestCase):
         self.assertNotIn("0.0.0.0", operative)
 
 
+class TestTesseractVendored(unittest.TestCase):
+    """B1 (adoption council 2026-07-11): the packaged app must OCR scanned PDFs
+    with zero user installs — the build vendors the tesseract BINARY (pytesseract
+    is only a wrapper that shells out) plus relocatable dylibs and tessdata."""
+
+    def test_build_vendors_tesseract(self):
+        sh = (REPO_ROOT / "desktop" / "build_macos.sh").read_text()
+        self.assertIn("vendor_tesseract.sh", sh)
+        spec = (REPO_ROOT / "desktop" / "build_macos.spec").read_text()
+        self.assertIn("vendor/tesseract", spec)
+        # assets_root() is _MEIPASS/pipeline when frozen — the datas target must
+        # live under pipeline/ or configure_tesseract() never finds the binary
+        # (assert the load-bearing append, not just any mention in a comment)
+        self.assertIn('datas.append((_tesseract, "pipeline/vendor/tesseract"))',
+                      spec)
+        vend = (REPO_ROOT / "desktop" / "vendor_tesseract.sh").read_text()
+        self.assertIn("eng.traineddata", vend)
+        self.assertIn("@executable_path", vend)   # relocatable, not brew-pathed
+
+    def test_signed_builds_sign_the_vendored_machos(self):
+        # datas land in Contents/Resources, outside codesign --deep's coverage;
+        # notarization fails on adhoc Mach-Os unless the build signs them first
+        sh = (REPO_ROOT / "desktop" / "build_macos.sh").read_text()
+        self.assertIn('TESS_TREE="$APP/Contents/Resources/pipeline/vendor/tesseract"',
+                      sh)
+        self.assertIn("-exec codesign", sh)
+
+    def test_vendor_script_is_executable(self):
+        self.assertTrue(os.access(REPO_ROOT / "desktop" / "vendor_tesseract.sh",
+                                  os.X_OK))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

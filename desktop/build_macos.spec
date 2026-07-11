@@ -65,6 +65,14 @@ _ollama = os.path.join(REPO, "desktop", "vendor", "ollama")
 if os.path.isfile(_ollama):
     binaries.append((_ollama, "resources"))
 
+# Vendored Tesseract (adoption council 2026-07-11): build_macos.sh runs
+# desktop/vendor_tesseract.sh first (relocatable binary + dylibs + tessdata).
+# Target is pipeline/vendor/tesseract because ingestion.configure_tesseract()
+# resolves it via apppaths.assets_root(), which is _MEIPASS/pipeline when frozen.
+_tesseract = os.path.join(REPO, "desktop", "vendor", "tesseract")
+if os.path.isdir(_tesseract):
+    datas.append((_tesseract, "pipeline/vendor/tesseract"))
+
 a = Analysis(
     [os.path.join(REPO, "desktop", "launcher.py")],
     pathex=[REPO, PIPELINE],

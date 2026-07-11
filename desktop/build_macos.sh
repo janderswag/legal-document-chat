@@ -31,12 +31,26 @@ if [[ "${BUNDLE_OLLAMA:-0}" == "1" && ! -f "$VENDOR/ollama" ]]; then
   chmod +x "$VENDOR/ollama"
 fi
 
+echo "==> Vendoring Tesseract (scanned-PDF OCR)..."
+./desktop/vendor_tesseract.sh
+
 echo "==> Building docuchat.app with PyInstaller..."
 pyinstaller --noconfirm --clean desktop/build_macos.spec
 [[ -d "$APP" ]] || { echo "ERROR: $APP not produced"; exit 1; }
 
 if [[ -n "${APPLE_DEV_ID_APP:-}" ]]; then
   echo "==> Signing (hardened runtime, deep) as: $APPLE_DEV_ID_APP"
+  # The vendored tesseract tree ships as PyInstaller DATA, which lands under
+  # Contents/Resources — codesign --deep does NOT sign Mach-Os there (it only
+  # seals them into CodeResources), and notarytool rejects the adhoc-signed
+  # binaries. Sign them explicitly first.
+  TESS_TREE="$APP/Contents/Resources/pipeline/vendor/tesseract"
+  if [[ -d "$TESS_TREE" ]]; then
+    echo "==> Signing vendored tesseract Mach-Os (Resources are not covered by --deep)"
+    find "$TESS_TREE" -type f \( -name '*.dylib' -o -name tesseract \) \
+      -exec codesign --force --options runtime --timestamp \
+        --sign "$APPLE_DEV_ID_APP" {} +
+  fi
   codesign --force --deep --options runtime --timestamp \
     --entitlements desktop/entitlements.plist \
     --sign "$APPLE_DEV_ID_APP" "$APP"
