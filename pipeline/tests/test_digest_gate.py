@@ -70,8 +70,32 @@ class TestGate(unittest.TestCase):
 
     def test_required_value_fields_enforced(self):
         verified, dropped = digest.gate_facts(
+            [{"fact_type": "amount", "span": "written notice of termination", "page": 1}],
+            self.pages, doc_id=7)                              # amount without a value
+        self.assertEqual((verified, dropped), ([], 1))
+
+    def test_party_missing_name_falls_back_to_span(self):
+        # Diagnosis #1: the model often emits party facts with span but empty
+        # name — the span (once verified) is a truthful stand-in, not a guess.
+        verified, dropped = digest.gate_facts(
             [{"fact_type": "party", "span": "Nimbus Analytics LLC", "page": 1}],
-            self.pages, doc_id=7)                              # party without a name
+            self.pages, doc_id=7)
+        self.assertEqual(dropped, 0)
+        self.assertEqual(verified[0]["value"]["name"], "Nimbus Analytics LLC")
+
+    def test_date_event_missing_kind_falls_back_to_purpose(self):
+        # Diagnosis #2: the model sometimes routes kind into the amount-only
+        # purpose field — recover it when purpose holds a valid kind value.
+        verified, dropped = digest.gate_facts(
+            [_raw(kind="", purpose="obligation")], self.pages, doc_id=7)
+        self.assertEqual(dropped, 0)
+        self.assertEqual(verified[0]["value"]["kind"], "obligation")
+
+    def test_date_event_missing_kind_with_invalid_purpose_still_dropped(self):
+        # The fallback only recovers a genuine kind value — junk in purpose must
+        # not manufacture a kind that was never stated.
+        verified, dropped = digest.gate_facts(
+            [_raw(kind="", purpose="banana")], self.pages, doc_id=7)
         self.assertEqual((verified, dropped), ([], 1))
 
 

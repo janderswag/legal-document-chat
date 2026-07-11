@@ -33,7 +33,7 @@ _START_LOCK = threading.Lock()
 _started = False
 
 DIGEST_MODEL = os.environ.get("LDI_CHAT_MODEL", "qwen3:14b")
-EXTRACTOR_VERSION = "digest-v2 " + DIGEST_MODEL   # bump v1 on any prompt/schema change
+EXTRACTOR_VERSION = "digest-v3 " + DIGEST_MODEL   # bump v1 on any prompt/schema change
 KEEP_ALIVE = "30m"
 NUM_CTX = 8192
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -53,18 +53,21 @@ _SYSTEM = """You extract facts from legal documents into JSON. Rules:
 - For EVERY fact, copy the source sentence fragment VERBATIM into "span" — exactly as
   written, including punctuation. A fact whose span is not an exact quote is discarded.
 - "page" is the number from the "=== page N ===" marker the span appears under.
-- fact_type "party": name, role (e.g. provider/client/plaintiff/defendant/landlord),
-  org_form (LLC/Inc/individual/...).
-- fact_type "date_event": kind is "event" (something that happened), "obligation"
-  (a duty with a due date), or "deadline" (a cutoff after which rights are lost).
-  label is a short neutral description. date_text is the verbatim date language.
-  date_kind is "explicit" (a complete calendar date is written), "relative"
-  (counted from another event), or "conditional". date_iso (YYYY-MM-DD) ONLY when
-  date_kind is "explicit" — NEVER compute, infer, or convert a relative date.
-  anchor is what a relative date counts from.
+- fact_type "party": name (REQUIRED — the party's name as written), role (e.g.
+  provider/client/plaintiff/defendant/landlord), org_form (LLC/Inc/individual/...).
+- fact_type "date_event": kind (REQUIRED) is "event" (something that happened),
+  "obligation" (a duty with a due date), or "deadline" (a cutoff after which rights
+  are lost) — kind is its own field; never put it in purpose (purpose belongs only
+  to fact_type "amount"). label is a short neutral description. date_text is the
+  verbatim date language. date_kind is "explicit" (a complete calendar date is
+  written), "relative" (counted from another event), or "conditional". date_iso
+  (YYYY-MM-DD) ONLY when date_kind is "explicit" — NEVER compute, infer, or convert
+  a relative date. anchor is what a relative date counts from.
 - fact_type "amount": value (as written), currency, purpose.
 - fact_type "defined_term": term (the defined phrase).
 - fact_type "key_ref": ref_type (invoice/claim/case/section/...), ref_value.
+- Extract EVERY monetary value (including percentages and late-charge formulas) and
+  EVERY time period — a single sentence may contain several distinct facts.
 - Extract facts stated in the text only. Do not add, summarize, or conclude."""
 
 _FORMAT = {
@@ -182,6 +185,15 @@ def gate_facts(raw_facts, group_pages, doc_id):
     for raw in raw_facts:
         ftype = raw.get("fact_type")
         span = (raw.get("span") or "").strip()
+        # Deterministic fallbacks for two observed model routing errors — both only
+        # borrow content the fact already carries (the span itself, or its own
+        # purpose field), so they cannot smuggle in unverified content: the span
+        # gate below still must locate it like any other fact.
+        if ftype == "party" and not (raw.get("name") or "").strip():
+            raw["name"] = span                      # span is mechanically verified below
+        if ftype == "date_event" and not (raw.get("kind") or "").strip() \
+                and (raw.get("purpose") or "").strip() in ("event", "obligation", "deadline"):
+            raw["kind"] = raw["purpose"]            # model routes kind into the amount-only field
         if ftype not in _REQUIRED or not span or \
                 any(not (raw.get(k) or "").strip() for k in _REQUIRED[ftype]):
             dropped += 1
