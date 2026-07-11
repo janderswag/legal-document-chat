@@ -3,9 +3,52 @@
 > Single source of truth for "where are we right now." Update this after every working session.
 > Read at the start of each session alongside `CLAUDE.md`.
 
-_Last updated: 2026-07-10 (overnight session)_
+_Last updated: 2026-07-10 (evening session)_
 
 ## Status
+
+**2026-07-10 evening — MATTER DIGEST (M-2 keystone) BUILT AND GATED on branch
+`feature/matter-digest` — NOT yet merged; owner actions at the end of this entry.**
+The next-cycle plan's #1 item is implemented end-to-end: at ingest, a background pass
+extracts span-verified facts (parties, dated items incl. deadlines, amounts, defined
+terms, key refs) per document into `matter_facts`, mechanically gated by the existing
+D-19 verifier normalization (`verifier.locate_span` — the LLM proposes, the check
+disposes; a failed span is dropped and counted, never stored). Attorney judgment lives
+in a separate `fact_review` table keyed by content hash (survives re-extraction);
+**docuchat never computes a deadline date** — relative deadlines show source language +
+an empty date field the attorney fills (owner-chosen design, spec:
+docs/superpowers/specs/2026-07-10-matter-digest-design.md). The matter page now opens
+overview-first (deadlines with confirm/dismiss, timeline, parties & amounts, collapsed
+key terms — every row cited with click-through to the highlighted PDF span); digest
+extraction runs on its own background queue (never delays time-to-searchable, yields
+to chat) with a one-shot startup backfill; kill switch `LDI_MATTER_DIGEST=0`.
+**GATES PASSED:** (1) full golden run on the branch: **63/63 present + 9/9 not-found +
+0 rejected claims** (eval/results/run-matter-digest-gate.jsonl; answer path verified
+byte-identical from the golden-run commit to HEAD — the fencing test pins that
+answering/verifier/retrieval import nothing from the digest). (2) **G-DIG extraction
+recall (new gate class): PASS at extractor digest-v4** — parties 8/8 (100%), amounts
+9/9 (100%), date_events 18/21 (86%) vs targets 90/85/85, **0 spans dropped at the
+mechanical gate**, against a hand-labeled 38-fact inventory over 4 corpus docs
+(eval/digest_inventory.json + report). Getting there took four extractor iterations
+worth knowing about: v1 groups blew the constrained-decode timeout (fix: 2-page/3000-
+char groups + 600s cap + num_predict guard so stuck decodes terminate); v2 exposed that
+the model routes party names/date kinds into wrong JSON fields (fix: deterministic
+gate-side fallbacks using only verified content) and skips secondary amounts; v3's
+"extract EVERY" prompt caused key_ref over-extraction spirals on definition-dense
+pages (fix: key_ref bounded to identifiers + per-page fallback ladder so one bad group
+can't blank a doc). Process: 8-task subagent plan, per-task adversarial reviews, and a
+whole-branch final review that caught two Criticals pre-merge (Ollama outage would
+have stamped permanent empty digests; the hub's 2s poll wiped the attorney's date
+entry mid-typing) — both fixed + regression-tested. 50 digest tests green; pre-existing
+env-dependent suite failures confirmed unchanged via stash-diff. **⚠️ OWNER ACTIONS:**
+(1) packaged-app WKWebView smoke before release — specifically: open a matter, type a
+deadline date, Confirm, watch the row flip to "confirmed by you" (WKWebView focus
+behavior is exactly where this feature could differ from browser QA); (2) merge
+decision on `feature/matter-digest`; (3) follow-up ticket: the SAME apostrophe-in-href
+breakout we fixed in the new overview exists PRE-EXISTING in injectChips/
+renderAnswerHtml (app.js ~1140-1160) — one small fix + test, separate diff; (4) value-
+correctness spot grade running, lands at eval/digest_spot_grade_v4.md; (5) STILL no
+Time Machine backup.**
 
 **2026-07-10 overnight — v0.3.2 RELEASED (uploads fix + self-healing startup). Keychain
 incident RESOLVED. Owner action list at the very bottom.** Owner's fresh v0.3.1 download
