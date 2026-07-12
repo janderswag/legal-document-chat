@@ -118,6 +118,40 @@ h1 em{font-weight:500}
 /* live animated demo embed */
 .screen-demo{display:block;width:100%;aspect-ratio:1120/700;border:0;background:var(--paper-2)}
 
+/* firms — a slow river of practice logos under the demo. Full-bleed strip,
+   masked banks so marks surface and dissolve at the edges; the current pauses
+   under the cursor and each logo lifts back into its brand color on hover. */
+.firms{max-width:none;padding:72px 0 0;overflow:hidden}
+.firms-kicker{display:block;text-align:center;margin:0 0 34px;padding:0 28px}
+.firm-river{
+  --bank:clamp(48px,12vw,170px);
+  overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 var(--bank),#000 calc(100% - var(--bank)),transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 var(--bank),#000 calc(100% - var(--bank)),transparent);
+}
+.firm-track{display:flex;width:max-content;animation:firm-drift 80s linear infinite}
+.firm-river:hover .firm-track{animation-play-state:paused}
+.firm-set{display:flex;align-items:center;gap:clamp(48px,6vw,84px);padding:14px 0;
+  padding-right:clamp(48px,6vw,84px)}
+.firm-set img{height:34px;width:auto;flex:none;
+  filter:saturate(0) opacity(.5);
+  transition:filter .45s ease,translate .45s ease}
+.firm-set img:hover{filter:saturate(1) opacity(1)}
+/* the meander: alternating marks ride slightly different lines, like a current */
+.firm-set img:nth-child(odd){animation:firm-bob 9s ease-in-out infinite}
+.firm-set img:nth-child(even){animation:firm-bob 9s ease-in-out -4.5s infinite}
+@keyframes firm-drift{to{transform:translateX(-50%)}}
+@keyframes firm-bob{0%,100%{translate:0 3px}50%{translate:0 -3px}}
+@media (prefers-reduced-motion:reduce){
+  .firm-track{animation:none}
+  .firm-set img{animation:none}
+}
+@media (max-width:560px){
+  .firms{padding-top:56px}
+  .firms-kicker{font-size:11px;letter-spacing:.16em}
+  .firm-set img{height:28px}
+}
+
 /* setup — two columns: intro + a card diagram of the local stack */
 .setup{padding:104px 28px 36px;display:grid;grid-template-columns:.84fr 1.16fr;gap:54px;align-items:stretch;max-width:var(--maxw)}
 .setup-grid{display:flex;flex-direction:column}
