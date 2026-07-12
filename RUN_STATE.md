@@ -3,12 +3,12 @@
 > Single source of truth for "where are we right now." Update this after every working session.
 > Read at the start of each session alongside `CLAUDE.md`.
 
-_Last updated: 2026-07-12 (adoption-tips sprint: v0.5.1 + v0.6.0 staged)_
+_Last updated: 2026-07-12 (adoption-tips sprint: v0.5.1 + v0.6.0 PUBLISHED)_
 
 ## Status
 
-**2026-07-12 (overnight autonomous sprint) — v0.5.1 + v0.6.0 BUILT AND STAGED AS
-DRAFTS (owner publishes): the adoption-tips plan
+**2026-07-12 (overnight autonomous sprint) — v0.5.1 + v0.6.0 PUBLISHED (owner
+approved next morning; v0.6.0 is Latest, download URL verified 200): the adoption-tips plan
 (docs/superpowers/plans/2026-07-12-adoption-tips.md) executed end to end, all 10
 tasks, from the 2026-07-11 adoption-verdict council's three tips-my-yes items.**
 
