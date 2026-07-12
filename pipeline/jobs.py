@@ -193,8 +193,10 @@ def _run_one(job_id, db_path):
         return
     except Exception as e:  # a tenant bug must never kill the worker loop
         with _lock:
+            # the MESSAGE reaches the UI too: "ValueError" alone told an
+            # attorney nothing when a scoped review hit an unindexed document
             _finish(job_id, db_path, "error", error=f"{type(e).__name__}: {e}",
-                    event=("error", {"detail": f"{type(e).__name__}"}))
+                    event=("error", {"detail": f"{type(e).__name__}: {e}"}))
         return
     with _lock:
         _finish(job_id, db_path, "done", result=result, event=("done", result))

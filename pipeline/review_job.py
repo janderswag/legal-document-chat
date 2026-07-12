@@ -88,22 +88,36 @@ def run_review(ctx):
     # each candidate document until found or exhausted. A row upgrades to found
     # (span-verified citation) or earns the honest per-document claim. Single-
     # document reviews are already retrieval-scoped (D3) — no second pass.
+    verify_stopped = None
     if doc_id is None:
         missing = [(i, r) for i, r in enumerate(results)
                    if r["status"] == "potentially_missing"]
         docs = catalog.list_documents(matter)
         for n, (idx, row) in enumerate(missing, 1):
+            # the base review is COMPLETE at this point — a cancel or transient
+            # failure during the (long) verify tail must never discard it; the
+            # run persists with whatever rows were upgraded so far, honestly
+            # marked (un-upgraded rows keep their weaker matter-wide language)
             if ctx.cancelled():
-                raise jobs.JobCancelled()
+                verify_stopped = "cancelled"
+                break
             # progress first: a row's fan-out is up to N serial model calls,
             # and the UI must not keep claiming "Checking clause M of M"
             ctx.emit("verify", {"n": n, "of": len(missing)})
+            try:
+                upgrade = _verify_absence(ctx, matter, row, docs)
+            except jobs.JobCancelled:
+                verify_stopped = "cancelled"
+                break
+            except Exception as e:                      # noqa: BLE001
+                verify_stopped = f"{type(e).__name__}: {e}"
+                break
             # NEVER mutate the emitted row dict: jobs._emit holds event dicts
             # by reference, so in-place upgrades would retroactively rewrite
             # the persisted "clause" event history (replay consistency) and
             # race a reconnecting client's mid-replay serialization
             upgraded = dict(row)
-            upgraded.update(_verify_absence(ctx, matter, row, docs))
+            upgraded.update(upgrade)
             results[idx] = upgraded
             ctx.emit("verify", {"row": upgraded, "n": n, "of": len(missing)})
 
@@ -111,13 +125,16 @@ def run_review(ctx):
     summary["verified_absences"] = sum(
         1 for r in results if r.get("verified_scope") == "matter_documents")
 
-    return {
+    result = {
         "matter": matter, "doc_id": doc_id, "doc_types": doc_types,
         "results": results, "summary": summary,
         "docs_key": started_docs_key,
         "taxonomy_version": clauses.taxonomy_version(),
         "reviewed": catalog._now(),
     }
+    if verify_stopped:
+        result["verify_stopped"] = verify_stopped
+    return result
 
 
 def _verify_absence(ctx, matter, row, docs, top_k=5):

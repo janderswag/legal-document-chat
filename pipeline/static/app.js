@@ -2681,6 +2681,7 @@
   function buildReviewSkeleton(meta) {
     reviewJob.plan = meta.clauses || [];
     reviewJob.filled = 0;
+    reviewJob.verifiedRows = false;
     reviewJob.tally = { found: 0, potentially_missing: 0, not_confirmed: 0 };
     var out = document.getElementById("clause-results");
     if (!out) return;
@@ -2735,7 +2736,15 @@
   }
 
   function reviewCaveat(run) {
-    return REVIEW_CAVEAT + (runHasVerifiedRows(run) ? " " + VERIFY_CAVEAT : "");
+    var caveat = REVIEW_CAVEAT;
+    // a single-document run checked THAT document's passages, and says so (D3)
+    if (run && run.doc_id) {
+      caveat = caveat.replace("the matter's most relevant passages",
+                              "this document's most relevant passages");
+    }
+    // mid-run (run == null): the verify handler tracks whether upgrades landed
+    var verified = run ? runHasVerifiedRows(run) : !!reviewJob.verifiedRows;
+    return caveat + (verified ? " " + VERIFY_CAVEAT : "");
   }
 
   function reviewFootHtml(run) {
@@ -2816,7 +2825,7 @@
             // D5: a formerly-missing row re-checked document by document —
             // a progress-only event first, then the upgraded row (flipped to
             // found with a citation, or verified absent)
-            if (msg.data.row) upgradeReviewRow(msg.data.row);
+            if (msg.data.row) { reviewJob.verifiedRows = true; upgradeReviewRow(msg.data.row); }
             reviewStatus("<span class='muted'>Verifying absences in each document (" +
               msg.data.n + " of " + msg.data.of + ")&hellip;</span>");
           }
@@ -3084,12 +3093,15 @@
   }
 
   function gridToCsv() {
+    var CSV_STATUS = { found: "found", potentially_missing: "not located",
+                       not_confirmed: "not confirmed" };
     var rows = [["Document", "Clause", "Status", "Check scope", "Value", "Citation"]];
     gridData.docs.forEach(function (d) {
       gridData.columns.forEach(function (col) {
         var cell = gridData.cells[gridCellId(d.doc_id, col.id)] || {};
         var c = (cell.citations || [])[0];
-        rows.push([d.filename, col.name || col.id, cell.status || "",
+        rows.push([d.filename, col.name || col.id,
+          CSV_STATUS[cell.status] || cell.status || "",
           // D4 honesty: a document-verified check is a stronger claim than the
           // matter-wide pass, and the export must preserve the difference
           cell.verified_scope === "document" ? "this document, checked individually"

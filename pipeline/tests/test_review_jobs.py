@@ -350,6 +350,28 @@ class TestAbsenceVerification(unittest.TestCase):
                           row["value"])
             self.assertIn("1 could not be checked", row["value"])
 
+    def test_cancel_during_verify_tail_keeps_the_complete_base_review(self):
+        # The base review is COMPLETE before the verify tail starts; a cancel
+        # (or transient failure) there must persist the run, honestly marked,
+        # instead of discarding finished work.
+        state = {"job_id": None}
+
+        def fake(q, matter=None, top_k=5, db_path=None, source_filename=None):
+            if source_filename is not None and state["job_id"]:
+                jobs.cancel(state["job_id"])
+            from answering import REFUSAL
+            return {"answer_text": REFUSAL, "citations": [], "rejected_claims": [],
+                    "grounding_chunks": []}
+        clauses.answer = fake
+        r = client.post("/clauses/review-jobs", json={"matter": "verify-matter"})
+        state["job_id"] = r.json()["id"]
+        self.assertTrue(jobs.wait(state["job_id"], timeout=30))
+        ev = parse_sse(client.get(f"/jobs/{state['job_id']}/events").text)
+        done = [d for n, d in ev if n == "done"]
+        self.assertTrue(done, "cancel in the verify tail discarded the review")
+        self.assertEqual(done[0]["verify_stopped"], "cancelled")
+        self.assertEqual(len(done[0]["results"]), len(clauses.load_taxonomy()))
+
     def test_single_document_review_runs_no_absence_pass(self):
         # doc_id reviews are already retrieval-scoped (D3); no second pass
         calls = []
