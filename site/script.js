@@ -83,11 +83,14 @@
           cform.reset();
           status.className = "contact-status small ok";
           status.textContent = "Sent. I'll write back to " + email + ".";
+          // Never send the visitor's message or address to analytics; just that it worked.
+          if (window.dcTrack) window.dcTrack("contact_submitted", { has_firm: !!firm });
         })
         .catch(function () {
           status.className = "contact-status small err";
           status.innerHTML = 'That did not go through. Please email '
             + '<a href="mailto:jacob.mm.anderson@gmail.com">jacob.mm.anderson@gmail.com</a> directly.';
+          if (window.dcTrack) window.dcTrack("contact_failed", {});
         })
         .finally(function () { btn.disabled = false; });
     });
